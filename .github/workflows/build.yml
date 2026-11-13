@@ -22,6 +22,12 @@ jobs:
         run: ./dist/itch-deck --selftest
       - uses: actions/upload-artifact@v4
         with: { name: itch-deck, path: dist/itch-deck }
-      - if: startsWith(github.ref, 'refs/tags/')
+      # Release on every main push, tagged with VERSION from app.py (bump it to publish a new one)
+      - id: ver
+        run: echo "v=$(grep -oP 'VERSION = "\K[^"]+' itch_deck/app.py)" >> "$GITHUB_OUTPUT"
+      - if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
-        with: { files: dist/itch-deck }
+        with:
+          tag_name: v${{ steps.ver.outputs.v }}
+          target_commitish: ${{ github.sha }}
+          files: dist/itch-deck
