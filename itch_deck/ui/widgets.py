@@ -709,6 +709,7 @@ def rows(t, s, rect, items, focus, row_h=None, key="rows"):
             tag(t, s, value, r.right - pad, r.centery, kind="accent", anchor="midright")
         elif value:
             text(t, s, value, r.right - pad, r.centery, t.f_body, color=t.dim, anchor="midright")
-        if i != focus and i < len(items) - 1:
-            pg.draw.line(s, t.panel, (r.x + pad, r.bottom), (r.right - pad, r.bottom))
+        if i < len(items) - 1 and focus not in (i, i + 1):   # divider, not next to the lit row
+            ly = r.bottom + t.u // 4
+            pg.draw.line(s, t.line, (r.x + pad, ly), (r.right - pad, ly))
         y += row_h + t.u // 2

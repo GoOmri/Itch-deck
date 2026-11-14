@@ -27,7 +27,7 @@ def load_real(root, pick=None):
         g = next(x for x in games if pick.lower() in (x["id"], x["title"].lower()))
     else:
         ok = [x for x in games if x.get("screens", 0) >= 3 and x.get("description")
-              and x["platforms"] & {"linux", "windows"}]
+              and x.get("comments") and x["platforms"] & {"linux", "windows"}]  # every state has content
         g = random.choice(ok)
     print(f"real data: {len(games)} games, game page = {g['title']} ({g['id']})")
     return games, g
