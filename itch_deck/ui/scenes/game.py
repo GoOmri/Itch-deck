@@ -111,6 +111,7 @@ class Game(Scene):
                g.get("cover_file"), self.section, self.focus, self.shot, bool(self.overlay),
                self.offline, self.phase, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
+               W.frame_tick() if self.phase in ("extract", "installing", "proton") else 0,
                getattr(self, "_end", 0))
         if getattr(self, "_page_key", None) != key:   # re-layout only when something changed
             need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)

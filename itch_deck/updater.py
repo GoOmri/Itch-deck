@@ -111,5 +111,6 @@ class Updater:
         """Replace this process with the new binary (Steam keeps tracking the same PID)."""
         log.info("restarting into v%s", self.new_version)
         pg.quit()
-        env = dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT="1")  # new onefile unpacks fresh
+        from .runner import child_env           # don't hand this copy's libs to the next one
+        env = dict(child_env(), PYINSTALLER_RESET_ENVIRONMENT="1")  # new onefile unpacks fresh
         os.execve(str(self.exe), [str(self.exe), *sys.argv[1:]], env)

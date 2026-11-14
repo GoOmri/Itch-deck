@@ -38,7 +38,7 @@ class Library(Scene):
         if self.syncing == "first":
             return [("B", "Quit")]
         return [("MENU", "Settings"), ("Y", "Refresh"), ("L1", ""), ("R1", "Tabs"), ("A", "Open"),
-                ("B", "Quit")]
+                ("B", "All games" if self.filt == "installed" else "Quit")]
 
     def draw_page(self, s):
         t = self.t

@@ -21,17 +21,24 @@ def stop_child():
         p.terminate()
 
 
-def child_env():
+def _no_bundle(value):
+    """Drop every PyInstaller unpack dir (/tmp/_MEIxxxx) from a path list. After an in-app
+    update the *_ORIG value can hold the previous copy's dir, so filter both."""
+    keep = [p for p in (value or "").split(":") if p and "/_MEI" not in p]
+    return ":".join(keep)
+
+
+def child_env(base=None):
     """Our environment minus what PyInstaller adds: its LD_LIBRARY_PATH points at our bundled
-    SDL/libs, which would break games that ship their own."""
-    env = dict(os.environ)
-    if getattr(sys, "frozen", False):
-        for var in ("LD_LIBRARY_PATH", "LD_PRELOAD"):
-            orig = env.pop(var + "_ORIG", None)
-            if orig is not None:
-                env[var] = orig
-            elif var == "LD_LIBRARY_PATH":
-                env.pop(var, None)
+    SDL/libstdc++/libssl, which breaks games (Figment crashed in Vulkan init with them)."""
+    env = dict(os.environ if base is None else base)
+    for var in ("LD_LIBRARY_PATH", "LD_PRELOAD"):
+        orig = env.pop(var + "_ORIG", None)
+        val = _no_bundle(orig if orig is not None else env.get(var))
+        if val:
+            env[var] = val
+        else:
+            env.pop(var, None)
     return env
 
 

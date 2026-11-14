@@ -16,7 +16,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Choosing a build comes in a later update."
@@ -261,6 +261,9 @@ class App:
         sc = self.scene
         if act == A and sc.shown:
             self.go_game(sc.shown[sc.focus])
+        elif act == B and sc.filt == "installed":   # Installed tab: B goes back to All
+            sc.handle(X)
+            self.filt = sc.filt
         elif act == B:
             sc.overlay = QUIT_DLG
         elif act == Y:

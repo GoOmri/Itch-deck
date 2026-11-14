@@ -56,7 +56,20 @@ v0.3.1: own SIGTERM/SIGHUP/SIGINT handler installed before pygame.init + SDL_NO_
   os._exit(0). Verified: SIGTERM exits source + frozen binary, no leftover process. Spinner/ring
   now supersampled 4x (widgets._arc, cached); tile ring spins while unpacking / 0%.
   "Cancel install" button -> "Cancel". Crash toast no longer says "Try Change build" (M5).
-Next: fix Figment from its log, retest 5, 6, 8; then M4 (umu + GE-Proton).
+v0.3.1 Deck test 14 Nov: quit mid-download ✓ (Steam button + our Quit; log shows signal 2/15),
+  resume ✓, Bleed 2 (bare -bin installer upload, exe data/Bleed2.bin.x86_64) installs, plays with
+  pad, returns to game page ✓. Figment: SIGABRT in vkCreateInstance (gamescope WSI layer assert)
+  with /tmp/_MEI libs loaded -> cause: after the in-app update restart, LD_LIBRARY_PATH_ORIG held
+  the OLD copy's _MEI dir. ✗ pad connected after launch did nothing (no "pad added" line).
+v0.3.2: runner.child_env strips every /_MEI entry (also *_ORIG), updater execve uses it too;
+  verified frozen with a stale _MEI in env. Input: JOYDEVICEADDED too, _add dedupes by instance id
+  and logs failures, rescan() every 2 s. Indeterminate bar glides (ping-pong) and the game page
+  re-renders per frame while extracting. Installed tab: B -> All (hint "All games").
+  If Figment still crashes after a FRESH launch from the tile: try Unity "-force-glcore" (M5 per-game
+  launch options), since Bleed 2 (GL) works.
+Design pass (own session, Omri 14 Nov): one consistent graphic language — e.g. Settings Update
+  button is a pill, should match the standard button. Collect items here until then.
+Next: Deck retest v0.3.2 (Figment after fresh launch, hotplug pad, unpack animation), then M4.
 
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,

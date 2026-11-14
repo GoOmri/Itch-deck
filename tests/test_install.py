@@ -215,3 +215,13 @@ def test_runner_env_and_crash():
     from itch_deck import runner
     assert runner.crashed(1, 2) and runner.crashed(None, 0) and not runner.crashed(0, 600)
     assert not runner.crashed(1, 600)
+
+
+def test_child_env_drops_bundle_libs(monkeypatch):
+    from itch_deck import runner
+    env = {"LD_LIBRARY_PATH": "/tmp/_MEInew", "LD_LIBRARY_PATH_ORIG": "/tmp/_MEIold:/usr/lib/x",
+           "LD_PRELOAD": "/s/gameoverlayrenderer.so", "HOME": "/h"}
+    out = runner.child_env(env)
+    assert out["LD_LIBRARY_PATH"] == "/usr/lib/x" and "LD_LIBRARY_PATH_ORIG" not in out
+    assert out["LD_PRELOAD"] == "/s/gameoverlayrenderer.so"     # Steam overlay stays
+    assert "LD_LIBRARY_PATH" not in runner.child_env({"LD_LIBRARY_PATH": "/tmp/_MEIx"})

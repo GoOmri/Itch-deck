@@ -319,6 +319,12 @@ def _arc(r, width, start, sweep, color, track, disc=None):
     return img
 
 
+def frame_tick():
+    """Changes every frame in the live app: put it in a cache key to keep something animated."""
+    import time
+    return int(time.monotonic() * 60) if LIVE else 0
+
+
 def _turn():
     import time
     return time.monotonic() * 1.2 if LIVE else 0.0
@@ -339,7 +345,10 @@ def spinner(t, s, center, r, phase=0.0, width=None):
 
 
 def progress(t, s, rect, frac=None, phase=0.3):
-    """frac=None draws an indeterminate (moving) bar."""
+    """frac=None draws an indeterminate bar that glides back and forth (live app)."""
+    if frac is None and LIVE:
+        x = _turn() * 0.5 % 2
+        phase = 0.5 - 0.5 * math.cos(math.pi * x)         # eased ping-pong 0..1..0
     pg.draw.rect(s, t.panel_hi, rect, border_radius=rect.h // 2)
     if frac is None:
         seg = rect.w // 4

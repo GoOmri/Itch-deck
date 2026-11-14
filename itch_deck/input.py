@@ -43,6 +43,9 @@ class Input:
 
     def _add(self, index):
         try:
+            iid = self.pg.joystick.Joystick(index).get_instance_id()
+            if iid in self.pads:
+                return
             if self.ctl.is_controller(index):
                 c = self.ctl.Controller(index)
                 self.pads[c.id] = c
@@ -52,8 +55,19 @@ class Input:
                 except Exception:  # noqa: BLE001
                     pass
                 log.info("pad added: %r guid=%s", c.name, guid)
+            else:
+                log.info("joystick %d is not a game controller, ignored", index)
+        except Exception as e:  # noqa: BLE001
+            log.warning("pad %d could not be opened: %s", index, e)
+
+    def rescan(self):
+        """Backstop for missed hotplug events: open any pad we don't have yet."""
+        try:
+            n = self.pg.joystick.get_count()
         except Exception:  # noqa: BLE001
-            pass
+            return
+        for i in range(n):
+            self._add(i)
 
     def pad_names(self):
         return [c.name for c in self.pads.values()]
@@ -114,7 +128,7 @@ class Input:
                 a = self._trigger(e)
                 if a:
                     out.append(a)
-            elif e.type == pg.CONTROLLERDEVICEADDED:
+            elif e.type in (pg.CONTROLLERDEVICEADDED, pg.JOYDEVICEADDED):
                 self._add(e.device_index)
             elif e.type == pg.CONTROLLERDEVICEREMOVED:
                 self.pads.pop(e.instance_id, None)
@@ -122,6 +136,10 @@ class Input:
                 out.append(self._press(self.btnmap[e.button]))
             elif e.type == pg.CONTROLLERBUTTONUP and self.btnmap.get(e.button) == self.btn_dir:
                 self.btn_dir = None
+        now = pg.time.get_ticks()
+        if now >= getattr(self, "next_scan", 0):
+            self.next_scan = now + 2000
+            self.rescan()
         out += self._stick()
         if self.page_held and self.pg.time.get_ticks() >= self.page_next:
             self.page_next = self.pg.time.get_ticks() + FAST_MS[1]
