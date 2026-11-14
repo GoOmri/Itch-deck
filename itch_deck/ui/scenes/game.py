@@ -148,10 +148,11 @@ class Game(Scene):
         g = self.g
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
                g.get("controls_label"),
-               g.get("cover_file"), self.section, self.focus, self.shot, bool(self.overlay),
+               g.get("cover_file"), self.section, self.shot,   # focus: buttons are live bool(self.overlay),
                self.offline, self.card_out, self.phase, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
-               W.frame_tick() if W.animating() else 0,   # redraw only while something moves
+               # buttons are drawn live on top; only the screenshot strip animates inside the page
+               W.frame_tick() if W.animating() and self.section == "shots" else 0,
                getattr(self, "_end", 0))
         if getattr(self, "_page_key", None) != key:   # re-layout only when something changed
             self._live_bar = None
@@ -172,6 +173,10 @@ class Game(Scene):
         self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll), back=0)   # scroll: no bounce
         self._hero(s)                            # static: stays put while the page scrolls
         s.blit(canvas, (0, -int(self._sy[0])))
+        if getattr(self, "_buttons", None):      # focus fade: only these buttons, every frame
+            bx, by, items = self._buttons
+            on = self.section == "actions" and not self.overlay
+            W.button_row(t, s, bx, by - int(self._sy[0]), items, self.focus if on and items else None)
         if self._live_bar:                       # indeterminate bar: cheap per-frame overlay
             W.progress(t, s, self._live_bar.move(0, -int(self._sy[0])), None, phase=0.35)
 
@@ -213,8 +218,9 @@ class Game(Scene):
             y = max(y, cover_r.bottom - t.btn_h)
         acts = self.actions()                    # one row; LEFT/RIGHT moves focus
         on = self.section == "actions" and not self.overlay
-        rects = W.button_row(t, s, x, y, [(lb, ic, en, lb in MAIN_ACTIONS) for lb, ic, en in acts],
-                             self.focus if on and acts else None)
+        items = [(lb, ic, en, lb in MAIN_ACTIONS) for lb, ic, en in acts]
+        rects = W.button_row(t, s, x, y, items, self.focus if on and acts else None)
+        self._buttons = (x, y, items)            # redrawn live over the cached page (cheap focus)
         if self.phase and self.playable and rects:      # progress sits next to Cancel
             px = rects[-1].right + t.lg
             self._progress_inline(s, px, y, min(x + maxw - px, t.read_w))

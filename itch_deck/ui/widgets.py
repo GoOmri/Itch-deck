@@ -56,8 +56,9 @@ def anim(key, target, start=None, ms=None, back=None):
         v = start * 1000.0
         cur = (v, v, v, time.monotonic())
     val = ease(cur, target * 1000.0, ms, back)
-    if val[0] != target * 1000.0:
-        _busy_until = time.monotonic() + 0.05
+    if val[0] != target * 1000.0:                 # busy until this tween has FINISHED, however
+        end = val[3] + (ms or MOTION_MS) / 1000   # slow a frame is (a heavy page re-render took
+        _busy_until = max(_busy_until, end + 0.05, time.monotonic() + 0.05)   # >50 ms: froze)
     _ANIM[key] = val
     if len(_ANIM) > 400:
         _ANIM.clear()
