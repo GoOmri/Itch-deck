@@ -211,6 +211,14 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   theme.page_ms 260, direction by depth). Busy bar bounces (BUSY_SWEEP_S 0.75) with stretch.
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 
+## Future (optional) milestones
+- M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
+  own app plays these offline), serve it from a local http.server (fixed port per game so
+  localStorage saves survive; send COOP/COEP headers for Godot 4 web), launch Chromium flatpak
+  --kiosk like a game (display handoff as runner.run). Needs Chromium from Discover once.
+  Open: games hosted only on the dev's site stay "browser only"; a quit shortcut (web games have
+  no Quit); keyboard-only games need a Steam Input layout. ~1–2 sessions + 30 min Deck.
+
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
   per-scene _h_<kind>() input. Flags: --windowed, --selftest (fake data, temp dirs), --render-mockups.
