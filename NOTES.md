@@ -231,6 +231,10 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   Library tabs All/Installed/Recent, X = Sort & filter (cfg library_sort/library_show; visible() in
   scenes/library.py is the one filter, app._shown uses it); data: stores/itch "added" (key
   created_at), paths.PLAYED + Library.mark_played (on play). Settings grouped + scrolls.
+  Genre / Average session (14 Nov): itch_page.parse_row(html, name) reads any "More information"
+  row (Inputs uses it too); page cache gets "genre" ([first]) + "session"; caches without "genre"
+  refetch once. Filters in Sort & filter (cfg library_genre / library_session). Greyed-out
+  buttons now show focus clearly (Figment "focus doesn't move" = SD-missing greyed buttons).
   Omri 14 Nov: name = "SCRiTCH" (W.APP_NAME), always purple in text (W.text_named); logo = purple letters, white i; scrolling = no overshoot (ease back=0).
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 

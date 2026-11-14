@@ -188,7 +188,8 @@ class Game(Scene):
         y = cover_r.y - W.cap_gap(t.f_h1)       # capitals of the title = cover top edge
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
         parts = ([f"by {g['author']}"] if g.get("author") else []) + \
-                ([_mb(g["size_mb"])] if g["size_mb"] else [])
+                ([_mb(g["size_mb"])] if g["size_mb"] else []) + \
+                [x for x in (g.get("genre"), g.get("session")) if x]   # itch's own Genre / session
         info = "  ·  ".join(parts) or " "                         # no author: skip the "by"
         r = W.text(t, s, info, x, y, t.f_body, color=t.dim)      # one info line, no loose tags
         if g.get("state") == "installed":                         # state = purple (rule 1)

@@ -136,13 +136,20 @@ def _paragraphs(parts):
     return out
 
 
-def parse_inputs(html):
-    """The "Inputs" row of the More information table, e.g. ["Mouse", "Touchscreen"]."""
-    m = re.search(r"<td[^>]*>\s*Inputs\s*</td>\s*<td[^>]*>(.*?)</td>", html, re.S | re.I)
+def parse_row(html, name):
+    """One row of the itch page's "More information" table as a list of values, e.g.
+    parse_row(html, "Genre") -> ["Puzzle", "Adventure"]. [] if the developer left it out."""
+    m = re.search(r"<td[^>]*>\s*" + re.escape(name) + r"\s*</td>\s*<td[^>]*>(.*?)</td>",
+                  html, re.S | re.I)
     if not m:
         return []
     text = re.sub(r"<[^>]+>", "", m.group(1))
     return [x.strip() for x in text.replace("&amp;", "&").split(",") if x.strip()]
+
+
+def parse_inputs(html):
+    """The "Inputs" row of the More information table, e.g. ["Mouse", "Touchscreen"]."""
+    return parse_row(html, "Inputs")
 
 
 def parse(html):
@@ -167,5 +174,7 @@ def parse(html):
             shots.append(u)
     return {"description": _paragraphs(p.desc_parts), "shots": shots, "comments": comments,
             "inputs": parse_inputs(html),
+            "genre": parse_row(html, "Genre")[:1],              # first genre only (filter + info)
+            "session": " ".join(parse_row(html, "Average session")),   # e.g. "About an hour"
             "comment_count": len(p.posts), "has_more": p.more_link or len(p.posts) > MAX_COMMENTS,
             "saw_comments_markup": bool(re.search(r'class="(?:[^"]* )?community_post[ "]', html))}

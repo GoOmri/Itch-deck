@@ -68,3 +68,11 @@ def test_setup_struct_and_ioctl_size():
     import struct
     assert struct.calcsize(mouse.SETUP_FMT) == 92 and mouse.UI_DEV_SETUP == 0x405C5503
     assert struct.calcsize(mouse.EVENT_FMT) == 24
+
+
+def test_parse_genre_and_session_rows():
+    html = ('<table><tr><td>Genre</td><td><a>Puzzle</a>, <a>Adventure</a></td></tr>'
+            '<tr><td>Average session</td><td>About an hour</td></tr></table>')
+    assert itch_page.parse_row(html, "Genre") == ["Puzzle", "Adventure"]
+    assert itch_page.parse_row(html, "Average session") == ["About an hour"]
+    assert itch_page.parse_row(html, "Inputs") == []
