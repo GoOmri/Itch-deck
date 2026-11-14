@@ -24,7 +24,8 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - After ANY UI change: re-render mockups (`python run.py --render-mockups DIR`) and publish them as
   `after/` to the gallery artifact https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (Omri expects it current).
 - Ask Omri before big changes.
-- A push to main = a release (CI publishes the VERSION in app.py). Omri 14 Nov: no release
+- A push to main = a release (CI publishes the VERSION in app.py). Bump VERSION for every
+  release; since v0.6.3 CI refuses to re-release an existing version (warning, no release). Omri 14 Nov: no release
   until he says, so finished work waits on its branch.
 
 ## Current milestone
@@ -371,6 +372,11 @@ v0.6.2 Deck 14 Nov: all ✓ except 5: toasts show, but the game page didn't chan
   _card_out each frame, in the page cache key): Install / Retry install greyed + info box "SD card
   missing · Insert it to install this game, or change Install location in Settings." Mockup 22b.
   VERSION still 0.6.2 on the branch: bump to 0.6.3 when releasing.
+
+v0.6.3 (Omri: finish M6 and push, 14 Nov): card-back = design-next + design's direct main pushes
+  (genre/session length, focus-freeze fix) + SD card toasts + card-out game page + M6. Note: design
+  pushed main twice at 0.6.2 without a bump, which replaced the v0.6.2 binary; CI now skips the
+  release when the tag exists. M6 DONE once the v0.6.3 Deck check passes.
 
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's

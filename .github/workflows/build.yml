@@ -31,7 +31,17 @@ jobs:
       # Release on every main push, tagged with VERSION from app.py (bump it to publish a new one)
       - id: ver
         run: echo "v=$(grep -oP 'VERSION = "\K[^"]+' itch_deck/app.py)" >> "$GITHUB_OUTPUT"
-      - if: github.ref == 'refs/heads/main'
+      # Never overwrite a published version: a push to main without a VERSION bump builds and
+      # tests as usual but releases nothing (it used to replace the binary of the same version).
+      - id: exists
+        if: github.ref == 'refs/heads/main'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          if gh release view "v${{ steps.ver.outputs.v }}" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::warning::v${{ steps.ver.outputs.v }} is already released - bump VERSION in itch_deck/app.py to publish"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+      - if: github.ref == 'refs/heads/main' && steps.exists.outputs.skip != '1'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.v }}
