@@ -30,7 +30,7 @@ v0.4.1 Deck test 14 Nov: Figment WINDOWS build (Change build -> figment-windows-
 v0.4.2 (Omri): install folder path removed from the game page (Settings still shows the root).
 M4 — DONE 14 Nov (Figment Windows build via Proton plays; quitting from the game menu returns to
   its page ✓; Steam -> Exit game closing the tile is intended, Omri confirmed).
-M5 edge cases — built 14 Nov on branch m5-edge-cases (merged to main), NOT yet released/tested.
+M5 edge cases — RELEASED v0.5.0 14 Nov (with the design-system + feel pass work), NOT yet tested on Deck.
   - SD card: config.card_missing(path) = under /run/media with no mount (never mkdir there:
     tmpfs). Install -> "SD card missing" error. Installed game whose dir is gone -> state
     "missing" (g["missing"] = "card"|"files"): tile tag, game page text, Play/Uninstall greyed
