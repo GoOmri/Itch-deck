@@ -40,11 +40,11 @@ class Game(Scene):
         if not self.playable:
             return []
         if st == "installed":
-            return [("Play", "▶", True), ("Uninstall", None, True), ("Change build", None, True)]
+            return [("Play", "play", True), ("Uninstall", None, True), ("Change build", None, True)]
         if st == "missing":            # SD card out: keep it, nothing to run or delete
             if self.g.get("missing") == "card":
-                return [("Play", "▶", False), ("Uninstall", None, False)]
-            return [("Play", "▶", False), ("Uninstall", None, True)]
+                return [("Play", "play", False), ("Uninstall", None, False)]
+            return [("Play", "play", False), ("Uninstall", None, True)]
         if st in ("downloading", "queued") or self.phase:
             return [("Cancel", None, True)]
         if st == "failed":
@@ -170,22 +170,24 @@ class Game(Scene):
             img.blit(o, (0, 0))
         s.blit(img, cover_r)
 
-        x = cover_r.right + t.u * 5
+        x = cover_r.right + t.lg
         maxw = t.w - t.m - x
         y = cover_r.y - W.cap_gap(t.f_small)    # capitals of the first line = cover top edge
-        W.text(t, s, f"itch  ·  {self.pos[0]} of {self.pos[1]}", x, y, t.f_small, color=t.dim)
-        y += t.u * 3.4
+        y = W.text(t, s, f"itch  ·  {self.pos[0]} of {self.pos[1]}", x, y, t.f_small,
+                   color=t.dim).bottom
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
-        y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim).bottom + t.u * 1.5
+        y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim).bottom + t.sm
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
-            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.u * 80)) + t.u * 1.5
+            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w)) + t.sm
 
-        px = x
+        tags = []
         if g["size_mb"]:
-            px = W.tag(t, s, _mb(g["size_mb"]), px, y).right + t.u
+            tags.append(W.tag(t, s, _mb(g["size_mb"]), x, y))
         if g.get("state") == "installed":
-            W.tag(t, s, "✓ Installed", px, y, kind="accent")
-        y += t.u * 5
+            px = tags[-1].right + t.xs if tags else x
+            tags.append(W.tag(t, s, "Installed", px, y, kind="accent", icon_name="check"))
+        if tags:
+            y = tags[-1].bottom + t.md
 
         y = self._status(s, x, y, maxw)
         if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
@@ -196,17 +198,17 @@ class Game(Scene):
             W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, enabled=en, icon=icon,
                      play=(label == "Play"),
                      focused=(self.section == "actions" and i == self.focus and not self.overlay))
-            bx += bw + t.u * 1.5
+            bx += bw + t.sm
         if self.actions():
-            y += t.btn_h + t.u * 1.5
-        return max(cover_r.bottom, y) + t.u * 5
+            y += t.btn_h + t.sm
+        return max(cover_r.bottom, y) + t.lg
 
     def _about(self, s, y):
         """Screenshots strip + description, read from the game's public itch page and cached."""
         t, g = self.t, self.g
         n = g.get("screens", 0)
         if n:
-            y = W.text(t, s, "Screenshots", t.m, y, t.f_h2).bottom + t.u * 2
+            y = W.text(t, s, "Screenshots", t.m, y, t.f_h2).bottom + t.sm
             th = int(t.u * 17)
             tw = int(th * 16 / 9)
             fits = max(1, int((t.w - 2 * t.m + t.gap) // (tw + t.gap)))
@@ -223,17 +225,17 @@ class Game(Scene):
                     W.focus_ring(t, s, r)
             if first + fits < n:  # more to the right: count on the last visible shot
                 last = pg.Rect(t.m + (fits - 1) * (tw + t.gap), y, tw, th)
-                W.tag(t, s, f"+{n - first - fits} more", last.right - t.u, last.bottom - t.u,
+                W.tag(t, s, f"+{n - first - fits} more", last.right - t.xs, last.bottom - t.xs,
                       kind="dark", anchor="bottomright")
-            y += th + t.u * 5
+            y += th + t.lg
         desc_y = y
         paras = g.get("description") or []
         if paras:
-            y = W.text(t, s, "About this game", t.m, y, t.f_h2).bottom + t.u * 2
-            w = min(t.w - 2 * t.m, t.u * 125)
+            y = W.text(t, s, "About this game", t.m, y, t.f_h2).bottom + t.sm
+            w = min(t.w - 2 * t.m, t.read_w * 1.4)   # long reading: ~95 chars per line
             for para in paras:
-                y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=(205, 205, 205)) + t.f_body.get_linesize() * 0.6
-            y = W.text(t, s, "From the game's itch.io page", t.m, y + t.u, t.f_small, color=t.dim).bottom
+                y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=t.text_c) + t.md
+            y = W.text(t, s, "From the game's itch.io page", t.m, y, t.f_small, color=t.dim).bottom
         elif not n:
             msg = ("This game's itch.io page no longer exists." if g.get("page_missing") else
                    "Loading details from itch.io…" if g.get("details_loading") or not self.offline
@@ -241,7 +243,7 @@ class Game(Scene):
                    "More details load the next time you're online." if self.offline else
                    "This game's itch page has no description.")
             y = W.text(t, s, msg, t.m, y, t.f_body, color=t.dim).bottom
-        comments_y = y + t.u * 5
+        comments_y = y + t.lg
         self._end = self._comments(s, comments_y)
         return desc_y, comments_y
 
@@ -252,20 +254,20 @@ class Game(Scene):
         if cs is None:
             return y
         total = g.get("comment_count", len(cs))
-        y = W.text(t, s, f"Comments  ·  {total}", t.m, y, t.f_h2).bottom + t.u * 2
+        y = W.text(t, s, f"Comments  ·  {total}", t.m, y, t.f_h2).bottom + t.sm
         if not cs:
             return W.text(t, s, "No comments yet.", t.m, y, t.f_body, color=t.dim).bottom
-        w = min(t.w - 2 * t.m, t.u * 125)
+        w = min(t.w - 2 * t.m, t.read_w * 1.4)
         for c in cs:
             y = self._comment(s, c, t.m, y, w)
             shown = c.get("reply_list", [])[:2]          # up to 2 replies, indented
-            ind = t.m + t.u * 5
+            ind = t.m + t.lg
             for rp in shown:
-                y = self._comment(s, rp, ind, y - t.u, w - t.u * 5, reply=True)
+                y = self._comment(s, rp, ind, y - t.xs, w - t.lg, reply=True)
             more = c.get("replies", 0) - len(shown)
             if more > 0:
-                y = W.text(t, s, f"+{more} more repl{'y' if more == 1 else 'ies'}", ind + t.u * 2.5,
-                           y - t.u * 1.5, t.f_small, color=t.dim).bottom + t.u * 2.5
+                y = W.text(t, s, f"+{more} more repl{'y' if more == 1 else 'ies'}", ind + t.sm,
+                           y - t.sm, t.f_small, color=t.dim).bottom + t.md
         if total > len(cs):
             y = W.text(t, s, f"Showing the newest {len(cs)} of {total}", t.m, y, t.f_small,
                        color=t.dim).bottom
@@ -295,7 +297,12 @@ class Game(Scene):
 
     def _status(self, s, x, y, maxw):
         t, g = self.t, self.g
-        w = min(maxw, t.u * 70)
+        w = min(maxw, t.read_w)
+
+        def note(title, body):                  # neutral status: lit title + dim line
+            y2 = W.text(t, s, title, x, y, t.f_btn).bottom
+            return W.wrap(t, s, body, x, y2, t.f_body, w, color=t.dim) + t.md
+
         if not self.playable:
             if "html" in g["platforms"]:
                 lines = ("Browser game", "Browser games can't be played from here yet. "
@@ -303,17 +310,10 @@ class Game(Scene):
             else:
                 lines = ("Not playable on the Deck", "This has no Linux or Windows download "
                          "(for example macOS-only, a soundtrack or a book).")
-            y = W.text(t, s, lines[0], x, y, t.f_h2).bottom + t.u
-            return W.wrap(t, s, lines[1], x, y, t.f_body, min(maxw, t.u * 70), color=t.dim) + t.u * 4
+            return note(*lines)
         if g.get("state") == "failed":
-            r = pg.Rect(x, y, w, t.u * 10)
-            W.panel(t, s, r, t.error_bg)
-            pg.draw.rect(s, t.error, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
-                         border_bottom_left_radius=t.radius)
-            W.text(t, s, "Couldn't install", r.x + t.u * 2.5, r.y + t.u * 1.6, t.f_btn)
-            W.text(t, s, self.fail_reason or "See the log for details.", r.x + t.u * 2.5,
-                   r.y + t.u * 5.6, t.f_small, color=t.dim, maxw=w - t.u * 4)
-            return r.bottom + t.u * 3
+            return W.notice(t, s, x, y, w, "Couldn't install",
+                            self.fail_reason or "See the log for details.").bottom + t.md
         if g.get("state") == "missing":
             if g.get("missing") == "card":
                 lines = ("SD card missing", "This game is installed on the SD card. Insert the "
@@ -321,21 +321,21 @@ class Game(Scene):
             else:
                 lines = ("Game files missing", "The install folder is gone. Uninstall removes it "
                          "from the list, then you can install it again.")
-            y = W.text(t, s, lines[0], x, y, t.f_btn).bottom + t.u
-            return W.wrap(t, s, lines[1], x, y, t.f_small, w, color=t.dim) + t.u * 3
+            return note(*lines)
         if g.get("state") == "queued":
             y = W.text(t, s, "Queued — starts after the current download", x, y, t.f_body,
                        color=t.dim).bottom
-            return y + t.u * 3
+            return y + t.md
         if not self.phase:
             return y
-        bar = pg.Rect(x, y + t.u * 4.5, w, max(6, t.u))
+        base = y + t.f_btn.get_ascent()            # label and speed share a baseline
+        bar = pg.Rect(x, y + t.f_btn.get_linesize() + t.xs, w, max(6, t.u))
         if self.phase == "download":
             p = g.get("progress", 0)
-            W.text(t, s, f"Downloading  {int(p * 100)}%", x, y, t.f_btn)
+            W.text(t, s, f"Downloading  {int(p * 100)}%", x, base, t.f_btn, anchor="baseleft")
             m, sec = divmod(int(g.get("eta_s", 0)), 60)
-            W.text(t, s, f"{g.get('speed_mbs', 0):.1f} MB/s · {m}:{sec:02d} left", bar.right, y + t.u * 0.6,
-                   t.f_small, color=t.dim, anchor="topright")
+            W.text(t, s, f"{g.get('speed_mbs', 0):.1f} MB/s · {m}:{sec:02d} left", bar.right, base,
+                   t.f_small, color=t.dim, anchor="baseright")
             W.progress(t, s, bar, p)
             sub = f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}"
         else:
@@ -349,8 +349,8 @@ class Game(Scene):
             W.text(t, s, label, x, y, t.f_btn)
             W.progress(t, s, bar, 0)          # track only; draw_page animates the segment live
             self._live_bar = bar
-        W.text(t, s, sub, x, bar.bottom + t.u * 1.2, t.f_small, color=t.dim, maxw=maxw)
-        return bar.bottom + t.u * 6
+        r = W.text(t, s, sub, x, bar.bottom + t.xs, t.f_small, color=t.dim, maxw=maxw)
+        return r.bottom + t.md
 
     def draw_overlay(self, s):
         if self.overlay[0] == "viewer":
@@ -360,15 +360,19 @@ class Game(Scene):
         t = self.t
         _, title, sub, items, focus = self.overlay
         W.shade(t, s)
-        w = min(t.w - 2 * t.m, t.u * 80)
+        w = min(t.w - 2 * t.m, t.read_w)
         row_h = int(t.u * 8.5)
-        h = t.u * 14 + len(items) * (row_h + t.u // 2) + t.u * 3
+        pad = t.lg
+        head = t.f_h2.get_linesize() + t.f_small.get_linesize() + t.md
+        h = pad * 2 + head + len(items) * (row_h + t.u // 2)
         r = pg.Rect(0, 0, w, h)
         r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
         W.panel(t, s, r)
-        W.text(t, s, title, r.x + t.u * 4, r.y + t.u * 3.5, t.f_h2)
-        W.text(t, s, sub, r.x + t.u * 4, r.y + t.u * 8, t.f_small, color=t.dim)
-        W.rows(t, s, pg.Rect(r.x + t.u * 2, r.y + t.u * 13, r.w - t.u * 4, 0), items, focus, row_h)
+        ty = W.text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom
+        W.text(t, s, sub, r.x + pad, ty, t.f_small, color=t.dim)
+        # rows sit inset by (pad - row padding) so their text lines up with the title
+        W.rows(t, s, pg.Rect(r.x + pad - t.md, r.y + pad + head, r.w - 2 * (pad - t.md), 0),
+               items, focus, row_h)
 
     def _viewer(self, s):
         """Full-screen screenshot viewer."""
@@ -389,15 +393,15 @@ class Game(Scene):
         """One comment (or an indented reply). Returns the y for the next one."""
         t = self.t
         f_name = t.f_small if reply else t.f_btn
-        r = W.text(t, s, c["author"], x + t.u * 2.5, y, f_name)
-        wx = r.right + t.u * 1.5
+        r = W.text(t, s, c["author"], x + t.sm, y, f_name)
+        wx = r.right + t.sm
         if c.get("dev"):
             wx = W.tag(t, s, "Developer", wx, r.centery, kind="accent",
-                       anchor="midleft").right + t.u * 1.5
+                       anchor="midleft").right + t.sm
         W.text(t, s, c["when"], wx, r.centery, t.f_small, color=t.dim, anchor="midleft")
-        yy = W.wrap(t, s, c["text"], x + t.u * 2.5, r.bottom + t.u * 0.3,
-                    t.f_small if reply else t.f_body, w - t.u * 2.5,
-                    color=(190, 190, 190) if reply else (205, 205, 205), max_lines=2 if reply else 3)
+        yy = W.wrap(t, s, c["text"], x + t.sm, r.bottom,
+                    t.f_small if reply else t.f_body, w - t.sm,
+                    color=t.dim if reply else t.text_c, max_lines=2 if reply else 3)
         col = t.accent if c.get("dev") else (t.panel_hi if reply else t.line)
         pg.draw.line(s, col, (x, y), (x, yy), max(2, t.u // 4))
-        return yy + t.u * 2.5
+        return yy + t.md

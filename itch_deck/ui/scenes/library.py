@@ -63,17 +63,16 @@ class Library(Scene):
 
     def _top_bar(self, s):
         t = self.t
-        cy = t.m * 0.5 + t.u * 3
-        base = int(cy + t.u * 1.2)          # everything in the top bar sits on this baseline
+        base = int(t.m + t.xs)              # everything in the top bar sits on this baseline
         r = W.wordmark(t, s, t.m, base, anchor="baseleft")
-        x = r.right + t.u * 5
+        x = r.right + t.lg
         for key, label in (("all", "All"), ("installed", "Installed")):
             on = self.filt == key
             lr = W.text(t, s, label, x, base, t.f_btn, color=t.text_c if on else t.dim,
                         anchor="baseleft")
             if on:
-                pg.draw.rect(s, t.accent, (lr.x, base + t.u * 1.2, lr.w, max(2, t.u // 3)))
-            x = lr.right + t.u * 3
+                pg.draw.rect(s, t.accent, (lr.x, base + t.xs, lr.w, max(2, t.u // 3)))
+            x = lr.right + t.md
         n = len(self.shown)
         right = t.w - t.m
         if self.offline_since:
@@ -82,37 +81,33 @@ class Library(Scene):
                     color=t.dim, anchor="baseright")
         act = self.activity or ("Refreshing library" if self.syncing == "bg" else None)
         if act:                         # background work, hidden when done
-            sep = W.text(t, s, "·", rr.x - t.u * 1.5, base, t.f_small, color=t.dim, anchor="baseright")
-            ar = W.text(t, s, act, sep.x - t.u * 1.5, base, t.f_small, color=t.dim, anchor="baseright",
+            sep = W.text(t, s, "·", rr.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright")
+            ar = W.text(t, s, act, sep.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright",
                         maxw=int(t.w * 0.38))
-            W.spinner(t, s, (int(ar.x - t.u * 2.5), int(base - W.x_mid(t.f_small))), int(t.u * 1.2), 0.15)
-            rr = pg.Rect(ar.x - t.u * 4.5, ar.y, 0, ar.h)
+            sr = int(t.u * 1.2)
+            W.spinner(t, s, (int(ar.x - t.sm - sr), int(base - W.x_mid(t.f_small))), sr, 0.15)
+            rr = pg.Rect(ar.x - t.sm - sr * 2, ar.y, 0, ar.h)
         if self.notice:                 # e.g. app update ready: purple = "happening"
-            sep = W.text(t, s, "·", rr.x - t.u * 1.5, base, t.f_small, color=t.dim, anchor="baseright")
-            W.text(t, s, self.notice, sep.x - t.u * 1.5, base, t.f_small, color=t.accent,
+            sep = W.text(t, s, "·", rr.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright")
+            W.text(t, s, self.notice, sep.x - t.sm, base, t.f_small, color=t.accent,
                    anchor="baseright", maxw=int(t.w * 0.3))
-        return int(cy + t.u * 6)
+        return int(base + t.lg)
 
     def _center_msg(self, s, y, title, sub, spinner=False, refresh=False):
         t = self.t
         cy = (y + t.h - t.hint_h) / 2
         if spinner:
-            W.spinner(t, s, (int(t.cx), int(cy - t.u * 7)), int(t.u * 3), 0.2)
-        W.text(t, s, title, t.cx, cy, t.f_h2, anchor="center")
-        W.text(t, s, sub, t.cx, cy + t.u * 4.5, t.f_body, color=t.dim, anchor="center")
-        if refresh:
-            g = W.glyph(t, s, "Y", 0, -100)  # measure
-            lbl = t.f_body.size("Refresh")[0]
-            x = t.cx - (g + t.u + lbl) / 2
-            W.glyph(t, s, "Y", x, cy + t.u * 10)
-            W.text(t, s, "Refresh", x + g + t.u, cy + t.u * 10, t.f_body, anchor="midleft")
+            W.spinner(t, s, (int(t.cx), int(cy - t.xl)), int(t.u * 3), 0.2)
+        r = W.text(t, s, title, t.cx, cy, t.f_h2, anchor="center")
+        W.text(t, s, sub, t.cx, r.bottom + t.xs, t.f_body, color=t.dim, anchor="midtop")
+        # refresh: Y is already in the footer (DESIGN rule 6), not repeated here
 
     def _grid(self, s, top):
         t = self.t
         cols = t.grid_cols
         tw = (t.w - 2 * t.m - t.gap * (cols - 1)) / cols
         th = tw * t.cover_ratio
-        row_h = th + t.u * 1.2 + t.f_small.get_height() * 2 + t.gap
+        row_h = th + t.xs + t.f_small.get_height() * 2 + t.gap
         pad = int(tw * (t.focus_scale - 1) / 2 + t.outline + 2)
         area = pg.Rect(0, top, t.w, t.h - t.hint_h - top)
         visible = max(1, int((area.h - pad) // row_h))

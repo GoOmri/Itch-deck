@@ -46,7 +46,11 @@ class Theme:
         self.w, self.h = size
         self.cx = self.w / 2
         self.u = max(8, round(self.h / 90))          # base unit (~9 px at 800p, 12 at 1080p)
+        # space: 5 steps (DESIGN.md rule 7) + the page margin. Gaps use ONLY these.
+        u = self.u
+        self.xs, self.sm, self.md, self.lg, self.xl = u, u * 2, u * 3, u * 5, u * 8
         self.m = self.u * 6                           # outer margin
+        self.read_w, self.page_w = u * 80, u * 110    # 2 measures (rule 8): reading, page column
         self.gap = self.u * 3                         # grid gap
         self.radius = self.u          # THE radius: tiles, buttons, rows, panels, screenshots
         self.tag_r = max(3, self.u // 2)  # tags: squarer than buttons on purpose

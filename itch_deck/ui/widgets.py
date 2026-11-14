@@ -320,23 +320,43 @@ def hint_bar(t, s, items):
     items: [(button, label), ...]; an empty label pairs the glyph with the next one (L1 R1)."""
     r = pg.Rect(0, t.h - t.hint_h, t.w, t.hint_h)
     pg.draw.rect(s, t.hint_bg, r)
-    cy, gap = r.centery, t.u * 0.7
+    cy, gap, sep = r.centery, t.u * 0.7, t.md      # glyph↔label (optical), between actions
     widths = []
     for btn, label in items:  # measure first, then draw from the right edge
         gw = glyph(t, pg.Surface((1, 1)), btn, 0, 0)
         lw = t.f_hint.size(label.upper())[0] if label else 0
         widths.append((gw, lw))
-    total = sum(gw + (gap + lw + t.u * 3.5 if lw else gap) for gw, lw in widths) - t.u * 3.5
+    total = sum(gw + (gap + lw + sep if lw else gap) for gw, lw in widths) - sep
     x = t.w - t.m - total
     for (btn, label), (gw, lw) in zip(items, widths):
         glyph(t, s, btn, x, cy)
         x += gw + gap
         if label:
             text(t, s, label.upper(), x, cy, t.f_hint, color=t.text_c, anchor="midleft")
-            x += lw + t.u * 3.5
+            x += lw + sep
 
 
 # --- controls ---------------------------------------------------------------
+def icon_draw(s, name, center, size, color):
+    """Drawn icons (never font characters, so they match the footer glyphs): "play", "check".
+    size = icon height in px. Returns its width."""
+    cx, cy, h = center[0], center[1], size
+    if name == "play":
+        a = h * 0.45
+        ox = cx + h * 0.05                       # nudge toward the point: optically centred
+        pts = [(ox - a, cy - h / 2), (ox - a, cy + h / 2), (ox + a, cy)]
+        pg.draw.polygon(s, color, pts)
+        pg.draw.aalines(s, color, True, pts)
+        return int(a * 2)
+    if name == "check":
+        w = max(2, round(h * 0.2))
+        pts = [(cx - h * 0.42, cy + h * 0.02), (cx - h * 0.12, cy + h * 0.32),
+               (cx + h * 0.45, cy - h * 0.32)]
+        pg.draw.lines(s, color, False, pts, w)
+        return int(h * 0.9)
+    return 0
+
+
 def focus_ring(t, s, rect):
     """Focus edge for pictures (tiles, screenshots): thin light outline, not colour."""
     pg.draw.rect(s, t.focus_line, rect.inflate(t.outline * 2, t.outline * 2), t.outline,
@@ -358,31 +378,34 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, play=False
     if p:                                           # A press: shrink 6%, spring back
         rect = rect.inflate(-rect.w * 0.06 * p, -rect.h * 0.06 * p)
     panel(t, s, rect, fill)
-    gap = t.u * 1.2
-    w = t.f_btn.size(label)[0] + ((t.f_btn.size(icon)[0] + gap) if icon else 0)
+    gap, ih = t.sm, int(t.f_btn.get_height() * 0.5)
+    w = t.f_btn.size(label)[0] + ((int(ih * 0.9) + gap) if icon else 0)
     x = rect.centerx - w / 2                       # icon + label centred as one group
     if icon:
-        x = text(t, s, icon, x, rect.centery, t.f_btn, color=col, anchor="midleft").right + gap
+        x += icon_draw(s, icon, (x + ih * 0.45, rect.centery), ih, col) + gap
     text(t, s, label, x, rect.centery, t.f_btn, color=col, anchor="midleft")
 
 
 def button_w(t, label, icon=None):
     """Natural width of a button (label + padding), at least btn_min."""
-    w = t.f_btn.size(label)[0] + (t.f_btn.size(icon)[0] + t.u * 1.2 if icon else 0)
-    return int(max(t.u * 18, w + t.u * 6))
+    w = t.f_btn.size(label)[0] + (t.f_btn.get_height() * 0.5 + t.sm if icon else 0)
+    return int(max(t.u * 18, w + t.md * 2))
 
 
 TAG_KINDS = {"neutral": ("tag_bg", "text_c"), "accent": ("accent_tint", "accent_soft"),
              "error": ("error_bg", "error_soft"), "dark": (None, "text_c")}
 
 
-def tag(t, s, label, x, y, kind="neutral", anchor="topleft"):
+def tag(t, s, label, x, y, kind="neutral", anchor="topleft", icon_name=None):
     """Info label — never pressable: squared corners, LABEL size, UPPERCASE.
     kinds: neutral (platform, size), accent (Installed, Recommended, Developer),
     error (Failed), dark (on top of images, e.g. '+2 more')."""
     fill_k, col_k = TAG_KINDS[kind]
-    img = t.f_hint.render(label.upper(), True, getattr(t, col_k))
-    r = pg.Rect(0, 0, img.get_width() + t.u * 1.6, int(t.f_hint.get_height() + t.u * 0.7))
+    col = getattr(t, col_k)
+    img = t.f_hint.render(label.upper(), True, col)
+    ih = int(t.f_hint.get_height() * 0.5)
+    iw = int(ih * 0.9) + t.xs if icon_name else 0
+    r = pg.Rect(0, 0, img.get_width() + iw + t.u * 1.6, int(t.f_hint.get_height() + t.u * 0.7))
     setattr(r, anchor, (int(x), int(y)))
     if fill_k:
         pg.draw.rect(s, getattr(t, fill_k), r, border_radius=t.tag_r)
@@ -390,7 +413,9 @@ def tag(t, s, label, x, y, kind="neutral", anchor="topleft"):
         chip = pg.Surface(r.size, pg.SRCALPHA)
         pg.draw.rect(chip, (0, 0, 0, t.chip_a + 40), chip.get_rect(), border_radius=t.tag_r)
         s.blit(chip, r)
-    s.blit(img, img.get_rect(center=r.center))
+    if icon_name:
+        icon_draw(s, icon_name, (r.x + t.u * 0.8 + ih * 0.45, r.centery), ih, col)
+    s.blit(img, img.get_rect(center=(r.centerx + iw // 2, r.centery)))
     return r
 
 
@@ -501,7 +526,7 @@ def tile(t, s, game, rect, focused=False):
     if k > 0.5:
         focus_ring(t, s, r)
     _badges(t, s, game, r, playable)
-    ty = r.bottom + t.u * 1.2
+    ty = r.bottom + t.xs
     col = t.text_c if (focused or playable) else t.faint
     text(t, s, game["title"], rect.x, ty, t.f_small, color=col, maxw=rect.w)
     if not playable:                  # info tag on the art, like the other tile badges
@@ -516,7 +541,7 @@ def _badges(t, s, game, r, playable):
     if st == "installed":
         c = (r.right - pad - t.u * 1.6, r.y + pad + t.u * 1.6)
         pg.draw.circle(s, t.accent, c, t.u * 1.6)
-        text(t, s, "✓", c[0], c[1] + 1, t.f_glyph, color=t.on_accent, anchor="center")
+        icon_draw(s, "check", c, int(t.u * 1.4), t.on_accent)
     elif st == "downloading":
         ring(t, s, (int(r.right - pad - t.u * 1.6), int(r.y + pad + t.u * 1.6)), int(t.u * 1.6),
              game.get("progress", 0),
@@ -543,57 +568,72 @@ def offline_mark(t, s, right, cy, since):
     pg.draw.rect(s, c, (int(cx - u * 0.6), int(cy + u * 0.1), int(u * 1.5), int(u * 0.75)))
     pg.draw.line(s, t.bg, (cx - u * 1.6, cy - u * 1.3), (cx + u * 1.7, cy + u * 1.4), max(4, u // 2))
     pg.draw.line(s, c, (cx - u * 1.5, cy - u * 1.2), (cx + u * 1.6, cy + u * 1.3), max(2, u // 4))
-    return r.x - t.u * 4.5
+    return r.x - t.u * 2.6 - t.u * 1.7 - t.sm   # left of the cloud, then a gap
 
 
 # --- overlays ---------------------------------------------------------------
-def modal(t, s, title, body, hints, width_u=64):
+def modal(t, s, title, body):
+    """Yes/no dialog: title + body only. Its actions are in the footer (DESIGN rule 6)."""
     shade(t, s)
     lines = body if isinstance(body, list) else [body]
-    h = t.u * 10 + len(lines) * t.f_body.get_linesize() + t.u * 8
-    need = max([t.f_h2.size(title)[0]] + [t.f_body.size(ln)[0] for ln in lines]) + t.u * 8
-    r = pg.Rect(0, 0, min(t.w - 2 * t.m, max(t.u * width_u, need)), h)
-    r.center = (int(t.cx), int(t.h / 2))
+    pad = t.lg
+    h = pad * 2 + t.f_h2.get_linesize() + t.sm + len(lines) * t.f_body.get_linesize()
+    need = max([t.f_h2.size(title)[0]] + [t.f_body.size(ln)[0] for ln in lines]) + pad * 2
+    r = pg.Rect(0, 0, min(t.w - 2 * t.m, max(t.read_w * 0.8, need)), h)
+    r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
     panel(t, s, r)
-    y = r.y + t.u * 4
-    y = text(t, s, title, r.x + t.u * 4, y, t.f_h2).bottom + t.u * 2
+    y = text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom + t.sm
     for ln in lines:
-        y = text(t, s, ln, r.x + t.u * 4, y, t.f_body, color=t.dim).bottom
-    x, cy = r.x + t.u * 4, r.bottom - t.u * 4
-    for btn, label in hints:
-        x += glyph(t, s, btn, x, cy) + t.u
-        x = text(t, s, label, x, cy, t.f_body, anchor="midleft").right + t.u * 4
+        y = text(t, s, ln, r.x + pad, y, t.f_body, color=t.dim).bottom
     return r
 
 
 def toast(t, s, msg, error=False):
     k = anim(("toast", msg), 1.0, start=0.0, speed=16.0)   # slides up + fades in once
     img = t.f_body.render(msg, True, t.text_c)
-    r = pg.Rect(0, 0, img.get_width() + t.u * 6, img.get_height() + t.u * 3)
+    dot = t.u * 0.7 if error else 0                 # red dot = this toast is an error
+    r = pg.Rect(0, 0, img.get_width() + t.md * 2 + (dot * 2 + t.sm if error else 0),
+                img.get_height() + t.sm * 2)
     box = pg.Surface(r.size, pg.SRCALPHA)
     lr = box.get_rect()
-    panel(t, box, lr, t.panel_hi, radius=r.h // 2)
+    panel(t, box, lr, t.panel_hi)
+    x = t.md
     if error:
-        pg.draw.circle(box, t.error, (t.u * 2.2, lr.centery), t.u * 0.7)
-    box.blit(img, img.get_rect(midleft=(t.u * (3.6 if error else 3), lr.centery)))
+        pg.draw.circle(box, t.error, (x + dot, lr.centery), dot)
+        x += dot * 2 + t.sm
+    box.blit(img, img.get_rect(midleft=(x, lr.centery)))
     if k < 1:
         box.set_alpha(int(255 * k))
-    r.midbottom = (int(t.cx), int(t.h - t.hint_h - t.u * 3 + (1 - k) * t.u * 4))
+    r.midbottom = (int(t.cx), int(t.h - t.hint_h - t.md + (1 - k) * t.md))
     s.blit(box, r)
 
 
-def banner(t, s, msg, y):
-    r = pg.Rect(t.m, int(y), t.w - 2 * t.m, int(t.u * 4.5))
-    panel(t, s, r, t.error_bg)
-    pg.draw.rect(s, t.error, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
-                 border_bottom_left_radius=t.radius)
-    text(t, s, msg, r.x + t.u * 2.5, r.centery, t.f_small, anchor="midleft")
+def notice(t, s, x, y, w, title, body=None, kind="error"):
+    """Status box. kind="error": red bar + error_bg (red only for errors);
+    kind="busy": neutral panel + spinner (e.g. waiting for a file). Returns its rect."""
+    lh = t.f_btn.get_linesize() + (t.f_small.get_linesize() if body else 0)
+    vpad = t.md if body else t.sm                 # one-liners stay slim
+    r = pg.Rect(int(x), int(y), int(w), int(lh + vpad * 2))
+    panel(t, s, r, t.error_bg if kind == "error" else t.panel)
+    if kind == "error":
+        pg.draw.rect(s, t.error, (r.x, r.y, max(3, t.u // 2), r.h),
+                     border_top_left_radius=t.radius, border_bottom_left_radius=t.radius)
+        tx = r.x + t.md
+    else:
+        spinner(t, s, (r.x + t.md + t.u, r.centery), int(t.u * 1.2), 0.1)
+        tx = r.x + t.md + t.u * 2 + t.sm
+    ty = r.y + vpad
+    text(t, s, title, tx, ty, t.f_btn if body else t.f_body, maxw=r.right - tx - t.md)
+    if body:
+        text(t, s, body, tx, ty + t.f_btn.get_linesize(), t.f_small, color=t.dim,
+             maxw=r.right - tx - t.md)
     return r
 
 
 def rows(t, s, rect, items, focus, row_h=None):
     """Settings/Picker list. items: [(label, value, sub)] — value/sub may be ''."""
     row_h = row_h or int(t.u * 8.5)
+    pad = t.md                                     # inset inside the row
     y = rect.y
     for i, (label, value, sub) in enumerate(items):
         r = pg.Rect(rect.x, y, rect.w, row_h)
@@ -603,23 +643,23 @@ def rows(t, s, rect, items, focus, row_h=None):
             rr = r.inflate(-r.w * 0.02 * p, -r.h * 0.06 * p) if p else r
             panel(t, s, rr, mix(t.panel_hi, t.focus_fill, k))
         ly = r.centery - (t.f_small.get_height() // 2 if sub else 0)
-        text(t, s, label, r.x + t.u * 2.5, ly, t.f_btn, anchor="midleft")
+        text(t, s, label, r.x + pad, ly, t.f_btn, anchor="midleft")
         if sub:
-            text(t, s, sub, r.x + t.u * 2.5, ly + t.f_btn.get_height() * 0.55, t.f_small,
+            text(t, s, sub, r.x + pad, ly + t.f_btn.get_height() * 0.55, t.f_small,
                  color=t.dim, anchor="topleft", maxw=r.w * 0.6)
         if isinstance(value, tuple):               # (info text, purple action button or None)
             info, btn = value
-            x = r.right - t.u * 2.5
+            x = r.right - pad
             if btn:                                # the real button (row focus = its focus)
                 br = pg.Rect(0, 0, button_w(t, btn), int(t.btn_h * 0.8))
                 br.midright = (x, r.centery)
                 button(t, s, br, btn)
-                x = br.x - t.u * 2
+                x = br.x - t.sm
             text(t, s, info, x, r.centery, t.f_body, color=t.dim, anchor="midright")
         elif value in ("Recommended", "Installed", "In use"):     # state tags (build picker)
-            tag(t, s, value, r.right - t.u * 2.5, r.centery, kind="accent", anchor="midright")
+            tag(t, s, value, r.right - pad, r.centery, kind="accent", anchor="midright")
         elif value:
-            text(t, s, value, r.right - t.u * 2.5, r.centery, t.f_body, color=t.dim, anchor="midright")
+            text(t, s, value, r.right - pad, r.centery, t.f_body, color=t.dim, anchor="midright")
         if i != focus and i < len(items) - 1:
-            pg.draw.line(s, t.panel, (r.x + t.u * 2, r.bottom), (r.right - t.u * 2, r.bottom))
+            pg.draw.line(s, t.panel, (r.x + pad, r.bottom), (r.right - pad, r.bottom))
         y += row_h + t.u // 2

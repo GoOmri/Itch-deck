@@ -26,6 +26,7 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 
 ## 4. Shape
 - One radius (`t.radius`) for every panel, button, row, image, dialog and toast.
+- Icons are drawn (`W.icon_draw`: play, check; footer ◀ ▶), never font characters.
 - Tags: `t.tag_r` (squarer, so they never look pressable).
 - Fully round: only progress bars, rings and pad glyphs.
 
@@ -35,7 +36,7 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 | Press something | `W.button` (only Play gets `play=True`) |
 | Label a fact | `W.tag(kind=neutral/accent/error/dark)` |
 | A list to pick from | `W.rows` |
-| Say something went wrong | `W.notice` (red bar + text) |
+| Say something went wrong / is waiting | `W.notice(kind="error"/"busy")` |
 | Say something briefly | `W.toast` |
 | Ask yes / no | `W.modal` (body only — actions live in the footer) |
 | Show which buttons do what | `W.hint_bar` |
@@ -46,14 +47,15 @@ and empty states don't repeat them in their body.
 
 ## 7. Space = 5 steps
 XS 1u · S 2u · M 3u · L 5u · XL 8u, plus the page margin (6u).
-- Inside a component: XS / S.
+- Inside a component: XS / S between its parts, M as its padding.
 - Between items: M.
 - Between sections: L.
 - Around a page: margin.
 
 ## 8. Width = 2 measures
-- **Read** (~75u): paragraphs, dialogs, short text.
-- **Page** (~110u): Setup and Settings columns.
+- **Read** (`read_w`, 80u): short text, dialogs, status boxes. Long reading (About,
+  comments) may go to 1.4× read.
+- **Page** (`page_w`, 110u): Setup and Settings columns.
 
 Full-width content (grid, screenshot strip) uses the margins.
 
@@ -70,15 +72,7 @@ Full-width content (grid, screenshot strip) uses the margins.
 
 ---
 
-## Where the code breaks these (14 Nov audit)
-1. **Space:** ~40 different spacing values (0.3u … 10u). → move to the 5 steps (rule 7).
-2. **Width:** 7 different content widths (64, 70, 80, 100, 110, 125u). → 2 measures (rule 8).
-3. **Notice:** the red error box is drawn by hand in 3 places (setup, game failed,
-   `W.banner`). → one `W.notice`.
-4. **Actions twice:** the quit / uninstall dialogs show A/B inside the dialog *and* in the
-   footer; the empty Library shows "Y Refresh" in the body *and* the footer. → footer only.
-5. **Text colours:** description and replies use two extra hard-coded greys (205 / 190).
-   → `text_c` / `dim`.
-6. **Toast** is a full pill, the only round panel. → `t.radius`.
-7. **Icons:** ✓ and ▶ are font characters, while ◀ ▶ in the footer are drawn shapes.
-   → draw all icons (check, play, cloud, triangles) so they match. (Low priority.)
+## Audit log
+- 14 Nov: all 7 audit items fixed (spacing scale, 2 widths, W.notice, actions only in the
+  footer, 3 text colours, toast radius, drawn icons). Re-audit with:
+  `grep -n "t\.u \*" itch_deck/ui/scenes/*.py` — what's left should be sizes, not gaps.

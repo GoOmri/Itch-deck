@@ -200,6 +200,11 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   Page switch = App._set snapshots the old frame, App._fade fades it out (theme.page_fade_ms 160).
   Game page canvas redraws only while W.animating(). Mockups unchanged (LIVE off = end state).
   UNTESTED on Deck: check feel + frame rate on the game page during focus moves.
+  Design system (14 Nov, branch design-system): DESIGN.md = the rules (read it before UI work).
+  theme: space xs/sm/md/lg/xl (1/2/3/5/8u) + m; widths read_w 80u, page_w 110u. W.notice
+  (error/busy) replaces 3 hand-drawn boxes + unused W.banner; modal = body only (actions in
+  footer); empty Library no longer repeats Y Refresh; W.icon_draw (play, check) replaces ✓ ▶
+  font chars; game status: not playable / missing = one "note" style, failed = W.notice.
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 
 ## Code map

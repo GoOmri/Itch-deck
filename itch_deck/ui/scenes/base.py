@@ -30,5 +30,5 @@ class Scene:
     def draw_overlay(self, s):
         kind, *args = self.overlay
         if kind == "confirm":
-            title, body, hints = args
-            W.modal(self.t, s, title, body, hints)
+            title, body, _hints = args          # hints are drawn by the footer
+            W.modal(self.t, s, title, body)

@@ -39,47 +39,38 @@ class Setup(Scene):
 
     def draw_page(self, s):
         t = self.t
-        w = min(t.w - 2 * t.m, t.u * 100)
+        w = min(t.w - 2 * t.m, t.page_w)
         x = int(t.cx - w / 2)
-        y = int(t.m * 1.2)
-        W.wordmark(t, s, x, y)
-        y += t.u * 6.5
-        y = W.text(t, s, "Connect your itch.io account", x, y, t.f_h1).bottom + t.u
+        y = t.m
+        y = W.wordmark(t, s, x, y).bottom + t.md
+        y = W.text(t, s, "Connect your itch.io account", x, y, t.f_h1).bottom + t.xs
         y = W.text(t, s, "One time only. The key stays on this Deck.", x, y, t.f_body,
-                   color=t.dim).bottom + t.u * 4
+                   color=t.dim).bottom + t.md
         steps = [
             ("On your PC", "itch.io → Settings → API keys → Generate new API key"),
             ("Send it", "Save it as itch_key.txt and send it to the Deck with Warpinator"),
             ("Import", "Press Import key. The file is read and then deleted."),
         ]
+        rad = int(t.u * 2.2)                      # step number disc
+        tx = x + rad * 2 + t.md
         for i, (head, body) in enumerate(steps, 1):
-            c = (x + t.u * 2.2, y + t.u * 2.2)
-            pg.draw.circle(s, t.panel_hi, c, t.u * 2.2)
+            c = (x + rad, y + t.f_btn.get_linesize() // 2)
+            pg.draw.circle(s, t.panel_hi, c, rad)
             W.text(t, s, str(i), c[0], c[1] + 1, t.f_btn, anchor="center")
-            W.text(t, s, head, x + t.u * 6.5, y, t.f_btn)
-            W.text(t, s, body, x + t.u * 6.5, y + t.u * 3.8, t.f_body, color=t.dim, maxw=w - t.u * 7)
-            y += t.u * 8.5
-        y += t.u
+            hy = W.text(t, s, head, tx, y, t.f_btn).bottom
+            y = W.text(t, s, body, tx, hy, t.f_body, color=t.dim, maxw=x + w - tx).bottom + t.sm
+        y += t.sm
         err, msg = STATUS[self.status]
-        r = pg.Rect(x, y, w, t.u * 6)
-        W.panel(t, s, r, t.error_bg if err else t.panel)
-        if err:
-            pg.draw.rect(s, t.error, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
-                         border_bottom_left_radius=t.radius)
-        else:
-            W.spinner(t, s, (r.x + int(t.u * 3), r.centery), int(t.u * 1.2), 0.1)
-        W.text(t, s, msg, r.x + t.u * (2.5 if err else 6), r.centery, t.f_body, anchor="midleft",
-               maxw=w - t.u * 8)
-        y = r.bottom + t.u * 4
+        y = W.notice(t, s, x, y, w, msg, kind="error" if err else "busy").bottom + t.md
         if self.typing:
             return self._field(s, x, y, w)
         bx = x
         for i, label in enumerate(self.buttons()):
             bw = W.button_w(t, label)
             W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, focused=(i == self.focus))
-            bx += bw + t.u * 2.5
+            bx += bw + t.sm
         W.text(t, s, "Type key opens a field — press Steam + X for the on-screen keyboard.",
-               x, y + t.btn_h + t.u * 2.5, t.f_small, color=t.dim, maxw=w)
+               x, y + t.btn_h + t.md, t.f_small, color=t.dim, maxw=w)
 
     def _field(self, s, x, y, w):
         """Typed/pasted key. Only the start and the length are shown."""
@@ -88,9 +79,9 @@ class Setup(Scene):
         W.panel(t, s, r, t.focus_fill)
         k = self.typed
         shown = (k[:4] + "•" * min(len(k) - 4, 28)) if len(k) > 4 else k
-        tr = W.text(t, s, shown or " ", r.x + t.u * 2.5, r.centery, t.f_btn, anchor="midleft")
-        pg.draw.line(s, t.text_c, (tr.right + 3, r.y + t.u * 1.5), (tr.right + 3, r.bottom - t.u * 1.5), 2)
-        W.text(t, s, f"{len(k)} characters", r.right - t.u * 2.5, r.centery, t.f_small, color=t.dim,
+        tr = W.text(t, s, shown or " ", r.x + t.md, r.centery, t.f_btn, anchor="midleft")
+        pg.draw.line(s, t.text_c, (tr.right + 3, r.y + t.sm), (tr.right + 3, r.bottom - t.sm), 2)
+        W.text(t, s, f"{len(k)} characters", r.right - t.md, r.centery, t.f_small, color=t.dim,
                anchor="midright")
         W.text(t, s, "Press Steam + X for the on-screen keyboard, or paste with Ctrl+V (RustDesk).",
-               x, r.bottom + t.u * 2.5, t.f_small, color=t.dim, maxw=w)
+               x, r.bottom + t.md, t.f_small, color=t.dim, maxw=w)
