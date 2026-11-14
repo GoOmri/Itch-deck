@@ -241,6 +241,8 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   the tween ends; game buttons are drawn LIVE over the cached page (Game._buttons), focus left the
   cache key -> focus move = ~3 ms/frame instead of a full re-render. tests/test_motion.py.
   Lesson: test UI with --real data / App + /tmp copy of the cache, not only fake.py.
+  Filters v2: Library.menu_open/menu_next(label, step), _count(), filter_summary(); W.rows arrows=.
+  Library.queue_prefetch now also refetches page caches without "genre" (fills Genre/session in bg).
   Omri 14 Nov: name = "SCRiTCH" (W.APP_NAME), always purple in text (W.text_named); logo = purple letters, white i; scrolling = no overshoot (ease back=0).
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 

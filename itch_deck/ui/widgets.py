@@ -397,6 +397,13 @@ def icon_draw(s, name, center, size, color):
         img = pg.transform.smoothscale(big, (int(h), int(h)))
         s.blit(img, img.get_rect(center=(int(cx), int(cy))))
         return int(h)
+    if name in ("left", "right"):        # small value arrows (◀ ▶ around a setting)
+        sg = 1 if name == "right" else -1
+        a = h * 0.5
+        pts = [(cx - sg * a * 0.8, cy - a), (cx - sg * a * 0.8, cy + a), (cx + sg * a * 0.8, cy)]
+        pg.draw.polygon(s, color, pts)
+        pg.draw.aalines(s, color, True, pts)
+        return int(a * 1.6)
     if name == "check":
         w = max(2, round(h * 0.2))
         pts = [(cx - h * 0.42, cy + h * 0.02), (cx - h * 0.12, cy + h * 0.32),
@@ -683,7 +690,7 @@ def modal(t, s, title, body, buttons=None, focus=0):
     return r
 
 
-def menu(t, s, title, sub, items, focus):
+def menu(t, s, title, sub, items, focus, arrows=False):
     """THE small list dialog: build picker, game Options (☰), Sort & filter (X).
     items: [(label, value, sub)] like W.rows. Actions are in the footer."""
     shade(t, s)
@@ -700,7 +707,7 @@ def menu(t, s, title, sub, items, focus):
         text(t, s, sub, r.x + pad, ty, t.f_small, color=t.dim)
     # rows sit inset by (pad - row padding) so their text lines up with the title
     rows(t, s, pg.Rect(r.x + pad - t.md, r.y + pad + head, r.w - 2 * (pad - t.md), 0),
-         items, focus, row_h, key=("menu", title))
+         items, focus, row_h, key=("menu", title), arrows=arrows)
     return r
 
 
@@ -748,7 +755,7 @@ def notice(t, s, x, y, w, title, body=None, kind="error"):
     return r
 
 
-def rows(t, s, rect, items, focus, row_h=None, key="rows"):
+def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
     """Settings/Picker list; the focused row lights up in place. items: [(label, value, sub)]."""
     row_h = row_h or int(t.u * 8.5)
     pad = t.md                                     # inset inside the row
@@ -775,6 +782,12 @@ def rows(t, s, rect, items, focus, row_h=None, key="rows"):
             text(t, s, info, x, r.centery, t.f_body, color=t.dim, anchor="midright")
         elif value in ("Recommended", "Installed", "In use"):     # state tags (build picker)
             tag(t, s, value, r.right - pad, r.centery, kind="accent", anchor="midright")
+        elif value and arrows and i == focus:      # ◀ value ▶: LEFT/RIGHT change it
+            ah = int(t.f_body.get_height() * 0.36)
+            x = r.right - pad - ah
+            icon_draw(s, "right", (x + ah * 0.5, r.centery), ah, t.text_c)
+            vr = text(t, s, value, x - t.sm, r.centery, t.f_body, color=t.text_c, anchor="midright")
+            icon_draw(s, "left", (vr.x - t.sm - ah * 0.5, r.centery), ah, t.text_c)
         elif value:
             text(t, s, value, r.right - pad, r.centery, t.f_body, color=t.dim, anchor="midright")
         if i < len(items) - 1 and focus not in (i, i + 1):   # divider, not next to the lit row

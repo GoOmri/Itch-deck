@@ -206,9 +206,17 @@ class Library:
                 self._put(1, "cover", g["id"])
 
     def queue_prefetch(self):
+        """Background page fetch: games never fetched, and caches from before Genre /
+        Average session were read (so filters fill in without opening every game)."""
         for g in self.games:
-            if g["platforms"] & {"linux", "windows"} and not self._page_file(g).exists():
+            if g["platforms"] & {"linux", "windows"} and not self._has_page_fields(g):
                 self._put(5, "page", g["id"])
+
+    def _has_page_fields(self, g):
+        try:
+            return "genre" in json.loads(self._page_file(g).read_text())
+        except (OSError, ValueError):
+            return False
 
     def _work(self):
         while True:

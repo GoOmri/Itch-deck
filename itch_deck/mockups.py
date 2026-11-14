@@ -45,6 +45,12 @@ def _realify(lib):
     return out
 
 
+def _menu(scene, focus):
+    scene.overlay = ("menu",)                  # menu_open reads overlay[4] only via menu_next
+    scene.menu_open(focus)
+    return scene
+
+
 def _act(scene, text):
     scene.activity = text
     return scene
@@ -113,9 +119,7 @@ def _shots(t, version):
                                      "Update v0.3.4 available · Settings")),
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
         ("06b_library_recent", Library(t, lib, filt="recent", focus=0)),
-        ("06c_library_sort_filter", with_overlay(Library(t, lib, focus=0, sort="added"), (
-            "menu", "Sort & filter", "", [("Sort", "Recently added", ""), ("Show", "Everything", ""),
-                                          ("Genre", "Puzzle", ""), ("Session", "Any", "")], 2))),
+        ("06c_library_sort_filter", _menu(Library(t, lib, focus=0, sort="added", genre="Puzzle"), 2)),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
         ("08_library_empty", Library(t, [])),
         ("09_library_quit", with_overlay(Library(t, lib, focus=0), quit_dlg)),

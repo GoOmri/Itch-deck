@@ -333,8 +333,8 @@ class App:
     def _h_library(self, act):
         sc = self.scene
         if sc.overlay and sc.overlay[0] == "menu":   # X: Sort & filter
-            if act == A:
-                sc.menu_next(sc.overlay[3][sc.overlay[4]][0])
+            if act in (A, LEFT, RIGHT):
+                sc.menu_next(sc.overlay[3][sc.overlay[4]][0], -1 if act == LEFT else 1)
                 self.cfg.update(library_sort=sc.sort, library_show=sc.show,
                                 library_genre=sc.genre, library_session=sc.session)
                 config.save(self.cfg)

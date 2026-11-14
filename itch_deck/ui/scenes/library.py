@@ -62,25 +62,57 @@ class Library(Scene):
     def shown(self):
         return visible(self.games, self.filt, self.sort, self.show, self.genre, self.session)
 
-    def menu_items(self):
-        """X: Sort & filter. Rows show their current value; A switches to the next value."""
-        return [("Sort", dict(SORTS)[self.sort], ""), ("Show", dict(SHOWS)[self.show], ""),
-                ("Genre", "Any" if self.genre == "any" else self.genre, ""),
-                ("Session", dict(SESSIONS)[self.session], "")]
+    def filtered(self):
+        """True when Show / Genre / Session narrow the list (Sort only orders it)."""
+        return (self.show, self.genre, self.session) != ("all", "any", "any")
 
-    def menu_next(self, label):
-        def step(cur, keys):
-            return keys[(keys.index(cur) + 1) % len(keys)] if cur in keys else keys[0]
+    def filter_summary(self):
+        """Short words for the top bar, e.g. "Puzzle · Short" (empty when nothing filters)."""
+        bits = [dict(SHOWS)[self.show] if self.show != "all" else "",
+                self.genre if self.genre != "any" else "",
+                f"{dict(SESSIONS)[self.session]} sessions" if self.session != "any" else ""]
+        return "  ·  ".join(b for b in bits if b)
+
+    def _count(self, **change):
+        """How many games this tab would show with one setting changed (counts in the menu)."""
+        v = dict(filt=self.filt, sort=self.sort, show=self.show, genre=self.genre,
+                 session=self.session)
+        v.update(change)
+        return len(visible(self.games, **v))
+
+    def menu_items(self):
+        """X: Sort & filter. Each row shows its value; filter values carry their game count."""
+        def n(**c):
+            return f"  ({self._count(**c)})"
+        rows = [("Sort", dict(SORTS)[self.sort], ""),
+                ("Show", dict(SHOWS)[self.show] + n(show=self.show), ""),
+                ("Genre", ("Any" if self.genre == "any" else self.genre) + n(genre=self.genre), ""),
+                ("Session", dict(SESSIONS)[self.session] + n(session=self.session), "")]
+        if self.filtered():
+            rows.append(("Clear filters", "", ""))
+        return rows
+
+    def menu_open(self, f=0):
+        rows = self.menu_items()
+        self.overlay = ("menu", "Sort & filter", f"{len(self.shown)} games", rows,
+                        max(0, min(f, len(rows) - 1)))
+
+    def menu_next(self, label, step=1):
+        """Change one setting by `step` (LEFT/RIGHT = -1/+1, A = +1); "Clear filters" resets."""
+        def turn(cur, keys):
+            return keys[(keys.index(cur) + step) % len(keys)] if cur in keys else keys[0]
         if label == "Sort":
-            self.sort = step(self.sort, [k for k, _ in SORTS])
+            self.sort = turn(self.sort, [k for k, _ in SORTS])
         elif label == "Show":
-            self.show = step(self.show, [k for k, _ in SHOWS])
+            self.show = turn(self.show, [k for k, _ in SHOWS])
         elif label == "Genre":
-            self.genre = step(self.genre, ["any"] + genres(self.games))
-        else:
-            self.session = step(self.session, [k for k, _ in SESSIONS])
+            self.genre = turn(self.genre, ["any"] + genres(self.games))
+        elif label == "Session":
+            self.session = turn(self.session, [k for k, _ in SESSIONS])
+        elif label == "Clear filters":
+            self.show, self.genre, self.session = "all", "any", "any"
         self.focus, self._first, self._sy = 0, 0, None
-        self.overlay = ("menu", "Sort & filter", "", self.menu_items(), self.overlay[4])
+        self.menu_open(self.overlay[4] if label != "Clear filters" else 1)
 
     def next_tab(self, step):
         keys = [k for k, _ in TABS]
@@ -96,7 +128,7 @@ class Library(Scene):
                 self.overlay = (kind, title, sub, items, (f + (1 if act == DOWN else -1)) % len(items))
             return
         if act == X:
-            self.overlay = ("menu", "Sort & filter", "", self.menu_items(), 0)
+            self.menu_open()
         elif n:
             step = {LEFT: -1, RIGHT: 1, UP: -c, DOWN: c, L2: -3 * c, R2: 3 * c}.get(act, 0)
             if step:
@@ -111,12 +143,12 @@ class Library(Scene):
 
     def overlay_hints(self):
         if self.overlay and self.overlay[0] == "menu":
-            return [("A", "Change"), ("B", "Close")]
+            return [("◀", ""), ("▶", "Change"), ("B", "Close")]
         return super().overlay_hints()
 
     def draw_overlay(self, s):
         if self.overlay[0] == "menu":
-            return W.menu(self.t, s, *self.overlay[1:])
+            return W.menu(self.t, s, *self.overlay[1:], arrows=True)
         return super().draw_overlay(s)
 
     def draw_page(self, s):
@@ -175,8 +207,10 @@ class Library(Scene):
         right = t.w - t.m
         if self.offline_since:
             right = W.offline_mark(t, s, right, base, self.offline_since)
-        rr = W.text(t, s, f"{n} game{'s' if n != 1 else ''}", right, base, t.f_small,
-                    color=t.dim, anchor="baseright")
+        count = f"{n} game{'s' if n != 1 else ''}"
+        if self.filtered():                     # never forget the list is filtered
+            count = f"{self.filter_summary()}  ·  {count}"
+        rr = W.text(t, s, count, right, base, t.f_small, color=t.dim, anchor="baseright")
         act = self.activity or ("Refreshing library" if self.syncing == "bg" else None)
         if act:                         # background work, hidden when done
             sep = W.text(t, s, "·", rr.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright")

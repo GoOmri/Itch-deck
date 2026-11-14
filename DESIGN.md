@@ -54,6 +54,9 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
   filter**: Sort (A–Z / Recently added), Show (Everything / Playable here), Genre (Any + the
   genres in the library), Session (Any / Short / Long, from itch's "Average session"; itch has
   no time-to-beat). Remembered in config. Genre + session also show in the game's info line.
+  In the menu: ◀ ▶ (or A) change the focused value, each filter value shows its game count,
+  the title shows the live total, "Clear filters" appears when something filters, and the top
+  bar shows the active filters ("Puzzle · 26 games").
 - **Settings:** grouped (Library · Storage · Games · App) under LABEL-style headings; the list
   scrolls instead of squeezing rows. Settings is reached from the Library's ☰.
 - All small lists (Options, Sort & filter, build picker) are the same `W.menu`.
