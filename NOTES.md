@@ -49,7 +49,8 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
   Fetch lazily on page open + low-priority background prefetch. Fragile if itch changes HTML:
   fall back to short_text, log the parse failure. Build in M2.
 - DECIDED: comments from the public page too (same fetch + cache as description). Newest first, max
-  ~10, author + date + text (3 lines max), reply count, developer comments get a purple bar + tag.
+  ~10, author + date + text (3 lines max), developer comments get a purple bar + tag. Replies are
+  INDENTED under their comment (max 2 shown, 2 lines each, smaller), then "+N more replies".
   Games that use a community forum instead of comments: show nothing (or a count) — check in M2.
 - Game page layout: hero (34% cover, info, actions in ONE ROW, L/R moves) then DOWN -> screenshots
   strip (A = full-screen viewer, L/R browse) -> DOWN -> "About this game" -> DOWN -> Comments.

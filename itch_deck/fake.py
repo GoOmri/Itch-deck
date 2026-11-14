@@ -84,7 +84,9 @@ def _description(title, tagline):
 _COMMENTS = [
     {"author": "mossy_toad", "when": "2 days ago", "replies": 1,
      "text": "Runs great on the Steam Deck with Proton. The controls feel a bit floaty at first "
-             "but you get used to them after the first area."},
+             "but you get used to them after the first area.",
+     "reply_list": [{"author": "Pebblesoft", "when": "2 days ago", "dev": True,
+                     "text": "Glad it works! A sensitivity slider is coming in the next update."}]},
     {"author": "Pebblesoft", "when": "3 days ago", "dev": True,
      "text": "Thanks everyone for playing! Update 1.2 fixes the save bug in chapter 2 and adds "
              "full controller support in the menus."},
@@ -93,5 +95,10 @@ _COMMENTS = [
              "Would love a longer sequel some day, maybe with more puzzles in the caves, and more "
              "of the music from the second area because it was honestly the best part of the game."},
     {"author": "kestrel", "when": "2 weeks ago", "replies": 3,
-     "text": "Is there a way to remap the jump button? Couldn't find it in the options."},
+     "text": "Is there a way to remap the jump button? Couldn't find it in the options.",
+     "reply_list": [
+         {"author": "nightowl_plays", "when": "2 weeks ago",
+          "text": "Not in the game itself, but Steam Input can remap it per game."},
+         {"author": "Pebblesoft", "when": "12 days ago", "dev": True,
+          "text": "Remapping is on the list for 1.3, sorry about that!"}]},
 ]

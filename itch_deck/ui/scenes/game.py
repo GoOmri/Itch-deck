@@ -202,19 +202,15 @@ class Game(Scene):
             return W.text(t, s, "No comments yet.", t.m, y, t.f_body, color=t.dim).bottom
         w = min(t.w - 2 * t.m, t.u * 125)
         for c in cs:
-            r = W.text(t, s, c["author"], t.m + t.u * 2.5, y, t.f_btn)
-            wx = r.right + t.u * 1.5
-            if c.get("dev"):
-                wx = W.pill(t, s, "Developer", wx, r.centery, fill=t.accent, color=t.on_accent,
-                            anchor="midleft").right + t.u * 1.5
-            W.text(t, s, c["when"], wx, r.centery, t.f_small, color=t.faint, anchor="midleft")
-            yy = W.wrap(t, s, c["text"], t.m + t.u * 2.5, r.bottom + t.u * 0.4, t.f_body,
-                        w - t.u * 2.5, color=(205, 205, 205), max_lines=3)
-            if c.get("replies"):
-                yy = W.text(t, s, f"{c['replies']} repl{'y' if c['replies'] == 1 else 'ies'}",
-                            t.m + t.u * 2.5, yy + t.u * 0.4, t.f_small, color=t.dim).bottom
-            pg.draw.line(s, t.accent if c.get("dev") else t.line, (t.m, y), (t.m, yy), max(2, t.u // 4))
-            y = yy + t.u * 2.5
+            y = self._comment(s, c, t.m, y, w)
+            shown = c.get("reply_list", [])[:2]          # up to 2 replies, indented
+            ind = t.m + t.u * 5
+            for rp in shown:
+                y = self._comment(s, rp, ind, y - t.u, w - t.u * 5, reply=True)
+            more = c.get("replies", 0) - len(shown)
+            if more > 0:
+                y = W.text(t, s, f"+{more} more repl{'y' if more == 1 else 'ies'}", ind + t.u * 2.5,
+                           y - t.u * 1.5, t.f_small, color=t.dim).bottom + t.u * 2.5
         if total > len(cs):
             y = W.text(t, s, f"Showing the newest {len(cs)} of {total}", t.m, y, t.f_small,
                        color=t.faint).bottom
@@ -316,3 +312,20 @@ class Game(Scene):
         W.text(t, s, f"{self.shot + 1} / {n}", t.w - t.m, t.m * 0.5, t.f_small, color=t.dim,
                anchor="midright")
         W.text(t, s, self.g["title"], t.m, t.m * 0.5, t.f_small, color=t.dim, anchor="midleft")
+
+    def _comment(self, s, c, x, y, w, reply=False):
+        """One comment (or an indented reply). Returns the y for the next one."""
+        t = self.t
+        f_name = t.f_small if reply else t.f_btn
+        r = W.text(t, s, c["author"], x + t.u * 2.5, y, f_name)
+        wx = r.right + t.u * 1.5
+        if c.get("dev"):
+            wx = W.pill(t, s, "Developer", wx, r.centery, fill=t.accent, color=t.on_accent,
+                        anchor="midleft").right + t.u * 1.5
+        W.text(t, s, c["when"], wx, r.centery, t.f_small, color=t.faint, anchor="midleft")
+        yy = W.wrap(t, s, c["text"], x + t.u * 2.5, r.bottom + t.u * 0.3,
+                    t.f_small if reply else t.f_body, w - t.u * 2.5,
+                    color=(190, 190, 190) if reply else (205, 205, 205), max_lines=2 if reply else 3)
+        col = t.accent if c.get("dev") else (t.panel_hi if reply else t.line)
+        pg.draw.line(s, col, (x, y), (x, yy), max(2, t.u // 4))
+        return yy + t.u * 2.5
