@@ -72,7 +72,7 @@ Next: M3 native install (ask Omri before starting).
 ## Token usage log (Omri's Pro plan %, as he reports it — add a line each time)
 - 2026-11-14 00:08 — 72% at start of M0 build (planning + M0 in one chat)
 - 2026-11-14 11:24 — 73% → 76% for M1 mockups (+ logging M0 Deck results) = 3%
-- 2026-11-14 12:01 — 80% at start of M2 (end % to be logged next chat)
+- 2026-11-14 12:01 — 80% → 81% for M2 build = 1%
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while
