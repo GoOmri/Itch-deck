@@ -315,6 +315,8 @@ v0.6.1 Deck 14 Nov: pin ✓ ("install root pinned: /run/media/deck/9273…/itch"
   after 0 s, and NO "appimage" log line -> it is NOT an AppImage (no AI magic). 127 from a started
   ELF = most likely "error while loading shared libraries" (a lib SteamOS lacks). Need
   logs/games/panzermarshal.log to know which lib.
+  CONFIRMED (game log): libwebkit2gtk-4.0.so.37 missing (a Tauri app; SteamOS has no webkit2gtk-4.0).
+  Not fixable by us -> the Windows build is the way; the new crash hint says so. M5 DONE.
 Branch card-back (NOT on main, NOT released — Omri 14 Nov: no app release until he says;
   remember a push to main = a release, CI publishes VERSION): App._check_mounts tracks
   card_missing(install root); on change toasts "SD card removed." / "SD card is back." and on
