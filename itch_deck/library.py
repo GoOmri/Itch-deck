@@ -6,6 +6,7 @@ import json
 import logging
 import queue
 import threading
+import time
 from pathlib import Path
 
 from . import net, paths
@@ -176,6 +177,8 @@ class Library:
             g = self.by_id(gid)
             if not g or (self.offline and prio > 0):
                 continue
+            if kind == "page":
+                g["details_loading"] = True
             try:
                 if kind == "cover":
                     self._fetch_cover(g)
@@ -185,6 +188,10 @@ class Library:
                 log.info("%s %s: offline (%s)", kind, gid, e)
             except Exception:  # noqa: BLE001
                 log.exception("%s %s failed", kind, gid)
+            finally:
+                g.pop("details_loading", None) if kind == "page" else None
+            if prio >= 5:
+                time.sleep(1.5)   # background prefetch: go easy on itch.io
 
     def _fetch_cover(self, g):
         url = g["cover_url"]

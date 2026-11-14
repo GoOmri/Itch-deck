@@ -24,6 +24,7 @@ def test_platforms():
     assert itch.platforms_of({"type": "html"}) == {"html"}
     assert itch.platforms_of({"classification": "soundtrack"}) == {"soundtrack"}
     assert itch.platforms_of({}) == {"other"}
+    assert itch.platforms_of({"traits": ["p_linux", "p_windows", "can_be_bought"]}) == {"linux", "windows"}
 
 
 def test_sync_pages_and_dedupe(monkeypatch):

@@ -61,8 +61,17 @@ class Game(Scene):
         order = ["actions"] + (["shots"] if shots else []) + ["desc"] + \
             (["comments"] if self.g.get("comments") else [])
         if act in (UP, DOWN):
+            off, step = getattr(self, "off", 0), int(self.t.h * 0.35)
+            if act == DOWN and off < getattr(self, "_max_off", 0):
+                self.off = off + step            # scroll within a long description/comments
+                return
+            if act == UP and off > 0:
+                self.off = max(0, off - step)
+                return
             i = order.index(self.section) + (1 if act == DOWN else -1)
-            self.section = order[max(0, min(len(order) - 1, i))]
+            new = order[max(0, min(len(order) - 1, i))]
+            if new != self.section:
+                self.section, self.off = new, 0
         elif act in (LEFT, RIGHT):
             d = 1 if act == RIGHT else -1
             if self.section == "actions" and n:
@@ -99,12 +108,18 @@ class Game(Scene):
         """Page is taller than the screen: hero (cover, info, actions), then About
         (screenshots + full description from the itch page). DOWN scrolls into About."""
         t = self.t
-        canvas = pg.Surface((t.w, int(t.h * 2.6)), pg.SRCALPHA)  # transparent: gradient shows through
+        need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)
+        canvas = pg.Surface((t.w, need), pg.SRCALPHA)  # transparent: gradient shows through
         self._hero(canvas)
         about_y = self._top(canvas)
         desc_y, comments_y = self._about(canvas, about_y)
-        scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m,
-                  "comments": comments_y - t.m}[self.section]
+        view = t.h - t.hint_h - 2 * t.m          # long sections scroll inside themselves
+        self._max_off = {"desc": max(0, comments_y - desc_y - view),
+                         "comments": max(0, getattr(self, "_end", 0) - comments_y - view)
+                         }.get(self.section, 0)
+        self.off = min(getattr(self, "off", 0), self._max_off)
+        scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m + self.off,
+                  "comments": comments_y - t.m + self.off}[self.section]
         s.blit(canvas, (0, -max(0, scroll)))
 
     def _top(self, s):
@@ -185,10 +200,13 @@ class Game(Scene):
                 y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=(205, 205, 205)) + t.f_body.get_linesize() * 0.6
             y = W.text(t, s, "From the game's itch.io page", t.m, y + t.u, t.f_small, color=t.faint).bottom
         elif not n:
-            y = W.text(t, s, "More details load the next time you're online.", t.m, y, t.f_small,
-                        color=t.faint).bottom
+            msg = ("Loading details from itch.io…" if g.get("details_loading") or not self.offline
+                   and not g.get("details_at") else
+                   "More details load the next time you're online." if self.offline else
+                   "This game's itch page has no description.")
+            y = W.text(t, s, msg, t.m, y, t.f_small, color=t.faint).bottom
         comments_y = y + t.u * 5
-        self._comments(s, comments_y)
+        self._end = self._comments(s, comments_y)
         return desc_y, comments_y
 
     def _comments(self, s, y):

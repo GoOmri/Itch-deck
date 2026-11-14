@@ -18,15 +18,13 @@ def parse_owned_keys(data):
 
 
 def platforms_of(g):
+    """owned-keys games list platforms in "traits" (["p_linux", ...]); older shapes use booleans."""
+    tr = set(g.get("traits") or [])
     p = set()
-    if g.get("p_linux"):
-        p.add("linux")
-    if g.get("p_windows"):
-        p.add("windows")
-    if g.get("p_osx"):
-        p.add("mac")
-    if g.get("p_android"):
-        p.add("android")
+    for key, name in (("p_linux", "linux"), ("p_windows", "windows"), ("p_osx", "mac"),
+                      ("p_android", "android")):
+        if g.get(key) or key in tr:
+            p.add(name)
     if g.get("type") == "html":
         p.add("html")
     cls = g.get("classification") or ""

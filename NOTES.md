@@ -5,7 +5,11 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 ## Current milestone
 M0 spike — PASSED on Deck 14 Nov (checklist 1–6 all ✓). Focus hand-off to child and back works.
 M1 mockups — APPROVED 14 Nov. Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ
-M2 real library — BUILT 14 Nov (v0.2.0), awaiting Deck test (checklist in chat / below).
+M2 real library — v0.2.0 Deck test 14 Nov: 1,2,4,6,7 ✓. Count 129 = matches (itch shows 133 incl.
+  non-game products). Fixed in v0.2.1: platforms come from owned-keys "traits" (all showed "No
+  download"); long description/comments scroll inside the section (DOWN steps, then next section);
+  "Loading details…" while fetching; prefetch throttled 1.5 s/game.
+  OPEN: many game pages showed no details while online — waiting for Omri's app.log.
   itch.io is blocked from Claude's workspace: API + page parsing tested only with fixtures.
   First things to check on Deck if broken: app.log lines "itch sync:", "page <id>:", "pad added:".
 Next: M3 native install (ask Omri before starting).
