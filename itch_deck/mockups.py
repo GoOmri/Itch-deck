@@ -25,8 +25,9 @@ def _shots(t, version):
         "proton": "GE-Proton9-20", "prefix_size": "1.2 GB", "last_sync": "today 11:02",
         "update": f"v{version} · up to date",
     }
-    picker = ("picker", "Choose a build", "This game has several downloads. Your choice is remembered.",
-              [(a, c, b) for a, b, c in fake.uploads()], 1)
+    picker = ("picker", "Choose a build",
+              "Recommended: native Linux first, then a plain Windows zip.",
+              [(name, "Recommended" if rec else "", sub) for name, sub, rec in fake.uploads()], 0)
     quit_dlg = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
                 [("A", "Quit"), ("B", "Cancel")])
 
@@ -45,10 +46,11 @@ def _shots(t, version):
         ("08_library_empty", Library(t, [])),
         ("09_library_quit", with_overlay(Library(t, lib, focus=0), quit_dlg)),
         ("10_library_toast", Library(t, lib, focus=idx["Grave Gardener"],
-                                     toast="Grave Gardener exited with code 1 — see log",
+                                     toast="Grave Gardener closed right after starting. Try Change build.",
                                      toast_error=True)),
         ("11_game_not_installed", game("Quiet Quarry")),
         ("12_game_downloading", game("Hollow Lighthouse")),
+        ("12b_game_offline", game("Quiet Quarry", offline=True)),
         ("13_game_installing", game("Ninefold Tower", phase="installing")),
         ("14_game_preparing_proton", game("Orbit Bakery", phase="proton")),
         ("15_game_installed", game("Moss & Rivets",

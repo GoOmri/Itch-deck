@@ -41,9 +41,6 @@ class Library(Scene):
     def draw_page(self, s):
         t = self.t
         y = self._top_bar(s)
-        if self.offline_since:
-            y = W.banner(t, s, f"Offline — showing your library from {self.offline_since}. "
-                               "Installing needs a connection.", y).bottom + t.u * 2
         if self.syncing == "first":
             return self._center_msg(s, y, f"Syncing library… page {self.sync_page}",
                                     "This is only slow the first time.", spinner=True)
@@ -69,7 +66,10 @@ class Library(Scene):
                 pg.draw.rect(s, t.accent, (lr.x, lr.bottom + t.u * 0.5, lr.w, max(2, t.u // 3)))
             x = lr.right + t.u * 3
         n = len(self.shown)
-        rr = W.text(t, s, f"{n} game{'s' if n != 1 else ''}", t.w - t.m, cy, t.f_small,
+        right = t.w - t.m
+        if self.offline_since:
+            right = W.offline_mark(t, s, right, cy, self.offline_since)
+        rr = W.text(t, s, f"{n} game{'s' if n != 1 else ''}", right, cy, t.f_small,
                     color=t.dim, anchor="midright")
         if self.syncing == "bg":
             W.spinner(t, s, (int(rr.x - t.u * 2.5), int(cy)), int(t.u * 1.2), 0.15)

@@ -28,6 +28,15 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
 - Non-playable + HTML5 games: shown dimmed + tagged. Sort A–Z. Placeholder tile art.
 - API key: typed/pasted into Setup field via RustDesk in Desktop Mode (run with --windowed). Never in repo.
 - While a game runs, the app closes its display (pygame.display.quit) and reopens after.
+- M1 feedback (14 Nov): accent PURPLE #9D6BFF; RED only for errors (theme.error). No Proton/WIN badge
+  on art. Offline = small cloud icon in top bar, no banner; Install shows "needs internet".
+  Crash toast only if a game dies soon after start: "<game> closed right after starting. Try Change
+  build." (no exit codes in UI; details stay in the log). Picker shows the developer's file names,
+  platform/size/date, and a "Recommended" pill (Linux native > Windows zip > installer).
+  Game page shows itch short_text (API, cached). Initials covers = placeholder only.
+- Open: button glyphs Auto/Xbox/PlayStation — log pad names + SteamVirtualGamepadInfo on Deck in M2,
+  plus a Settings override. Full description + screenshots are NOT in itch's API; optional later
+  idea = read the public game page and cache it (ask Omri).
 
 ## Token usage log (Omri's Pro plan %, as he reports it — add a line each time)
 - 2026-11-14 00:08 — 72% at start of M0 build (planning + M0 in one chat)

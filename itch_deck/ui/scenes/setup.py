@@ -56,9 +56,9 @@ class Setup(Scene):
         y += t.u
         err, msg = STATUS[self.status]
         r = pg.Rect(x, y, w, t.u * 6)
-        W.panel(t, s, r, (52, 34, 34) if err else t.panel)
+        W.panel(t, s, r, t.error_bg if err else t.panel)
         if err:
-            pg.draw.rect(s, t.accent, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
+            pg.draw.rect(s, t.error, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
                          border_bottom_left_radius=t.radius)
         else:
             W.spinner(t, s, (r.x + int(t.u * 3), r.centery), int(t.u * 1.2), 0.1)

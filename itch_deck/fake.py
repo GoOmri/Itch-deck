@@ -40,16 +40,27 @@ def library():
     for i, (title, author, plats, mb, state) in enumerate(_RAW):
         g = {"id": f"g{i:03d}", "title": title, "author": author,
              "platforms": set(plats.split()), "size_mb": mb, "state": state}
+        g["short_text"] = _TAGLINES.get(title, "")
         if state == "downloading":
             g.update(progress=0.42, speed_mbs=11.8, eta_s=111)
         out.append(g)
     return sorted(out, key=lambda g: g["title"].lower())
 
 
+_TAGLINES = {
+    "Quiet Quarry": "Dig, sort and stack stones in a sleepy mountain quarry. A cosy puzzle game.",
+    "Hollow Lighthouse": "Keep the light burning through one long winter on a haunted island.",
+    "Moss & Rivets": "Repair a rusted robot garden, one bolt and one sprout at a time.",
+    "Grave Gardener": "Tend the flowers of a cemetery that doesn't stay quiet at night.",
+    "Starfall Ferry": "Ferry fallen stars across a river in this short narrative game.",
+}
+
+
 def uploads():
-    """Upload list for the build picker."""
+    """Upload list for the build picker: (name the developer gave it, details, recommended).
+    Demos, soundtracks and other-OS files are filtered out before the picker."""
     return [
-        ("Linux 64-bit", "tar.gz · 212 MB", "Linux"),
-        ("Windows", "zip · 240 MB", "Windows"),
-        ("Windows installer", "setup.exe · 238 MB", "Windows"),
-    ]  # demos/soundtracks are filtered out before the picker
+        ("quietquarry-linux64.tar.gz", "Linux · 212 MB · updated 3 Oct", True),
+        ("QuietQuarry_Windows.zip", "Windows · 240 MB · updated 3 Oct", False),
+        ("QuietQuarry_Setup_v1.2.exe", "Windows installer · 238 MB · updated 1 Aug", False),
+    ]

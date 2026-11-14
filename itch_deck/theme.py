@@ -13,8 +13,10 @@ class Theme:
     text_c = (240, 240, 240)
     dim = (150, 150, 150)
     faint = (100, 100, 100)
-    accent = (250, 92, 92)   # itch-ish red, the one accent colour
-    on_accent = (20, 20, 20)
+    accent = (157, 107, 255)  # purple: focus, progress, selection — the one accent colour
+    on_accent = (20, 16, 30)
+    error = (235, 77, 77)     # red is only for errors
+    error_bg = (52, 32, 34)
     shade_a = 170             # modal backdrop alpha
     dimmed_a = 150            # overlay alpha on unplayable tiles
     child_bg = (120, 20, 30)

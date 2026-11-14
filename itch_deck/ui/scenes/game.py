@@ -5,7 +5,7 @@ from ...input import UP, DOWN
 from .. import widgets as W
 from .base import Scene
 
-PLATFORM = {"linux": "Linux", "windows": "Windows · Proton", "html": "Browser",
+PLATFORM = {"linux": "Linux", "windows": "Windows", "html": "Browser",
             "mac": "macOS only", "soundtrack": "Soundtrack"}
 
 
@@ -18,8 +18,9 @@ class Game(Scene):
     install is doing right now. fail_reason: text for a failed install."""
 
     def __init__(self, t, game, pos=(1, 1), focus=0, phase=None, fail_reason=None,
-                 install_path=None, **kw):
+                 install_path=None, offline=False, **kw):
         super().__init__(t, **kw)
+        self.offline = offline
         self.g, self.pos, self.focus = game, pos, focus
         self.phase = phase or ("download" if game.get("state") == "downloading" else None)
         self.fail_reason = fail_reason
@@ -40,6 +41,8 @@ class Game(Scene):
             return [("Cancel install", None, True)]
         if st == "failed":
             return [("Retry install", None, True), ("Change build", None, True)]
+        if self.offline:
+            return [("Install — needs internet", None, False)]
         return [("Install", None, True), ("Change build", None, True)]
 
     def handle(self, act):
@@ -83,6 +86,8 @@ class Game(Scene):
         y += t.u * 3.5
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom + t.u * 0.5
         y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim).bottom + t.u * 2
+        if g.get("short_text"):  # itch's short description; cached, so it shows offline too
+            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.u * 75)) + t.u * 2
 
         px = x
         plat = [p for p in ("linux", "windows", "html", "mac", "soundtrack") if p in g["platforms"]]
@@ -130,8 +135,8 @@ class Game(Scene):
             return W.wrap(t, s, lines[1], x, y, t.f_body, min(maxw, t.u * 70), color=t.dim) + t.u * 4
         if g.get("state") == "failed":
             r = pg.Rect(x, y, w, t.u * 10)
-            W.panel(t, s, r, (52, 34, 34))
-            pg.draw.rect(s, t.accent, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
+            W.panel(t, s, r, t.error_bg)
+            pg.draw.rect(s, t.error, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
                          border_bottom_left_radius=t.radius)
             W.text(t, s, "Couldn't install", r.x + t.u * 2.5, r.y + t.u * 1.6, t.f_btn)
             W.text(t, s, self.fail_reason or "See the log for details.", r.x + t.u * 2.5,

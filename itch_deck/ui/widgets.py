@@ -234,13 +234,23 @@ def _badges(t, s, game, r, playable):
     elif st == "queued":
         pill(t, s, "Queued", r.right - pad, r.y + pad, anchor="topright")
     elif st == "failed":
-        pill(t, s, "Failed", r.right - pad, r.y + pad, fill=t.accent, color=t.on_accent,
+        pill(t, s, "Failed", r.right - pad, r.y + pad, fill=t.error, color=t.on_accent,
              anchor="topright")
-    # bottom-left: platform
-    if not playable and "html" in game["platforms"]:
-        pill(t, s, "BROWSER", r.x + pad, r.bottom - pad, anchor="bottomleft")
-    elif "windows" in game["platforms"] and "linux" not in game["platforms"]:
-        pill(t, s, "WIN · Proton", r.x + pad, r.bottom - pad, anchor="bottomleft")
+    # no platform badge: Linux vs Windows/Proton is handled for the user, not shown on the art
+
+
+def offline_mark(t, s, right, cy, since):
+    """Small, quiet offline indicator for the top bar: cloud with a slash + 'Offline · <date>'."""
+    r = text(t, s, f"Offline · synced {since}", right, cy, t.f_small, color=t.faint, anchor="midright")
+    u, cx = t.u, r.x - t.u * 2.6
+    c = t.faint
+    pg.draw.circle(s, c, (int(cx - u * 0.6), int(cy + u * 0.2)), int(u * 0.7))
+    pg.draw.circle(s, c, (int(cx + u * 0.2), int(cy - u * 0.3)), int(u * 0.95))
+    pg.draw.circle(s, c, (int(cx + u * 0.9), int(cy + u * 0.25)), int(u * 0.6))
+    pg.draw.rect(s, c, (int(cx - u * 0.6), int(cy + u * 0.1), int(u * 1.5), int(u * 0.75)))
+    pg.draw.line(s, t.bg, (cx - u * 1.6, cy - u * 1.3), (cx + u * 1.7, cy + u * 1.4), max(4, u // 2))
+    pg.draw.line(s, c, (cx - u * 1.5, cy - u * 1.2), (cx + u * 1.6, cy + u * 1.3), max(2, u // 4))
+    return r.x - t.u * 4.5
 
 
 # --- overlays ---------------------------------------------------------------
@@ -269,14 +279,14 @@ def toast(t, s, msg, error=False):
     r.midbottom = (int(t.cx), t.h - t.hint_h - t.u * 3)
     panel(t, s, r, t.panel_hi, radius=r.h // 2)
     if error:
-        pg.draw.circle(s, t.accent, (r.x + t.u * 2.2, r.centery), t.u * 0.7)
+        pg.draw.circle(s, t.error, (r.x + t.u * 2.2, r.centery), t.u * 0.7)
     s.blit(img, img.get_rect(midleft=(r.x + t.u * (3.6 if error else 3), r.centery)))
 
 
 def banner(t, s, msg, y):
     r = pg.Rect(t.m, int(y), t.w - 2 * t.m, int(t.u * 4.5))
-    panel(t, s, r, (52, 34, 34))
-    pg.draw.rect(s, t.accent, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
+    panel(t, s, r, t.error_bg)
+    pg.draw.rect(s, t.error, (r.x, r.y, t.u // 2, r.h), border_top_left_radius=t.radius,
                  border_bottom_left_radius=t.radius)
     text(t, s, msg, r.x + t.u * 2.5, r.centery, t.f_small, anchor="midleft")
     return r
@@ -297,7 +307,10 @@ def rows(t, s, rect, items, focus, row_h=None):
         if sub:
             text(t, s, sub, r.x + t.u * 2.5, ly + t.f_btn.get_height() * 0.55, t.f_small,
                  color=t.dim, anchor="topleft", maxw=r.w * 0.6)
-        if value:
+        if value == "Recommended":
+            pill(t, s, value, r.right - t.u * 2.5, r.centery, fill=t.accent, color=t.on_accent,
+                 anchor="midright")
+        elif value:
             text(t, s, value, r.right - t.u * 2.5, r.centery, t.f_body, color=t.dim, anchor="midright")
         if i != focus and i < len(items) - 1:
             pg.draw.line(s, t.panel, (r.x + t.u * 2, r.bottom), (r.right - t.u * 2, r.bottom))
