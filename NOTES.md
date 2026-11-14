@@ -33,7 +33,8 @@ v0.2.6 (Omri): button labels centred; Settings Update row = info text + purple p
   right (Check/Update/Restart/Retry, rows() value tuple); Library L1/R1 = switch tabs (X still
   toggles, hidden from hints); L2/R2 held repeat at FAST_MS (300, 85) = several speeds:
   D-pad 170 ms/step, triggers 3 rows per 85 ms. Game page L1/R1 still prev/next game.
-Next: M3 native install (ask Omri before starting).
+M2 — DONE 14 Nov (v0.2.6 on Deck, all ✓).
+Next: M3 native install — Omri approved starting it (new chat). Include the loading indicator above.
   M3 also: visible background-loading indicator in the library top bar, e.g. "Covers 40/120"
   (and page-details prefetch progress), hidden when done. Omri asked 14 Nov.
 
