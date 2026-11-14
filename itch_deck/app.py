@@ -16,7 +16,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.3.3"
+VERSION = "0.3.4"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Choosing a build comes in a later update."
@@ -402,7 +402,14 @@ class App:
         sc.offline_since = self.lib.offline_since if self.lib.games else None
         sc.offline = self.lib.offline and not self.lib.games
         sc.activity = self._activity()
+        sc.notice = self._update_notice()
         sc.focus = max(0, min(sc.focus, len(sc.shown) - 1))
+
+    def _update_notice(self):
+        u = self.updater
+        return {"available": f"Update v{u.new_version} available · Settings",
+                "downloading": f"Updating · {int(u.frac * 100)}%",
+                "ready": f"v{u.new_version} installed · restart in Settings"}.get(u.state)
 
     def _activity(self):
         """Top-bar background work: a running download first, then sync/covers/details."""
@@ -435,9 +442,6 @@ class App:
             if self.lib.sync_error and not self.lib.syncing:
                 self.say("Couldn't refresh the library. Details are in the log.", error=True)
                 self.lib.sync_error = None
-            if self.updater.state == "available" and not self.update_told and not self.scene.toast:
-                self.update_told = True
-                self.say(f"Update v{self.updater.new_version} is ready to download in Settings.")
         elif self.kind == "settings":
             self.scene.v["update"] = self.updater.row_value()
         elif self.kind == "game":

@@ -85,7 +85,12 @@ def extract(archive, dest):
                         os.symlink(link, target)
                     continue
                 with z.open(info) as src, open(target, "wb") as out:
-                    shutil.copyfileobj(src, out, 1024 * 1024)
+                    while True:                 # small chunks + yield: the UI stays smooth
+                        chunk = src.read(256 * 1024)
+                        if not chunk:
+                            break
+                        out.write(chunk)
+                        time.sleep(0)
                 if mode & 0o111:
                     os.chmod(target, (mode & 0o777) | 0o600)
         return

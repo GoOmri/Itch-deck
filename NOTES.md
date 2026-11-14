@@ -77,6 +77,14 @@ Player.log (~/.config/unity3d/Bedtime Digital Games/Figment/, no prefs file save
   GL 4.6 OK, then "requesting fullscreen 1 x 1", crash in the Theora logo video. v0.3.3: Unity games
   (<exe stem>_Data or UnityPlayer.so next to exe) get -screen-fullscreen 1 -screen-width/height =
   our display size. Command line is written at the top of logs/games/<slug>.log.
+v0.3.3 Deck: resolution fix works ("requesting fullscreen 1280 x 800"), Figment STILL crashes on
+  its logo splash scene ("Receiving unhandled NULL exception"; stack symbols are junk). Also
+  "Unable to preload libsteam_api.so / ScreenSelector.so". Not a launcher issue as far as we can
+  tell -> stop chasing. Plan: Figment has figment-windows-32.zip -> try it via Proton once M4 +
+  Change build exist. Optional check: run Figment.x86_64 as its own non-Steam shortcut.
+v0.3.4 (Omri): top bar shows app update state in accent colour (available / Updating % /
+  installed · restart), update toast removed; platform pills removed from game page; extract bar
+  segment drawn live over the cached page (no full re-render) + extract yields GIL per 256 KB.
 M3 — DONE 14 Nov (Bleed 2 installs, plays, uninstalls from the pad). Figment = known issue -> M5.
 Next: M4 (umu + GE-Proton) in a new chat.
 Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit of v0.3.2 renders:
