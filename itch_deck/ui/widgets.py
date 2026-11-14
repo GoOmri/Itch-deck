@@ -144,6 +144,23 @@ def text(t, s, txt, x, y, font, color=None, anchor="topleft", maxw=None):
     return r
 
 
+def text_named(t, s, txt, x, y, font, color=None, maxw=None):
+    """Like text() (topleft), but the app name inside txt is drawn purple (every letter;
+    only the logo has the white i). Returns the rect of the whole line."""
+    if maxw:
+        txt = fit(font, txt, maxw)
+    i = txt.find(APP_NAME)
+    if i < 0:
+        return text(t, s, txt, x, y, font, color)
+    parts = [(txt[:i], color or t.text_c), (APP_NAME, t.accent), (txt[i + len(APP_NAME):], color or t.text_c)]
+    cx = x
+    for part, col in parts:
+        if part:
+            s.blit(font.render(part, True, col), (int(cx), int(y)))
+        cx += font.size(part)[0]
+    return pg.Rect(int(x), int(y), font.size(txt)[0], font.get_height())
+
+
 def cap_gap(font):
     """Empty space between the top of a text box and the top of its capitals."""
     return font.get_ascent() - font.metrics("H")[0][3]
@@ -668,7 +685,7 @@ def modal(t, s, title, body):
     r = pg.Rect(0, 0, min(t.w - 2 * t.m, max(t.read_w * 0.8, need)), h)
     r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
     panel(t, s, r)
-    y = text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom + t.sm
+    y = text_named(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom + t.sm
     for ln in lines:
         y = text(t, s, ln, r.x + pad, y, t.f_body, color=t.dim).bottom
     return r

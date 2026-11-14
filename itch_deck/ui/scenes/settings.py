@@ -41,5 +41,6 @@ class Settings(Scene):
         y = W.text(t, s, "Settings", x, y, t.f_h1).bottom + t.md
         row_h = int(min(t.u * 8.5, (t.h - t.hint_h - y - t.xl) / len(self.items()) - t.u // 2))
         W.rows(t, s, pg.Rect(x, y, w, 0), self.items(), self.focus, row_h, key="settings")
-        W.text(t, s, f"{W.APP_NAME} v{self.version}   ·   Log: {self.log_path}", x,
-               t.h - t.hint_h - t.md, t.f_small, color=t.dim, anchor="bottomleft", maxw=w)
+        line = f"{W.APP_NAME} v{self.version}   ·   Log: {self.log_path}"
+        W.text_named(t, s, line, x, t.h - t.hint_h - t.md - t.f_small.get_height(), t.f_small,
+                     color=t.dim, maxw=w)

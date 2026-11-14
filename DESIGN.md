@@ -7,7 +7,8 @@ there first, then use it.
 ## 1. Colour = meaning
 - **Purple** means *happening or yours*: progress, rings, spinners, the ✓ badge, Installed /
   Recommended / Developer tags, the selected tab. Never focus, never decoration.
-- The name is written SCRiTCH: the logo (`W.wordmark`) has purple letters with a white i.
+- The name is written SCRiTCH and is always purple (`W.text_named` in text). Only the logo
+  (`W.wordmark`) has the white i.
 - **One purple button per page: its main action** (like Steam, PS5, Xbox): Install (or Retry
   install) when not installed, Play when installed, Update / Restart when an update is waiting.
   While downloading there is none: the progress bar is the purple thing, Cancel stays grey.
