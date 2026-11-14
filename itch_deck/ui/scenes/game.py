@@ -133,7 +133,6 @@ class Game(Scene):
             self._live_bar = None
             need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)
             canvas = pg.Surface((t.w, need), pg.SRCALPHA)  # transparent: gradient shows through
-            self._hero(canvas)
             about_y = self._top(canvas)
             desc_y, comments_y = self._about(canvas, about_y)
             self._page = (canvas, about_y, desc_y, comments_y)
@@ -147,6 +146,7 @@ class Game(Scene):
         scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m + self.off,
                   "comments": comments_y - t.m + self.off}[self.section]
         self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll), back=0)   # scroll: no bounce
+        self._hero(s)                            # static: stays put while the page scrolls
         s.blit(canvas, (0, -int(self._sy[0])))
         if self._live_bar:                       # indeterminate bar: cheap per-frame overlay
             W.progress(t, s, self._live_bar.move(0, -int(self._sy[0])), None, phase=0.35)
@@ -191,6 +191,9 @@ class Game(Scene):
             self._progress_inline(s, px, y, min(x + maxw - px, t.read_w))
         if acts:
             y += t.btn_h + t.sm
+        if g.get("state") == "failed" and rects:         # what went wrong, under its buttons
+            y = W.notice(t, s, x, y + t.xs, min(maxw, t.read_w), "Couldn't install",
+                         self.fail_reason or "See the log for details.").bottom + t.sm
         return max(cover_r.bottom, y) + t.lg
 
     def _about(self, s, y):
@@ -275,7 +278,7 @@ class Game(Scene):
         """Big art across the top: the first screenshot (sharp, darkened), or the blurred cover
         when there are none; fades out into the page gradient."""
         t, g = self.t, self.g
-        h = int(t.h * 0.8)
+        h = t.h                                 # whole screen: About/Comments sit on it too
         shot = bool(g.get("screens"))
         key = (g["id"], g.get("cover_file"), tuple(g.get("shot_files") or ()), shot, t.w, h)
         if getattr(self, "_hero_key", None) == key:
@@ -294,7 +297,7 @@ class Game(Scene):
         out.blit(hero, (0, 0))
         mask = pg.Surface((t.w, h), pg.SRCALPHA)
         for yy in range(h):
-            a = int((255 if shot else 200) * (1 - yy / h) ** (1.1 if shot else 1.4))
+            a = int(255 - (255 - 90) * (yy / h) ** 0.8) if shot else int(200 * (1 - yy / h) ** 1.4)
             pg.draw.line(mask, (255, 255, 255, a), (0, yy), (t.w, yy))
         out.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
         self._hero_key, self._hero_img = key, out
@@ -317,8 +320,7 @@ class Game(Scene):
                          "(for example macOS-only, a soundtrack or a book).")
             return note(*lines)
         if g.get("state") == "failed":
-            return W.notice(t, s, x, y, w, "Couldn't install",
-                            self.fail_reason or "See the log for details.").bottom + t.md
+            return y                        # the notice goes under the buttons (see _top)
         if g.get("state") == "missing":
             if g.get("missing") == "card":
                 lines = ("SD card missing", "This game is installed on the SD card. Insert the "
@@ -348,12 +350,9 @@ class Game(Scene):
                     f"{g.get('speed_mbs', 0):.1f} MB/s")
             W.progress(t, s, bar, p)
         else:
-            label, info = {
-                "extract": ("Extracting…", "Unpacking the download"),
-                "installing": ("Installing…", "Installer runs silently"),
-                "proton": ("Preparing Proton…", "First run only, about 30 s"),
-                "umu": ("Getting umu-launcher…", "One-time, for Windows games"),
-            }[self.phase]
+            label, info = {"extract": "Extracting…", "installing": "Installing…",
+                           "proton": "Preparing Proton…", "umu": "Getting umu-launcher…"
+                           }[self.phase], ""      # no explanations: the label is enough
             W.progress(t, s, bar, 0)          # track only; draw_page animates the segment live
             self._live_bar = bar
         lr = W.text(t, s, label, x, base, t.f_btn, anchor="baseleft")
