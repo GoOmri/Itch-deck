@@ -136,18 +136,18 @@ class Game(Scene):
         t, g = self.t, self.g
         cw = int((t.w - 2 * t.m) * 0.34)
         cover_r = pg.Rect(t.m, t.m, cw, int(cw * t.cover_ratio))
-        img = W.rounded(W.cover(t, g, cover_r.size), t.u * 1.5)
+        img = W.rounded(W.cover(t, g, cover_r.size), t.radius)
         if not self.playable:
             o = pg.Surface(cover_r.size, pg.SRCALPHA)
-            pg.draw.rect(o, (0, 0, 0, t.dimmed_a), o.get_rect(), border_radius=int(t.u * 1.5))
+            pg.draw.rect(o, (0, 0, 0, t.dimmed_a), o.get_rect(), border_radius=t.radius)
             img.blit(o, (0, 0))
         s.blit(img, cover_r)
 
         x = cover_r.right + t.u * 5
         maxw = t.w - t.m - x
-        y = cover_r.y
-        W.text(t, s, f"itch  ·  {self.pos[0]} of {self.pos[1]}", x, y, t.f_small, color=t.faint)
-        y += t.u * 3.2
+        y = cover_r.y - W.cap_gap(t.f_small)    # capitals of the first line = cover top edge
+        W.text(t, s, f"itch  ·  {self.pos[0]} of {self.pos[1]}", x, y, t.f_small, color=t.dim)
+        y += t.u * 3.4
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
         y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim).bottom + t.u * 1.5
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
@@ -156,24 +156,27 @@ class Game(Scene):
         px = x
         plat = [p for p in PLATFORM if p in g["platforms"]]
         for p in plat:
-            px = W.pill(t, s, PLATFORM[p], px, y, fill=t.panel_hi).right + t.u
+            px = W.tag(t, s, PLATFORM[p], px, y).right + t.u
         if g["size_mb"]:
-            px = W.pill(t, s, _mb(g["size_mb"]), px, y, fill=t.panel_hi).right + t.u
+            px = W.tag(t, s, _mb(g["size_mb"]), px, y).right + t.u
         if g.get("state") == "installed":
-            W.pill(t, s, "✓ Installed", px, y, fill=t.accent, color=t.on_accent)
+            W.tag(t, s, "✓ Installed", px, y, kind="accent")
         y += t.u * 5
 
         y = self._status(s, x, y, maxw)
+        if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
+            y = max(y, cover_r.bottom - t.btn_h)
         bx = x
         for i, (label, icon, en) in enumerate(self.actions()):  # one row; LEFT/RIGHT moves
-            bw = max(t.u * 20, t.f_btn.size(label)[0] + t.u * (9 if icon else 5))
+            bw = W.button_w(t, label, icon)
             W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, enabled=en, icon=icon,
+                     play=(label == "Play"),
                      focused=(self.section == "actions" and i == self.focus and not self.overlay))
             bx += bw + t.u * 1.5
         if self.actions():
             y += t.btn_h + t.u * 1.5
         if self.install_path and g.get("state") == "installed":
-            y = W.text(t, s, self.install_path, x, y, t.f_small, color=t.faint, maxw=maxw).bottom
+            y = W.text(t, s, self.install_path, x, y, t.f_small, color=t.dim, maxw=maxw).bottom
         return max(cover_r.bottom, y) + t.u * 5
 
     def _about(self, s, y):
@@ -181,8 +184,7 @@ class Game(Scene):
         t, g = self.t, self.g
         n = g.get("screens", 0)
         if n:
-            W.text(t, s, "Screenshots", t.m, y, t.f_small, color=t.dim)
-            y += t.u * 3.5
+            y = W.text(t, s, "Screenshots", t.m, y, t.f_h2).bottom + t.u * 2
             th = int(t.u * 17)
             tw = int(th * 16 / 9)
             fits = max(1, int((t.w - 2 * t.m + t.gap) // (tw + t.gap)))
@@ -194,28 +196,27 @@ class Game(Scene):
                     r = r.inflate(tw * (t.focus_scale - 1), th * (t.focus_scale - 1))
                 s.blit(W.rounded(W.screenshot(t, g, i, r.size), t.radius), r)
                 if foc:
-                    pg.draw.rect(s, t.accent, r.inflate(t.outline * 2, t.outline * 2), t.outline,
-                                 border_radius=t.radius + t.outline)
+                    W.focus_ring(t, s, r)
             if first + fits < n:  # more to the right: count on the last visible shot
                 last = pg.Rect(t.m + (fits - 1) * (tw + t.gap), y, tw, th)
-                W.pill(t, s, f"+{n - first - fits} more", last.right - t.u, last.bottom - t.u,
-                       anchor="bottomright")
+                W.tag(t, s, f"+{n - first - fits} more", last.right - t.u, last.bottom - t.u,
+                      kind="dark", anchor="bottomright")
             y += th + t.u * 5
         desc_y = y
         paras = g.get("description") or []
         if paras:
-            y = W.text(t, s, "About this game", t.m, y, t.f_h2).bottom + t.u * 1.5
+            y = W.text(t, s, "About this game", t.m, y, t.f_h2).bottom + t.u * 2
             w = min(t.w - 2 * t.m, t.u * 125)
             for para in paras:
                 y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=(205, 205, 205)) + t.f_body.get_linesize() * 0.6
-            y = W.text(t, s, "From the game's itch.io page", t.m, y + t.u, t.f_small, color=t.faint).bottom
+            y = W.text(t, s, "From the game's itch.io page", t.m, y + t.u, t.f_small, color=t.dim).bottom
         elif not n:
             msg = ("This game's itch.io page no longer exists." if g.get("page_missing") else
                    "Loading details from itch.io…" if g.get("details_loading") or not self.offline
                    and not g.get("details_at") else
                    "More details load the next time you're online." if self.offline else
                    "This game's itch page has no description.")
-            y = W.text(t, s, msg, t.m, y, t.f_small, color=t.faint).bottom
+            y = W.text(t, s, msg, t.m, y, t.f_body, color=t.dim).bottom
         comments_y = y + t.u * 5
         self._end = self._comments(s, comments_y)
         return desc_y, comments_y
@@ -329,7 +330,7 @@ class Game(Scene):
         h = t.u * 14 + len(items) * (row_h + t.u // 2) + t.u * 3
         r = pg.Rect(0, 0, w, h)
         r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
-        W.panel(t, s, r, radius=t.u * 1.5)
+        W.panel(t, s, r)
         W.text(t, s, title, r.x + t.u * 4, r.y + t.u * 3.5, t.f_h2)
         W.text(t, s, sub, r.x + t.u * 4, r.y + t.u * 8, t.f_small, color=t.dim)
         W.rows(t, s, pg.Rect(r.x + t.u * 2, r.y + t.u * 13, r.w - t.u * 4, 0), items, focus, row_h)
@@ -342,7 +343,9 @@ class Game(Scene):
         w = min(avail.w, int(avail.h * 16 / 9))
         r = pg.Rect(0, 0, w, int(w * 9 / 16))
         r.center = avail.center
-        s.blit(W.rounded(W.screenshot(t, self.g, self.shot, r.size), t.radius), r)
+        if self.shot < len(self.g.get("shot_files") or []):
+            r = avail                   # real image: fit the whole thing, any aspect (letterbox)
+        s.blit(W.screenshot(t, self.g, self.shot, r.size, contain=True), r)
         W.text(t, s, f"{self.shot + 1} / {n}", t.w - t.m, t.m * 0.5, t.f_small, color=t.dim,
                anchor="midright")
         W.text(t, s, self.g["title"], t.m, t.m * 0.5, t.f_small, color=t.dim, anchor="midleft")
@@ -354,9 +357,9 @@ class Game(Scene):
         r = W.text(t, s, c["author"], x + t.u * 2.5, y, f_name)
         wx = r.right + t.u * 1.5
         if c.get("dev"):
-            wx = W.pill(t, s, "Developer", wx, r.centery, fill=t.accent, color=t.on_accent,
-                        anchor="midleft").right + t.u * 1.5
-        W.text(t, s, c["when"], wx, r.centery, t.f_small, color=t.faint, anchor="midleft")
+            wx = W.tag(t, s, "Developer", wx, r.centery, kind="accent",
+                       anchor="midleft").right + t.u * 1.5
+        W.text(t, s, c["when"], wx, r.centery, t.f_small, color=t.dim, anchor="midleft")
         yy = W.wrap(t, s, c["text"], x + t.u * 2.5, r.bottom + t.u * 0.3,
                     t.f_small if reply else t.f_body, w - t.u * 2.5,
                     color=(190, 190, 190) if reply else (205, 205, 205), max_lines=2 if reply else 3)

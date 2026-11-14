@@ -89,6 +89,26 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   7. (older) Screenshots centre-cropped to 16:9; viewer should letterbox.
   Plan: shared parts first (theme tokens + widgets), then every page; render before/after
   sheets; update the M1 gallery artifact. Ask Omri before starting (medium change).
+  DONE locally 14 Nov (not committed/released yet), all 7 items + Omri's follow-ups:
+  - Name shown = "scritch" (W.APP_NAME: wordmark, window title, quit dialog, Settings footer).
+    Binary / data folders / repo / updater ASSET still itch-deck (renaming needs a data move).
+  - PURPLE = "happening / yours" ONLY: progress, rings, spinners, ✓ badge, Installed/Recommended/
+    Developer tags, tab underline, wordmark — and the Play button (only coloured button;
+    accent_btn, focused = accent). Never focus. Omri rejected purple-fill focus, white-fill focus
+    and purple outline on buttons.
+  - FOCUS = light: buttons/rows/fields grey panel_hi + dim text -> focus_fill + white text.
+    Pictures (tiles, screenshots) = grow + thin light outline (focus_line). Tune focus_fill on TV.
+  - Type: 5 sizes only: f_h1 5.2u, f_h2 3.2u (ALL section headers), f_body/f_btn 2.7u,
+    f_small 2.4u (meta), f_hint 2.0u bold UPPERCASE (footer + tags).
+  - W.button is the only button (Settings Update row too); W.tag(kind=) for info labels (squared,
+    uppercase, never pressable); W.wordmark; one radius t.radius; tile ring on translucent chip.
+  - Alignment: top bar on one baseline (text anchor "baseleft"/"baseright"); game hero column =
+    cover height (first line cap = cover top, buttons on cover bottom unless pushed by status).
+  - Viewer letterboxes real screenshots (contain=True); strip thumbs still crop.
+  - faint grey only for disabled/separators; readable secondary text = dim.
+  - Removed dead Theme.button/hint_bar/modal/text.
+  Next (asked): animation + feedback (A press, focus fade, page transitions, toast slide).
+  Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
@@ -156,6 +176,7 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
 - 2026-11-14 12:01 — 80% → 81% for M2 build = 1%
 - 2026-11-14 15:23 — 82% after M2 fixes v0.2.1–0.2.3 (+ self-update); v0.2.4 feel pass starts here
 - 2026-11-14 16:39 — 83% at start of M3 build
+- 2026-11-14 17:43 — 87% at start of design pass
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while

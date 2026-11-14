@@ -60,28 +60,28 @@ class Library(Scene):
     def _top_bar(self, s):
         t = self.t
         cy = t.m * 0.5 + t.u * 3
-        r = W.pill(t, s, "itch", t.m, cy, fill=t.accent, color=t.on_accent, font=t.f_btn,
-                   anchor="midleft")
+        base = int(cy + t.u * 1.2)          # everything in the top bar sits on this baseline
+        r = W.wordmark(t, s, t.m, base, anchor="baseleft")
         x = r.right + t.u * 5
         for key, label in (("all", "All"), ("installed", "Installed")):
             on = self.filt == key
-            lr = W.text(t, s, label, x, cy, t.f_btn, color=t.text_c if on else t.faint,
-                        anchor="midleft")
+            lr = W.text(t, s, label, x, base, t.f_btn, color=t.text_c if on else t.dim,
+                        anchor="baseleft")
             if on:
-                pg.draw.rect(s, t.accent, (lr.x, lr.bottom + t.u * 0.5, lr.w, max(2, t.u // 3)))
+                pg.draw.rect(s, t.accent, (lr.x, base + t.u * 1.2, lr.w, max(2, t.u // 3)))
             x = lr.right + t.u * 3
         n = len(self.shown)
         right = t.w - t.m
         if self.offline_since:
-            right = W.offline_mark(t, s, right, cy, self.offline_since)
-        rr = W.text(t, s, f"{n} game{'s' if n != 1 else ''}", right, cy, t.f_small,
-                    color=t.dim, anchor="midright")
+            right = W.offline_mark(t, s, right, base, self.offline_since)
+        rr = W.text(t, s, f"{n} game{'s' if n != 1 else ''}", right, base, t.f_small,
+                    color=t.dim, anchor="baseright")
         act = self.activity or ("Refreshing library" if self.syncing == "bg" else None)
         if act:                         # background work, hidden when done
-            sep = W.text(t, s, "·", rr.x - t.u * 1.5, cy, t.f_small, color=t.faint, anchor="midright")
-            ar = W.text(t, s, act, sep.x - t.u * 1.5, cy, t.f_small, color=t.dim, anchor="midright",
+            sep = W.text(t, s, "·", rr.x - t.u * 1.5, base, t.f_small, color=t.dim, anchor="baseright")
+            ar = W.text(t, s, act, sep.x - t.u * 1.5, base, t.f_small, color=t.dim, anchor="baseright",
                         maxw=int(t.w * 0.38))
-            W.spinner(t, s, (int(ar.x - t.u * 2.5), int(cy)), int(t.u * 1.2), 0.15)
+            W.spinner(t, s, (int(ar.x - t.u * 2.5), int(base - W.x_mid(t.f_small))), int(t.u * 1.2), 0.15)
         return int(cy + t.u * 6)
 
     def _center_msg(self, s, y, title, sub, spinner=False, refresh=False):

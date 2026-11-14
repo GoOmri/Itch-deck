@@ -17,7 +17,7 @@ from .updater import Updater
 
 log = logging.getLogger("itch-deck")
 VERSION = "0.3.2"
-QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
+QUIT_DLG = ("confirm", "Quit scritch?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Choosing a build comes in a later update."
 
@@ -77,7 +77,8 @@ class App:
             self.screen = pg.display.set_mode((1280, 800))
         else:
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
-        pg.display.set_caption("itch-deck")
+        from .ui.widgets import APP_NAME
+        pg.display.set_caption(APP_NAME)
         pg.mouse.set_visible(False)
         self.t = theme.Theme(pg, self.screen.get_size())
         log.info("display open %s driver=%s", self.screen.get_size(), pg.display.get_driver())

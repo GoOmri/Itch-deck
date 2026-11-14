@@ -39,7 +39,7 @@ class Setup(Scene):
         w = min(t.w - 2 * t.m, t.u * 100)
         x = int(t.cx - w / 2)
         y = int(t.m * 1.2)
-        W.pill(t, s, "itch", x, y, fill=t.accent, color=t.on_accent, font=t.f_btn)
+        W.wordmark(t, s, x, y)
         y += t.u * 6.5
         y = W.text(t, s, "Connect your itch.io account", x, y, t.f_h1).bottom + t.u
         y = W.text(t, s, "One time only. The key stays on this Deck.", x, y, t.f_body,
@@ -72,18 +72,17 @@ class Setup(Scene):
             return self._field(s, x, y, w)
         bx = x
         for i, label in enumerate(self.buttons()):
-            bw = t.u * 30
+            bw = W.button_w(t, label)
             W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, focused=(i == self.focus))
             bx += bw + t.u * 2.5
         W.text(t, s, "Type key opens a field — press Steam + X for the on-screen keyboard.",
-               x, y + t.btn_h + t.u * 2.5, t.f_small, color=t.faint, maxw=w)
+               x, y + t.btn_h + t.u * 2.5, t.f_small, color=t.dim, maxw=w)
 
     def _field(self, s, x, y, w):
         """Typed/pasted key. Only the start and the length are shown."""
         t = self.t
         r = pg.Rect(x, y, w, t.btn_h)
-        W.panel(t, s, r, t.panel_hi)
-        pg.draw.rect(s, t.accent, r, max(2, t.u // 3), border_radius=t.radius)
+        W.panel(t, s, r, t.focus_fill)
         k = self.typed
         shown = (k[:4] + "•" * min(len(k) - 4, 28)) if len(k) > 4 else k
         tr = W.text(t, s, shown or " ", r.x + t.u * 2.5, r.centery, t.f_btn, anchor="midleft")
@@ -91,4 +90,4 @@ class Setup(Scene):
         W.text(t, s, f"{len(k)} characters", r.right - t.u * 2.5, r.centery, t.f_small, color=t.dim,
                anchor="midright")
         W.text(t, s, "Press Steam + X for the on-screen keyboard, or paste with Ctrl+V (RustDesk).",
-               x, r.bottom + t.u * 2.5, t.f_small, color=t.faint, maxw=w)
+               x, r.bottom + t.u * 2.5, t.f_small, color=t.dim, maxw=w)

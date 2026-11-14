@@ -9,6 +9,9 @@ _cover_cache = {}
 LIVE = False   # True in the running app: animate. False for mockups: draw the end state.
 
 
+APP_NAME = "scritch"          # shown name; binary, data folders and repo keep itch-deck for now
+
+
 def ease(cur, target, speed=16.0):
     """Frame-rate independent ease-out toward target. Snaps when not LIVE or on first use."""
     import time
@@ -58,9 +61,21 @@ def text(t, s, txt, x, y, font, color=None, anchor="topleft", maxw=None):
     if maxw:
         txt = fit(font, txt, maxw)
     img = font.render(txt, True, color or t.text_c)
+    if anchor in ("baseleft", "baseright"):   # sit on a shared baseline (mixed font sizes)
+        anchor, y = ("topleft" if anchor == "baseleft" else "topright"), y - font.get_ascent()
     r = img.get_rect(**{anchor: (int(x), int(y))})
     s.blit(img, r)
     return r
+
+
+def cap_gap(font):
+    """Empty space between the top of a text box and the top of its capitals."""
+    return font.get_ascent() - font.metrics("H")[0][3]
+
+
+def x_mid(font):
+    """Height above the baseline of the middle of lowercase letters (to centre icons on text)."""
+    return font.metrics("x")[0][3] / 2
 
 
 def rounded(img, radius):
@@ -105,9 +120,10 @@ def _hue(seed, n):
     return ((zlib.crc32(f"{seed}:{n}".encode()) % 1000) / 1000.0)
 
 
-def _from_file(path, size):
-    """Image file scaled to cover `size` (centre-cropped). None if missing/unreadable."""
-    key = ("file", path, size)
+def _from_file(path, size, contain=False):
+    """Image file scaled to cover `size` (centre-cropped), or with contain=True fitted inside it
+    on black (letterbox). None if missing/unreadable."""
+    key = ("file", path, size, contain)
     if key in _cover_cache:
         return _cover_cache[key]
     try:
@@ -115,9 +131,10 @@ def _from_file(path, size):
         rgb = pg.Surface(img.get_size(), 0, 32)   # palette GIF/PNG -> 32-bit for smoothscale
         rgb.blit(img, (0, 0))
         w, h = rgb.get_size()
-        k = max(size[0] / w, size[1] / h)
-        big = pg.transform.smoothscale(rgb, (max(size[0], round(w * k)), max(size[1], round(h * k))))
+        k = (min if contain else max)(size[0] / w, size[1] / h)
+        big = pg.transform.smoothscale(rgb, (max(1, round(w * k)), max(1, round(h * k))))
         out = pg.Surface(size)
+        out.fill((0, 0, 0))
         out.blit(big, ((size[0] - big.get_width()) // 2, (size[1] - big.get_height()) // 2))
     except Exception:  # noqa: BLE001  - broken download: fall back to placeholder
         out = None
@@ -167,11 +184,12 @@ def cover(t, game, size):
     return out
 
 
-def screenshot(t, game, i, size):
-    """Screenshot i (cached from the itch page), else a 16:9 placeholder."""
+def screenshot(t, game, i, size, contain=False):
+    """Screenshot i (cached from the itch page), else a 16:9 placeholder.
+    contain=True (full-screen viewer): whole image, letterboxed — never cropped."""
     files = game.get("shot_files") or []
     if i < len(files):
-        img = _from_file(files[i], size)
+        img = _from_file(files[i], size, contain)
         if img:
             return img
     key = ("shot", game["id"], i, size)
@@ -259,19 +277,63 @@ def hint_bar(t, s, items):
 
 
 # --- controls ---------------------------------------------------------------
-def button(t, s, rect, label, focused=False, enabled=True, icon=None):
-    panel(t, s, rect, t.panel_hi if focused else t.panel)
-    if focused:
-        pg.draw.rect(s, t.accent, rect.inflate(t.outline * 2, t.outline * 2), t.outline,
-                     border_radius=t.radius + t.outline)
-    col = t.text_c if enabled else t.faint
-    gap = t.u * 1.5
+def focus_ring(t, s, rect):
+    """Focus edge for pictures (tiles, screenshots): thin light outline, not colour."""
+    pg.draw.rect(s, t.focus_line, rect.inflate(t.outline * 2, t.outline * 2), t.outline,
+                 border_radius=t.radius + t.outline)
+
+
+def button(t, s, rect, label, focused=False, enabled=True, icon=None, play=False):
+    """The one button: all the same grey. Focus (= hover on a pad) lights it up — no colour,
+    no outline. Only Play is purple (play=True); focused it lights up to the bright accent."""
+    if play and enabled:
+        fill, col = (t.accent if focused else t.accent_btn), t.text_c
+    elif not enabled:
+        fill, col = (t.panel_hi if focused else t.panel), t.faint
+    elif focused:
+        fill, col = t.focus_fill, t.text_c
+    else:
+        fill, col = t.panel_hi, t.dim
+    panel(t, s, rect, fill)
+    gap = t.u * 1.2
     w = t.f_btn.size(label)[0] + ((t.f_btn.size(icon)[0] + gap) if icon else 0)
     x = rect.centerx - w / 2                       # icon + label centred as one group
     if icon:
-        x = text(t, s, icon, x, rect.centery, t.f_btn, color=t.accent if enabled else t.faint,
-                 anchor="midleft").right + gap
+        x = text(t, s, icon, x, rect.centery, t.f_btn, color=col, anchor="midleft").right + gap
     text(t, s, label, x, rect.centery, t.f_btn, color=col, anchor="midleft")
+
+
+def button_w(t, label, icon=None):
+    """Natural width of a button (label + padding), at least btn_min."""
+    w = t.f_btn.size(label)[0] + (t.f_btn.size(icon)[0] + t.u * 1.2 if icon else 0)
+    return int(max(t.u * 18, w + t.u * 6))
+
+
+TAG_KINDS = {"neutral": ("tag_bg", "text_c"), "accent": ("accent_tint", "accent_soft"),
+             "error": ("error_bg", "error_soft"), "dark": (None, "text_c")}
+
+
+def tag(t, s, label, x, y, kind="neutral", anchor="topleft"):
+    """Info label — never pressable: squared corners, LABEL size, UPPERCASE.
+    kinds: neutral (platform, size), accent (Installed, Recommended, Developer),
+    error (Failed), dark (on top of images, e.g. '+2 more')."""
+    fill_k, col_k = TAG_KINDS[kind]
+    img = t.f_hint.render(label.upper(), True, getattr(t, col_k))
+    r = pg.Rect(0, 0, img.get_width() + t.u * 1.6, int(t.f_hint.get_height() + t.u * 0.7))
+    setattr(r, anchor, (int(x), int(y)))
+    if fill_k:
+        pg.draw.rect(s, getattr(t, fill_k), r, border_radius=t.tag_r)
+    else:
+        chip = pg.Surface(r.size, pg.SRCALPHA)
+        pg.draw.rect(chip, (0, 0, 0, t.chip_a + 40), chip.get_rect(), border_radius=t.tag_r)
+        s.blit(chip, r)
+    s.blit(img, img.get_rect(center=r.center))
+    return r
+
+
+def wordmark(t, s, x, y, anchor="topleft"):
+    """App name: bold purple text, no pill (pills read as buttons)."""
+    return text(t, s, APP_NAME, x, y, t.font("Bold", t.u * 3.2), color=t.accent, anchor=anchor)
 
 
 def pill(t, s, label, x, y, fill=None, color=None, font=None, anchor="topleft"):
@@ -334,7 +396,7 @@ def ring(t, s, center, r, frac, width=None, busy=False):
     """Download progress ring. busy=True (unpacking / waiting): a spinning arc instead."""
     width = width or max(3, r // 4)
     start, sweep = (_turn() % 1, 0.3) if busy else (0, max(0.0, min(1.0, frac)))
-    img = _arc(r, width, start, sweep, t.accent, t.line, disc=(0, 0, 0))
+    img = _arc(r, width, start, sweep, t.accent, (255, 255, 255, 60), disc=(0, 0, 0, t.chip_a))
     s.blit(img, img.get_rect(center=center))
 
 
@@ -374,8 +436,7 @@ def tile(t, s, game, rect, focused=False):
         img.blit(o, (0, 0))
     s.blit(img, r.topleft)
     if focused:
-        pg.draw.rect(s, t.accent, r.inflate(t.outline * 2, t.outline * 2), t.outline,
-                     border_radius=t.radius + t.outline)
+        focus_ring(t, s, r)
     _badges(t, s, game, r, playable)
     ty = r.bottom + t.u * 1.2
     col = t.text_c if (focused or playable) else t.faint
@@ -394,21 +455,21 @@ def _badges(t, s, game, r, playable):
         pg.draw.circle(s, t.accent, c, t.u * 1.6)
         text(t, s, "✓", c[0], c[1] + 1, t.f_glyph, color=t.on_accent, anchor="center")
     elif st == "downloading":
-        ring(t, s, (int(r.right - pad - t.u * 2.2), int(r.y + pad + t.u * 2.2)), int(t.u * 2.2),
+        ring(t, s, (int(r.right - pad - t.u * 1.6), int(r.y + pad + t.u * 1.6)), int(t.u * 1.6),
              game.get("progress", 0),
              busy=game.get("phase") == "extract" or not game.get("progress"))
     elif st == "queued":
-        pill(t, s, "Queued", r.right - pad, r.y + pad, anchor="topright")
+        tag(t, s, "Queued", r.right - pad, r.y + pad, kind="dark", anchor="topright")
     elif st == "failed":
-        pill(t, s, "Failed", r.right - pad, r.y + pad, fill=t.error, color=t.on_accent,
-             anchor="topright")
+        tag(t, s, "Failed", r.right - pad, r.y + pad, kind="error", anchor="topright")
     # no platform badge: Linux vs Windows/Proton is handled for the user, not shown on the art
 
 
 def offline_mark(t, s, right, cy, since):
     """Small, quiet offline indicator for the top bar: cloud with a slash + 'Offline · <date>'."""
-    r = text(t, s, f"Offline · synced {since}", right, cy, t.f_small, color=t.faint, anchor="midright")
+    r = text(t, s, f"Offline · synced {since}", right, cy, t.f_small, color=t.faint, anchor="baseright")
     u, cx = t.u, r.x - t.u * 2.6
+    cy -= x_mid(t.f_small)
     c = t.faint
     pg.draw.circle(s, c, (int(cx - u * 0.6), int(cy + u * 0.2)), int(u * 0.7))
     pg.draw.circle(s, c, (int(cx + u * 0.2), int(cy - u * 0.3)), int(u * 0.95))
@@ -427,7 +488,7 @@ def modal(t, s, title, body, hints, width_u=64):
     need = max([t.f_h2.size(title)[0]] + [t.f_body.size(ln)[0] for ln in lines]) + t.u * 8
     r = pg.Rect(0, 0, min(t.w - 2 * t.m, max(t.u * width_u, need)), h)
     r.center = (int(t.cx), int(t.h / 2))
-    panel(t, s, r, radius=t.u * 1.5)
+    panel(t, s, r)
     y = r.y + t.u * 4
     y = text(t, s, title, r.x + t.u * 4, y, t.f_h2).bottom + t.u * 2
     for ln in lines:
@@ -465,9 +526,7 @@ def rows(t, s, rect, items, focus, row_h=None):
     for i, (label, value, sub) in enumerate(items):
         r = pg.Rect(rect.x, y, rect.w, row_h)
         if i == focus:
-            panel(t, s, r, t.panel_hi)
-            pg.draw.rect(s, t.accent, r.inflate(t.outline * 2, t.outline * 2), t.outline,
-                         border_radius=t.radius + t.outline)
+            panel(t, s, r, t.focus_fill)
         ly = r.centery - (t.f_small.get_height() // 2 if sub else 0)
         text(t, s, label, r.x + t.u * 2.5, ly, t.f_btn, anchor="midleft")
         if sub:
@@ -476,13 +535,14 @@ def rows(t, s, rect, items, focus, row_h=None):
         if isinstance(value, tuple):               # (info text, purple action button or None)
             info, btn = value
             x = r.right - t.u * 2.5
-            if btn:
-                x = pill(t, s, btn, x, r.centery, fill=t.accent, color=t.on_accent, font=t.f_btn,
-                         anchor="midright").x - t.u * 2
+            if btn:                                # the real button (row focus = its focus)
+                br = pg.Rect(0, 0, button_w(t, btn), int(t.btn_h * 0.8))
+                br.midright = (x, r.centery)
+                button(t, s, br, btn)
+                x = br.x - t.u * 2
             text(t, s, info, x, r.centery, t.f_body, color=t.dim, anchor="midright")
         elif value == "Recommended":
-            pill(t, s, value, r.right - t.u * 2.5, r.centery, fill=t.accent, color=t.on_accent,
-                 anchor="midright")
+            tag(t, s, value, r.right - t.u * 2.5, r.centery, kind="accent", anchor="midright")
         elif value:
             text(t, s, value, r.right - t.u * 2.5, r.centery, t.f_body, color=t.dim, anchor="midright")
         if i != focus and i < len(items) - 1:

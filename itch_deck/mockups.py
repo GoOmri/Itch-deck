@@ -33,7 +33,7 @@ def _shots(t, version):
     picker = ("picker", "Choose a build",
               "Recommended: native Linux first, then a plain Windows zip.",
               [(name, "Recommended" if rec else "", sub) for name, sub, rec in fake.uploads()], 0)
-    quit_dlg = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
+    quit_dlg = ("confirm", "Quit scritch?", "Downloads in progress pause and resume next time.",
                 [("A", "Quit"), ("B", "Cancel")])
 
     def with_overlay(scene, ov):
