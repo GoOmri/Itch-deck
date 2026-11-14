@@ -73,6 +73,10 @@ v0.3.2 Deck test 14 Nov: pad hotplug ✓, extracting animation ✓. Figment now 
   Unity's real error is in ~/.config/unity3d/<company>/Figment/Player.log. Ideas for M5 per-game
   launch options: -force-glcore, -screen-fullscreen 0, -screen-width 1280 -screen-height 800;
   also try OVERLAP_S=0 (our window still up when Unity picks its resolution?).
+Player.log (~/.config/unity3d/Bedtime Digital Games/Figment/, no prefs file saved): Unity 2018.2,
+  GL 4.6 OK, then "requesting fullscreen 1 x 1", crash in the Theora logo video. v0.3.3: Unity games
+  (<exe stem>_Data or UnityPlayer.so next to exe) get -screen-fullscreen 1 -screen-width/height =
+  our display size. Command line is written at the top of logs/games/<slug>.log.
 M3 — DONE 14 Nov (Bleed 2 installs, plays, uninstalls from the pad). Figment = known issue -> M5.
 Next: M4 (umu + GE-Proton) in a new chat.
 Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit of v0.3.2 renders:

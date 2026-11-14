@@ -16,7 +16,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Choosing a build comes in a later update."
@@ -345,7 +345,8 @@ class App:
                 state["closed"] = True
                 pg.display.quit()
 
-        rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump)
+        rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump,
+                              size=self.screen.get_size())
         if state["closed"]:
             self.open_display()
             self._splash("Returning…")

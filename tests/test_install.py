@@ -225,3 +225,14 @@ def test_child_env_drops_bundle_libs(monkeypatch):
     assert out["LD_LIBRARY_PATH"] == "/usr/lib/x" and "LD_LIBRARY_PATH_ORIG" not in out
     assert out["LD_PRELOAD"] == "/s/gameoverlayrenderer.so"     # Steam overlay stays
     assert "LD_LIBRARY_PATH" not in runner.child_env({"LD_LIBRARY_PATH": "/tmp/_MEIx"})
+
+
+def test_unity_gets_screen_size(tmp_path):
+    from itch_deck import runner
+    exe = tmp_path / "Figment.x86_64"
+    exe.write_bytes(ELF64)
+    exe.chmod(0o755)
+    assert runner.command(exe, (1280, 800)) == [str(exe)]
+    (tmp_path / "Figment_Data").mkdir()
+    assert runner.command(exe, (1280, 800))[1:] == ["-screen-fullscreen", "1", "-screen-width",
+                                                    "1280", "-screen-height", "800"]

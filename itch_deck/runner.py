@@ -42,14 +42,23 @@ def child_env(base=None):
     return env
 
 
-def command(exe):
-    """Scripts on a card without the exec bit (exFAT) still start through sh."""
+def is_unity(exe):
+    return (exe.parent / f"{exe.stem}_Data").is_dir() or (exe.parent / "UnityPlayer.so").exists()
+
+
+def command(exe, size=None):
+    """Scripts on a card without the exec bit (exFAT) still start through sh. Unity games get
+    the screen size explicitly: under gamescope some ask for 1x1 and crash (Figment, Unity 2018)."""
     if not os.access(exe, os.X_OK) and exe.suffix.lower() == ".sh":
         return ["/bin/sh", str(exe)]
-    return [str(exe)]
+    cmd = [str(exe)]
+    if size and is_unity(exe):
+        cmd += ["-screen-fullscreen", "1", "-screen-width", str(size[0]),
+                "-screen-height", str(size[1])]
+    return cmd
 
 
-def run(exe, slug, on_started=None, pump=None):
+def run(exe, slug, on_started=None, pump=None, size=None):
     global _proc
     """Start exe, call on_started() after OVERLAP_S (or sooner if it already exited), wait.
     pump() keeps our window alive during the overlap. Returns (returncode, seconds)."""
@@ -60,7 +69,10 @@ def run(exe, slug, on_started=None, pump=None):
         out.write(f"# {exe}\n# started {time.ctime(t0)}\n")
         out.flush()
         try:
-            proc = subprocess.Popen(command(exe), cwd=exe.parent, env=child_env(), stdout=out,
+            cmd = command(exe, size)
+            out.write(f"# {' '.join(cmd)}\n")
+            out.flush()
+            proc = subprocess.Popen(cmd, cwd=exe.parent, env=child_env(), stdout=out,
                                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
         except OSError as e:
             log.warning("play: could not start %s: %s", exe, e)
