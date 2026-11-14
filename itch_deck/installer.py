@@ -1,4 +1,4 @@
-"""Installs (M3: Linux builds). One download at a time from a queue that survives a restart:
+"""Installs (Linux builds; Windows builds run through umu + GE-Proton, see proton.py). One download at a time from a queue that survives a restart:
 uploads -> pick build -> free-space check -> resumable download -> extract -> find the
 executable -> install.json. The worker thread only writes plain dict fields; the UI reads them.
 
@@ -18,13 +18,15 @@ import time
 import zipfile
 from pathlib import Path
 
-from . import net, paths
+from . import net, paths, proton
 from .stores.itch import pick_build
 
 log = logging.getLogger("itch-deck")
 SPACE_FACTOR = 2.5            # download + extracted copy + slack
 SKIP_EXE = ("unins", "crashhandler", "crash_handler", "crashpad", "vc_redist", "dxsetup",
             "unitycrash", "chrome-sandbox", "chrome_sandbox", "notification_helper")
+SKIP_WIN = ("setup", "redist", "dxweb", "dotnet", "oalinst", "physx", "vcrun", "directx",
+            "cefsharp", "createdump", "dump_syms")
 
 
 class InstallError(Exception):
@@ -62,8 +64,9 @@ def _inside(root, target):
     return target == root or target.startswith(root + os.sep)
 
 
-def extract(archive, dest):
-    """zip (keeps exec bits), tar.*, 7z (if py7zr is bundled), or a single runnable file."""
+def extract(archive, dest, allow_exe=False):
+    """zip (keeps exec bits), tar.*, 7z (if py7zr is bundled), or a single runnable file
+    (a bare .exe only for Windows builds, and never an installer — those come in M5)."""
     archive, dest = Path(archive), Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
     name = archive.name.lower()
@@ -85,7 +88,12 @@ def extract(archive, dest):
                         os.symlink(link, target)
                     continue
                 with z.open(info) as src, open(target, "wb") as out:
-                    shutil.copyfileobj(src, out, 1024 * 1024)
+                    while True:                 # small chunks + yield: the UI stays smooth
+                        chunk = src.read(256 * 1024)
+                        if not chunk:
+                            break
+                        out.write(chunk)
+                        time.sleep(0)
                 if mode & 0o111:
                     os.chmod(target, (mode & 0o777) | 0o600)
         return
@@ -111,7 +119,11 @@ def extract(archive, dest):
             z.extractall(dest)
         return
     ext = name.rsplit(".", 1)[-1] if "." in name else ""
-    if ext in ("rar", "dmg", "apk", "exe", "msi", "pkg", "deb", "rpm", "jar"):
+    if ext == "exe" and allow_exe:
+        if proton.is_installer(archive):
+            raise InstallError("This build is a Windows installer. Installers come in a later "
+                               "update. Try another build with Change build.")
+    elif ext in ("rar", "dmg", "apk", "exe", "msi", "pkg", "deb", "rpm", "jar"):
         raise InstallError(f".{ext} downloads aren't supported.")
     # a bare executable (AppImage, .x86_64, .sh, …): copy it in as-is
     out = dest / re.sub(r"^\d+-\d+-", "", archive.name)   # drop our "<game>-<upload>-" prefix
@@ -141,12 +153,14 @@ def _script(path):
         return False
 
 
-def find_exe(root, g):
+def find_exe(root, g, platform="linux"):
     """Best runnable file under root, plus the other candidates (relative paths). Also sets the
     exec bit on every ELF and script, since archives often lose it (pitfall #7)."""
     root = Path(root)
     title = re.sub(r"[^a-z0-9]", "", (g.get("title") or "").lower())
     slug = re.sub(r"[^a-z0-9]", "", slug_of(g))
+    if platform == "windows":
+        return _find_win_exe(root, title, slug)
     found = []
     for dirpath, _dirs, files in os.walk(root):
         for fn in files:
@@ -176,12 +190,31 @@ def find_exe(root, g):
     return (names[0] if names else None), names[1:]
 
 
+def _find_win_exe(root, title, slug):
+    """Windows build: the .exe named like the game, shallowest, biggest. Helpers skipped."""
+    found = []
+    for dirpath, _dirs, files in os.walk(root):
+        for fn in files:
+            low = fn.lower()
+            if not low.endswith(".exe") or any(k in low for k in SKIP_EXE + SKIP_WIN):
+                continue
+            p = Path(dirpath) / fn
+            stem = re.sub(r"[^a-z0-9]", "", low[:-4])
+            named = len(stem) >= 3 and any(n and (stem in n or n in stem) for n in (title, slug))
+            depth = len(p.relative_to(root).parts)
+            found.append(((named, -depth, p.stat().st_size), str(p.relative_to(root))))
+    found.sort(reverse=True)
+    names = [f for _, f in found]
+    return (names[0] if names else None), names[1:]
+
+
 # --- installer -----------------------------------------------------------------------------
 class Installer:
-    def __init__(self, lib, root_fn):
-        self.lib, self.root_fn = lib, root_fn
+    def __init__(self, lib, root_fn, cfg=None):
+        self.lib, self.root_fn, self.cfg = lib, root_fn, cfg if cfg is not None else {}
         self.index = _read_json(paths.INSTALLS, {})        # gid -> {dir, exe, upload_id, ...}
-        self.queue = [gid for gid in _read_json(paths.QUEUE, []) if gid not in self.index]
+        self.choices = _read_json(paths.BUILDS, {})        # gid -> upload id (Change build)
+        self.queue = [gid for gid in _read_json(paths.QUEUE, []) if not self._done(gid)]
         self.current = None
         self.events = []          # ("done"|"failed", gid, text) for the UI thread to toast
         self._cancel = set()
@@ -199,10 +232,21 @@ class Installer:
                 self._upd(gid, state="queued", phase=None)
             self._start()
 
-    def enqueue(self, g):
+    def _done(self, gid):
+        """Installed, and with the build the user chose (a Change build reinstall isn't)."""
+        info = self.index.get(gid)
+        return bool(info) and self.choices.get(gid, info["upload_id"]) == info["upload_id"]
+
+    def enqueue(self, g, upload_id=None):
+        """upload_id: a build picked in Change build (remembered for reinstalls too)."""
         gid = g["id"]
         with self._lock:
-            if gid in self.queue or gid in self.index:
+            if gid in self.queue:
+                return False
+            if upload_id is not None:
+                self.choices[gid] = upload_id
+                _write_json(paths.BUILDS, self.choices)
+            if self._done(gid):
                 return False
             self.queue.append(gid)
             self._save_queue()
@@ -219,7 +263,8 @@ class Installer:
             if gid in self.queue:
                 self.queue.remove(gid)
                 self._save_queue()
-        self._upd(gid, state=None, phase=None)
+        self._revert_choice(gid)
+        self._upd(gid, state="installed" if gid in self.index else None, phase=None)
 
     def busy(self, gid):
         return gid in self.queue
@@ -260,14 +305,16 @@ class Installer:
             except net.Cancelled:
                 log.info("install %s: cancelled", gid)
                 self._cleanup_download(gid)
-                self._upd(gid, state=None, phase=None, progress=0)
+                self._revert_choice(gid)
+                self._upd(gid, state="installed" if gid in self.index else None, phase=None,
+                          progress=0)
             except (net.Offline, net.NotFound) as e:
                 log.info("install %s: network (%s)", gid, e)
                 self._fail(gid, title, "Lost the connection to itch.io. Retry when you're online "
                                        "(the download continues where it stopped).")
             except net.AuthError:
                 self._fail(gid, title, "itch.io rejected the API key. Re-import it in Settings.")
-            except InstallError as e:
+            except (InstallError, proton.ProtonError) as e:
                 log.info("install %s: %s", gid, e)
                 self._fail(gid, title, str(e))
             except Exception:  # noqa: BLE001
@@ -281,8 +328,37 @@ class Installer:
                     self._save_queue()
 
     def _fail(self, gid, title, reason):
+        if gid in self.index:                 # a Change build reinstall: the old build stays
+            self._revert_choice(gid)
+            self._upd(gid, state="installed", phase=None, fail_reason=None)
+            self.events.append(("error", gid, f"Couldn't change the build: {reason}"))
+            return
         self._upd(gid, state="failed", phase=None, fail_reason=reason)
         self.events.append(("failed", gid, f"Couldn't install {title}."))
+
+    def _revert_choice(self, gid):
+        info = self.index.get(gid)
+        if info and self.choices.get(gid) not in (None, info["upload_id"]):
+            self.choices[gid] = info["upload_id"]
+            _write_json(paths.BUILDS, self.choices)
+
+    def _choose(self, gid, builds):
+        """(build, platform): the Change build choice if it still exists, else Linux, else
+        Windows (pitfall #3 order)."""
+        want = self.choices.get(gid)
+        if want is not None:
+            b = next((u for u in builds if u["id"] == want), None)
+            if b and (b["linux"] or b["windows"]):
+                return b, "linux" if b["linux"] else "windows"
+            log.info("install %s: chosen upload %s is gone, picking again", gid, want)
+        for plat in ("linux", "windows"):
+            b, others = pick_build(builds, plat)
+            if b:
+                if others:
+                    log.info("install %s: picked %s over %s", gid, b["filename"],
+                             [o["filename"] for o in others])
+                return b, plat
+        return None, None
 
     def _cleanup_download(self, gid):
         dl = self._dl_dir()
@@ -298,14 +374,13 @@ class Installer:
             raise InstallError("Not connected to itch.io yet.")
         t0 = time.time()
         builds = store.list_builds(g)
-        build, others = pick_build(builds, "linux")
+        build, platform = self._choose(gid, builds)
         if not build:
-            win, _ = pick_build(builds, "windows")
-            raise InstallError("This game only has a Windows build. Windows games come in the "
-                               "next update." if win else "No Linux download found for this game.")
-        if others:
-            log.info("install %s: picked %s over %s", gid, build["filename"],
-                     [o["filename"] for o in others])
+            raise InstallError("No Linux or Windows download found for this game.")
+        log.info("install %s: %s build %s", gid, platform, build["filename"])
+        if platform == "windows" and not proton.proton_dir(self.cfg):
+            raise InstallError("Windows games need GE-Proton. Install it with ProtonUp-Qt in "
+                               "Desktop Mode, then Retry.")
         size = build["size"]
         self._upd(gid, size_mb=size // 1_000_000)
 
@@ -332,16 +407,22 @@ class Installer:
                      f", resuming at {have // 1_000_000} MB" if have else "")
             net.download(store.download_url(g, build), dl, key=getattr(store, "key", None),
                          resume=True, cancel=lambda: gid in self._cancel, on_bytes=self._meter(gid))
+        if platform == "windows" and not proton.umu_path():
+            self._upd(gid, state="downloading", phase="umu", progress=1)
+            proton.fetch_umu(cancel=lambda: gid in self._cancel)
         self._upd(gid, state="downloading", phase="extract", progress=1)
 
         dest = self._game_dir(root, g)
         tmp = dest / "files.new"
         shutil.rmtree(tmp, ignore_errors=True)
         try:
-            extract(dl, tmp)
-            exe, alts = find_exe(tmp, g)
+            extract(dl, tmp, allow_exe=platform == "windows")
+            exe, alts = find_exe(tmp, g, platform)
             if not exe:
                 raise InstallError("No program to run was found in the download.")
+            if platform == "windows" and proton.is_installer(tmp / exe):
+                raise InstallError("This build is a Windows installer. Installers come in a later "
+                                   "update. Try another build with Change build.")
         except InstallError:
             shutil.rmtree(tmp, ignore_errors=True)
             raise
@@ -355,9 +436,11 @@ class Installer:
         tmp.replace(files)
         used = sum(f.stat().st_size for f in files.rglob("*") if f.is_file() and not f.is_symlink())
         info = {"game_id": gid, "title": g.get("title"), "upload_id": build["id"],
-                "filename": build["filename"], "platform": "linux", "exe": exe, "alternatives": alts[:10],
+                "filename": build["filename"], "platform": platform, "exe": exe, "alternatives": alts[:10],
                 "size": used, "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
                 "dir": str(dest)}
+        if platform == "windows":                      # saves live here; kept on uninstall
+            info["prefix"] = str(proton.prefix_dir(root, dest.name))
         _write_json(dest / "install.json", info)
         self.index[gid] = info
         _write_json(paths.INSTALLS, self.index)
@@ -401,7 +484,7 @@ class Installer:
 
     def uninstall(self, gid):
         """Forget the install now; delete the files in the background (big games take a while).
-        Proton prefixes (M4) live elsewhere and are kept, so saves survive."""
+        Proton prefixes live in <root>/_prefixes and are kept, so saves survive."""
         info = self.index.pop(gid, None)
         _write_json(paths.INSTALLS, self.index)
         self._upd(gid, state=None, phase=None)

@@ -15,6 +15,7 @@ class Library(Scene):
         self.offline_since = offline_since
         self.offline = offline          # True with no cache yet: nothing to show
         self.activity = None            # "Covers 40/120", "Downloading 45% · Game"… (top bar)
+        self.notice = None              # app update state (top bar, accent colour, no spinner)
 
     @property
     def shown(self):
@@ -82,6 +83,11 @@ class Library(Scene):
             ar = W.text(t, s, act, sep.x - t.u * 1.5, base, t.f_small, color=t.dim, anchor="baseright",
                         maxw=int(t.w * 0.38))
             W.spinner(t, s, (int(ar.x - t.u * 2.5), int(base - W.x_mid(t.f_small))), int(t.u * 1.2), 0.15)
+            rr = pg.Rect(ar.x - t.u * 4.5, ar.y, 0, ar.h)
+        if self.notice:                 # e.g. app update ready: purple = "happening"
+            sep = W.text(t, s, "·", rr.x - t.u * 1.5, base, t.f_small, color=t.dim, anchor="baseright")
+            W.text(t, s, self.notice, sep.x - t.u * 1.5, base, t.f_small, color=t.accent,
+                   anchor="baseright", maxw=int(t.w * 0.3))
         return int(cy + t.u * 6)
 
     def _center_msg(self, s, y, title, sub, spinner=False, refresh=False):

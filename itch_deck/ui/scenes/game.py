@@ -51,6 +51,14 @@ class Game(Scene):
 
     def handle(self, act):
         n, shots = len(self.actions()), self.g.get("screens", 0)
+        if self.overlay and self.overlay[0] == "picker":   # A (choose) is handled by the app
+            kind, title, sub, items, focus = self.overlay
+            if act in (UP, DOWN) and items:
+                focus = max(0, min(len(items) - 1, focus + (1 if act == DOWN else -1)))
+                self.overlay = (kind, title, sub, items, focus)
+            elif act == B:
+                self.overlay = None
+            return
         if self.overlay and self.overlay[0] == "viewer":
             if act in (LEFT, RIGHT):
                 self.shot = (self.shot + (1 if act == RIGHT else -1)) % shots
@@ -111,9 +119,9 @@ class Game(Scene):
                g.get("cover_file"), self.section, self.focus, self.shot, bool(self.overlay),
                self.offline, self.phase, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
-               W.frame_tick() if self.phase in ("extract", "installing", "proton") else 0,
                getattr(self, "_end", 0))
         if getattr(self, "_page_key", None) != key:   # re-layout only when something changed
+            self._live_bar = None
             need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)
             canvas = pg.Surface((t.w, need), pg.SRCALPHA)  # transparent: gradient shows through
             self._hero(canvas)
@@ -131,6 +139,8 @@ class Game(Scene):
                   "comments": comments_y - t.m + self.off}[self.section]
         self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll), speed=14)
         s.blit(canvas, (0, -int(self._sy[0])))
+        if self._live_bar:                       # indeterminate bar: cheap per-frame overlay
+            W.progress(t, s, self._live_bar.move(0, -int(self._sy[0])), None, phase=0.35)
 
     def _top(self, s):
         t, g = self.t, self.g
@@ -154,9 +164,6 @@ class Game(Scene):
             y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.u * 80)) + t.u * 1.5
 
         px = x
-        plat = [p for p in PLATFORM if p in g["platforms"]]
-        for p in plat:
-            px = W.tag(t, s, PLATFORM[p], px, y).right + t.u
         if g["size_mb"]:
             px = W.tag(t, s, _mb(g["size_mb"]), px, y).right + t.u
         if g.get("state") == "installed":
@@ -244,7 +251,7 @@ class Game(Scene):
                            y - t.u * 1.5, t.f_small, color=t.dim).bottom + t.u * 2.5
         if total > len(cs):
             y = W.text(t, s, f"Showing the newest {len(cs)} of {total}", t.m, y, t.f_small,
-                       color=t.faint).bottom
+                       color=t.dim).bottom
         return y
 
     def _hero(self, s):
@@ -311,9 +318,11 @@ class Game(Scene):
                 "installing": ("Installing…", "The game's installer is running silently. "
                                               "No progress % for installers."),
                 "proton": ("Preparing Proton…", "First run only — about 30 s"),
+                "umu": ("Getting umu-launcher…", "One-time download for Windows games"),
             }[self.phase]
             W.text(t, s, label, x, y, t.f_btn)
-            W.progress(t, s, bar, None, phase=0.35)
+            W.progress(t, s, bar, 0)          # track only; draw_page animates the segment live
+            self._live_bar = bar
         W.text(t, s, sub, x, bar.bottom + t.u * 1.2, t.f_small, color=t.dim, maxw=maxw)
         return bar.bottom + t.u * 6
 

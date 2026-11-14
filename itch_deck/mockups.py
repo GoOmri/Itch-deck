@@ -10,6 +10,11 @@ def _act(scene, text):
     return scene
 
 
+def _note(scene, text):
+    scene.notice = text
+    return scene
+
+
 def _shots(t, version):
     from . import fake
     from .ui.scenes.game import Game
@@ -49,6 +54,8 @@ def _shots(t, version):
         ("05_library_scrolled", Library(t, lib, focus=n - 2)),
         ("05b_library_downloading", _act(Library(t, lib, focus=1), "Downloading 42% · Quiet Quarry (+1)")),
         ("05c_library_covers", _act(Library(t, lib, focus=1), "Covers 40/120")),
+        ("05d_library_update", _note(_act(Library(t, lib, focus=1), "Covers 40/120"),
+                                     "Update v0.3.4 available · Settings")),
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
         ("08_library_empty", Library(t, [])),

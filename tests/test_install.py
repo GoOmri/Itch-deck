@@ -225,3 +225,107 @@ def test_child_env_drops_bundle_libs(monkeypatch):
     assert out["LD_LIBRARY_PATH"] == "/usr/lib/x" and "LD_LIBRARY_PATH_ORIG" not in out
     assert out["LD_PRELOAD"] == "/s/gameoverlayrenderer.so"     # Steam overlay stays
     assert "LD_LIBRARY_PATH" not in runner.child_env({"LD_LIBRARY_PATH": "/tmp/_MEIx"})
+
+
+def test_unity_gets_screen_size(tmp_path):
+    from itch_deck import runner
+    exe = tmp_path / "Figment.x86_64"
+    exe.write_bytes(ELF64)
+    exe.chmod(0o755)
+    assert runner.command(exe, (1280, 800)) == [str(exe)]
+    (tmp_path / "Figment_Data").mkdir()
+    assert runner.command(exe, (1280, 800))[1:] == ["-screen-fullscreen", "1", "-screen-width",
+                                                    "1280", "-screen-height", "800"]
+
+
+# --- M4: Windows builds via umu + GE-Proton -------------------------------------------------
+def _fake_proton(tmp_path):
+    """A GE-Proton folder + a umu-run in place, so installs don't hit the network."""
+    d = paths.STEAM_TOOLS / "GE-Proton9-20"
+    d.mkdir(parents=True)
+    (d / "proton").write_text("#!/bin/sh\n")
+    paths.UMU.parent.mkdir(parents=True, exist_ok=True)
+    paths.UMU.write_text("#!/bin/sh\n")
+    return d
+
+
+def test_find_win_exe_and_installer_check(tmp_path):
+    root = tmp_path / "w"
+    for name, data in (("Figment/Figment.exe", b"MZ" + b"\0" * 5000), ("Figment/UnityCrashHandler32.exe", b"MZ"),
+                       ("Figment/Figment_Data/x.dat", b"x"), ("Figment/redist/vcredist_x86.exe", b"MZ"),
+                       ("Figment/tools/config.exe", b"MZ")):
+        p = root / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+    best, alts = installer.find_exe(root, {"id": "1", "title": "Figment"}, "windows")
+    assert best == "Figment/Figment.exe" and alts == ["Figment/tools/config.exe"]
+    from itch_deck import proton
+    setup = tmp_path / "setup.exe"
+    setup.write_bytes(b"MZ" + b"\0" * 100 + b"Inno Setup Setup Data")
+    assert proton.is_installer(setup) and not proton.is_installer(root / best)
+    with pytest.raises(installer.InstallError, match="installer"):
+        installer.extract(setup, tmp_path / "o", allow_exe=True)
+    with pytest.raises(installer.InstallError):            # Linux builds never take a bare .exe
+        installer.extract(root / best, tmp_path / "o2")
+    installer.extract(root / best, tmp_path / "o3", allow_exe=True)
+    assert (tmp_path / "o3/Figment.exe").exists()
+
+
+def test_windows_install_then_change_build(tmp_path, server):
+    win = _zip([("Figment/Figment.exe", b"MZ" + os.urandom(50_000), 0o644)])
+    lin = _zip([("figment/Figment.x86_64", ELF64 + os.urandom(1000), 0o755)])
+    _Handler.files, _Handler.slow = {"/w.zip": win, "/l.zip": lin}, False
+    lib, inst = _setup(tmp_path, server, [_up(7, "w.zip", p_linux=False, p_windows=True, size=len(win))])
+    # no GE-Proton yet: a clear reason, nothing downloaded
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    assert lib.games[0]["state"] == "failed" and "GE-Proton" in lib.games[0]["fail_reason"]
+    _fake_proton(tmp_path)
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    g = lib.by_id("5")
+    assert g["state"] == "installed", g.get("fail_reason")
+    info = inst.index["5"]
+    assert info["platform"] == "windows" and info["exe"] == "Figment/Figment.exe"
+    assert info["prefix"] == str(tmp_path / "games/_prefixes/quiet-quarry")
+    # Change build -> the Linux upload; the Windows prefix is untouched
+    inst.lib.store.uploads = [_up(7, "w.zip", p_linux=False, p_windows=True, size=len(win)),
+                              _up(8, "l.zip", size=len(lin))]
+    assert not inst.enqueue(g)                       # already installed with the chosen build
+    assert inst.enqueue(g, upload_id=8)
+    _wait(inst)
+    assert g["state"] == "installed" and inst.index["5"]["platform"] == "linux"
+    assert inst.choices["5"] == 8 and not (tmp_path / "games/quiet-quarry/files/Figment").exists()
+    # a failing change keeps the installed build and says why in a toast
+    inst.lib.store.uploads.append(_up(9, "gone.zip", p_linux=False, p_windows=True, size=10))
+    inst.enqueue(g, upload_id=9)
+    _wait(inst)
+    assert g["state"] == "installed" and inst.index["5"]["upload_id"] == 8
+    assert inst.choices["5"] == 8 and inst.events[-1][0] == "error"
+
+
+def test_umu_command_env_and_zipapp(tmp_path):
+    from itch_deck import proton, runner
+    paths.use_root(tmp_path)
+    exe = tmp_path / "Figment.exe"
+    exe.write_bytes(b"MZ")
+    (tmp_path / "Figment_Data").mkdir()
+    cmd = runner.command(exe, (1280, 800), umu=paths.UMU)
+    assert cmd[:2] == [str(paths.UMU), str(exe)] and cmd[2:4] == ["-screen-fullscreen", "1"]
+    assert proton.proton_dir({}) is None
+    d = _fake_proton(tmp_path)
+    assert proton.proton_dir({}) == d and proton.proton_dir({"proton": "nope"}) == d
+    pre = tmp_path / "pfx-test"
+    e = proton.env(d, pre)
+    assert e["WINEPREFIX"] == str(pre) and e["GAMEID"] == "umu-default" and proton.first_run(pre)
+    (pre / "system.reg").write_text("")
+    assert not proton.first_run(pre)
+    t = tmp_path / "umu.tar"
+    with tarfile.open(t, "w") as tf:
+        data = b"#!/usr/bin/env python3\n"
+        ti = tarfile.TarInfo("umu/umu-run")
+        ti.size = len(data)
+        tf.addfile(ti, io.BytesIO(data))
+    paths.UMU.unlink()
+    proton.install_umu_tar(t)
+    assert paths.UMU.read_bytes() == data and os.access(paths.UMU, os.X_OK)
