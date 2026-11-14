@@ -131,19 +131,31 @@ def screenshot(t, game, i, size):
 
 # --- pad glyphs and hint bar ------------------------------------------------
 def glyph(t, s, btn, x, cy):
-    """Minimal button glyph: white label in a thin white outline (circle for face buttons,
-    rounded pill for LB/RB/START). Left edge at x, centred on cy. Returns width."""
+    """Minimal button glyph in white outline, Steam Deck / DualSense style:
+    face buttons (A B X Y, ◀ ▶) = circle; L1 R1 L2 R2 = rounded rectangle; MENU = ☰ icon.
+    Left edge at x, centred on cy. Returns width. Labels are centred on the letter's own
+    bounds, not the font line, so they sit in the middle of the outline."""
     d = int(t.u * 3.2)
     lw = max(1, round(t.u / 6))
-    img = t.f_glyph.render(btn, True, t.glyph_c)
+    c = t.glyph_c
+    if btn == "MENU":
+        r = pg.Rect(int(x), int(cy - d / 2), int(d * 1.25), d)
+        pg.draw.rect(s, c, r, lw, border_radius=int(d * 0.3))
+        bw, gap = int(d * 0.5), max(2, int(d * 0.17))
+        for k in (-1, 0, 1):
+            yy = r.centery + k * gap
+            pg.draw.line(s, c, (r.centerx - bw // 2, yy), (r.centerx + bw // 2 - 1, yy), lw)
+        return r.w
+    img = t.f_glyph.render(btn, True, c)
+    img = img.subsurface(img.get_bounding_rect())
     if len(btn) == 1:
-        c = (int(x + d / 2), int(cy))
-        pg.draw.circle(s, t.glyph_c, c, d // 2, lw)
-        s.blit(img, img.get_rect(center=(c[0], c[1] + 1)))
+        ctr = (int(x + d / 2), int(cy))
+        pg.draw.aacircle(s, c, ctr, d // 2, lw)
+        s.blit(img, img.get_rect(center=ctr))
         return d
-    r = pg.Rect(int(x), int(cy - d / 2), img.get_width() + t.u * 1.6, d)
-    pg.draw.rect(s, t.glyph_c, r, lw, border_radius=d // 2)
-    s.blit(img, img.get_rect(center=(r.centerx, r.centery + 1)))
+    r = pg.Rect(int(x), int(cy - d / 2), img.get_width() + int(t.u * 1.8), d)
+    pg.draw.rect(s, c, r, lw, border_radius=int(d * 0.3))
+    s.blit(img, img.get_rect(center=r.center))
     return r.w
 
 

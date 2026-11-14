@@ -75,7 +75,7 @@ class Game(Scene):
             return [("A", "View full screen"), ("B", "Back")]
         if self.section == "desc":
             return [("B", "Back")]
-        h = [("A", "Select"), ("B", "Back"), ("LB", ""), ("RB", "Prev / next game")]
+        h = [("A", "Select"), ("B", "Back"), ("L1", ""), ("R1", "Prev / next game")]
         if self.phase or self.g.get("state") in ("downloading", "queued"):
             h.insert(2, ("X", "Hold to cancel"))
         if not self.actions():

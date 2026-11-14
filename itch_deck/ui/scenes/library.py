@@ -36,7 +36,7 @@ class Library(Scene):
         if self.syncing == "first":
             return [("B", "Quit")]
         other = "Installed only" if self.filt == "all" else "All games"
-        return [("A", "Open"), ("X", other), ("Y", "Refresh"), ("START", "Settings"), ("B", "Quit")]
+        return [("A", "Open"), ("X", other), ("Y", "Refresh"), ("MENU", "Settings"), ("B", "Quit")]
 
     def draw_page(self, s):
         t = self.t
