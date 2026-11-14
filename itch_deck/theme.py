@@ -20,7 +20,9 @@ class Theme:
     shade_a = 170             # modal backdrop alpha
     dimmed_a = 150            # overlay alpha on unplayable tiles
     child_bg = (120, 20, 30)
-    glyph_c = (235, 235, 235)  # pad glyphs: white label + thin white outline, no colours
+    glyph_c = (240, 240, 240)  # pad glyphs: solid white shape (Steam style)
+    glyph_ink = (14, 14, 14)   # letter knocked out of the white shape
+    hint_bg = (10, 10, 10)
     # motion / timing
     focus_scale = 1.06
     focus_ms = 120            # ease-out
@@ -50,7 +52,8 @@ class Theme:
         self.f_body = f("Regular", self.u * 2.7)
         self.f_small = f("Medium", self.u * 2.2)
         self.f_btn = f("SemiBold", self.u * 3)
-        self.f_glyph = f("Bold", self.u * 2.1)
+        self.f_glyph = f("Bold", self.u * 2.0)
+        self.f_hint = f("Bold", self.u * 2.0)   # footer labels, uppercase
 
     def font(self, weight, size):
         key = (weight, int(size))

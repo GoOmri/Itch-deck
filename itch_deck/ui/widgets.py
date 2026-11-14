@@ -130,45 +130,53 @@ def screenshot(t, game, i, size):
 
 
 # --- pad glyphs and hint bar ------------------------------------------------
-def glyph(t, s, btn, x, cy):
-    """Minimal button glyph in white outline, Steam Deck / DualSense style:
-    face buttons (A B X Y, ◀ ▶) = circle; L1 R1 L2 R2 = rounded rectangle; MENU = ☰ icon.
-    Left edge at x, centred on cy. Returns width. Labels are centred on the letter's own
-    bounds, not the font line, so they sit in the middle of the outline."""
-    d = int(t.u * 3.2)
-    lw = max(1, round(t.u / 6))
-    c = t.glyph_c
+def glyph(t, s, btn, x, cy, ink=None):
+    """Steam-style button glyph: solid white shape, label knocked out in the dark ink colour.
+    A B X Y / ◀ ▶ = circle; L1 R1 L2 R2 = small rounded square; MENU = pill with ☰.
+    Left edge at x, centred on cy. Returns width. Labels centre on their own bounds."""
+    d = int(t.u * 3.0)
+    c, ink = t.glyph_c, ink or t.glyph_ink
     if btn == "MENU":
-        r = pg.Rect(int(x), int(cy - d / 2), int(d * 1.25), d)
-        pg.draw.rect(s, c, r, lw, border_radius=int(d * 0.3))
-        bw, gap = int(d * 0.5), max(2, int(d * 0.17))
+        r = pg.Rect(int(x), int(cy - d * 0.42), int(d * 1.45), int(d * 0.84))
+        pg.draw.rect(s, c, r, border_radius=r.h // 2)
+        bw, gap, lw = int(d * 0.5), max(2, int(d * 0.16)), max(2, round(d * 0.08))
         for k in (-1, 0, 1):
             yy = r.centery + k * gap
-            pg.draw.line(s, c, (r.centerx - bw // 2, yy), (r.centerx + bw // 2 - 1, yy), lw)
+            pg.draw.line(s, ink, (r.centerx - bw // 2, yy), (r.centerx + bw // 2 - 1, yy), lw)
         return r.w
-    img = t.f_glyph.render(btn, True, c)
+    img = t.f_glyph.render(btn, True, ink)
     img = img.subsurface(img.get_bounding_rect())
     if len(btn) == 1:
         ctr = (int(x + d / 2), int(cy))
-        pg.draw.aacircle(s, c, ctr, d // 2, lw)
+        pg.draw.aacircle(s, c, ctr, d // 2)
+        pg.draw.circle(s, c, ctr, d // 2 - 1)
         s.blit(img, img.get_rect(center=ctr))
         return d
-    r = pg.Rect(int(x), int(cy - d / 2), img.get_width() + int(t.u * 1.8), d)
-    pg.draw.rect(s, c, r, lw, border_radius=int(d * 0.3))
+    r = pg.Rect(int(x), int(cy - d / 2), max(d, img.get_width() + int(t.u * 1.0)), d)
+    pg.draw.rect(s, c, r, border_radius=max(2, int(d * 0.18)))
     s.blit(img, img.get_rect(center=r.center))
     return r.w
 
 
 def hint_bar(t, s, items):
-    """items: [(button, label), ...] shown left to right along the bottom."""
+    """Steam-style footer: actions right-aligned, white UPPERCASE labels.
+    items: [(button, label), ...]; an empty label pairs the glyph with the next one (L1 R1)."""
     r = pg.Rect(0, t.h - t.hint_h, t.w, t.hint_h)
-    pg.draw.rect(s, (12, 12, 12), r)
-    pg.draw.line(s, t.panel, r.topleft, r.topright, 1)
-    x, cy = t.m, r.centery
-    for btn, label in items:
-        x += glyph(t, s, btn, x, cy) + t.u * 0.6
-        if label:  # empty label = glyph pairs with the next one (LB RB Prev / next)
-            x = text(t, s, label, x + t.u * 0.4, cy, t.f_small, color=t.dim, anchor="midleft").right + t.u * 4
+    pg.draw.rect(s, t.hint_bg, r)
+    cy, gap = r.centery, t.u * 0.7
+    widths = []
+    for btn, label in items:  # measure first, then draw from the right edge
+        gw = glyph(t, pg.Surface((1, 1)), btn, 0, 0)
+        lw = t.f_hint.size(label.upper())[0] if label else 0
+        widths.append((gw, lw))
+    total = sum(gw + (gap + lw + t.u * 3.5 if lw else gap) for gw, lw in widths) - t.u * 3.5
+    x = t.w - t.m - total
+    for (btn, label), (gw, lw) in zip(items, widths):
+        glyph(t, s, btn, x, cy)
+        x += gw + gap
+        if label:
+            text(t, s, label.upper(), x, cy, t.f_hint, color=t.text_c, anchor="midleft")
+            x += lw + t.u * 3.5
 
 
 # --- controls ---------------------------------------------------------------

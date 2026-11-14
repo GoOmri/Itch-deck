@@ -75,12 +75,13 @@ class Game(Scene):
             return [("A", "View full screen"), ("B", "Back")]
         if self.section == "desc":
             return [("B", "Back")]
-        h = [("A", "Select"), ("B", "Back"), ("L1", ""), ("R1", "Prev / next game")]
+        # Steam order: extra actions first, then A, with B always last (far right)
+        h = [("L1", ""), ("R1", "Prev / next game")]
         if self.phase or self.g.get("state") in ("downloading", "queued"):
-            h.insert(2, ("X", "Hold to cancel"))
-        if not self.actions():
-            h = h[1:]
-        return h
+            h.append(("X", "Hold to cancel"))
+        if self.actions():
+            h.append(("A", "Select"))
+        return h + [("B", "Back")]
 
     def overlay_hints(self):
         if not self.overlay:

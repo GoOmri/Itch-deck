@@ -34,9 +34,10 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
   build." (no exit codes in UI; details stay in the log). Picker shows the developer's file names,
   platform/size/date, and a "Recommended" pill (Linux native > Windows zip > installer).
   Game page shows itch short_text (API, cached). Initials covers = placeholder only.
-- Hint-bar glyphs: white, thin outline, no Xbox colours (theme.glyph_c). Face buttons = AA circle,
-  bumpers labelled L1/R1 (Deck + DualSense naming, not LB/RB) in rounded rects, Start = ☰ icon
-  (hint key "MENU"). Labels centred on glyph bounds. Plan doc's controller map says LB/RB: same buttons.
+- Glyphs = Steam's visual language (Omri sent a Steam Deck screenshot as the reference): SOLID white
+  shapes with the label knocked out in dark ink (glyph_c / glyph_ink). A B X Y = circle, L1 R1 L2 R2 =
+  small rounded square, ☰ (hint key MENU) = white pill. Footer: actions RIGHT-aligned, labels white
+  BOLD UPPERCASE (f_hint); order = extra actions first, then A, B always last. Bumpers are L1/R1.
 - Open: glyph labels Auto/Xbox/PlayStation — log pad names + SteamVirtualGamepadInfo on Deck in M2,
   plus a Settings override.
 - DECIDED (Omri: important for choosing games): full description + screenshots on the game page.
