@@ -48,6 +48,8 @@ class App:
         self.lib = Library(ItchStore(key) if key else None)
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
         self.picker = None              # (gid, builds) behind an open Change build picker
+        self._progs = []                # program picker rows (relative exe paths)
+        self.next_mount_check = 0
         self.on_confirm = None          # what A does on the open confirm dialog (None = Quit)
         self.running = True
         self.scene, self.kind = None, None
@@ -124,7 +126,7 @@ class App:
 
     def _shown(self):
         if self.filt == "installed":
-            return [g for g in self.lib.games if g.get("state") == "installed"]
+            return [g for g in self.lib.games if g.get("state") in ("installed", "missing")]
         return self.lib.games
 
     def settings_values(self):
@@ -334,6 +336,9 @@ class App:
     # --- Change build (picker) ------------------------------------------
     def change_build(self, g):
         if self.lib.offline or not self.lib.store:
+            if len(self.inst.programs(g["id"])) > 1:   # the program list works offline
+                self._program_picker(g["id"])
+                return
             self.say("Changing the build needs internet.", error=True)
             return
         gid, self.picker = g["id"], None
@@ -352,8 +357,11 @@ class App:
         """Fill the open picker once the upload list is in: recommended first, then the rest."""
         from .stores.itch import pick_build
         gid, builds = self.picker
-        self.picker = (gid, builds, True)
+        self.picker = (gid, builds, True, 0)
         if builds is None:
+            if len(self.inst.programs(gid)) > 1:
+                self._program_picker(gid)
+                return
             sc.overlay = None
             self.say("Couldn't load the builds. Try again when you're online.", error=True)
             return
@@ -362,11 +370,18 @@ class App:
         order = [b for b in [lin] + lin_o + [win] + win_o if b]
         order = [b for i, b in enumerate(order) if b not in order[:i]]
         if not order:
+            if len(self.inst.programs(gid)) > 1:
+                self._program_picker(gid)
+                return
             sc.overlay = None
             self.say("This game has no other Linux or Windows builds.")
             return
         cur = (self.inst.index.get(gid) or {}).get("upload_id")
-        items = []
+        items, progs = [], self.inst.programs(gid)
+        if len(progs) > 1:                 # first row: which file starts the game
+            items.append(("Program to run", Path(progs[0]).name,
+                          f"{len(progs)} programs found · A to choose"))
+        extra = len(items)
         for b in order:
             kind = "Linux" if b["linux"] else "Windows"
             sub = f"{kind} · {b['size'] // 1_000_000} MB" + (f" · {b['updated'][:10]}" if b["updated"] else "")
@@ -374,7 +389,7 @@ class App:
                 sub += " · demo"
             val = "Installed" if b["id"] == cur else ("Recommended" if b is order[0] else "")
             items.append((b["filename"], val, sub))
-        self.picker = (gid, order, True)
+        self.picker = (gid, order, True, extra)
         sub = "A installs it. Saves of Windows builds are kept separately." if cur else \
             "A installs it. Linux builds are recommended when there is one."
         sc.overlay = ("picker", "Choose a build", sub, items, 0)
@@ -382,8 +397,17 @@ class App:
     def _pick(self, sc):
         if not self.picker or len(self.picker) < 3 or not sc.overlay[3]:
             return
-        gid, order, _ = self.picker
-        b = order[sc.overlay[4]]
+        gid, order, _, extra = self.picker
+        i = sc.overlay[4] - extra
+        if order == "exe":                 # program picker
+            sc.overlay, self.picker = None, None
+            if self.inst.set_exe(gid, self._progs[i]):
+                self.say(f"{Path(self._progs[i]).name} starts the game from now on.")
+            return
+        if i < 0:
+            self._program_picker(gid)
+            return
+        b = order[i]
         sc.overlay, self.picker = None, None
         if (self.inst.index.get(gid) or {}).get("upload_id") == b["id"]:
             self.say("That build is already installed.")
@@ -393,8 +417,19 @@ class App:
         sc.focus = 0
         self.say(f"Installing {b['filename']}…")
 
+    def _program_picker(self, gid):
+        """O1 as a program list: every runnable file found in the install, current one tagged."""
+        self._progs = self.inst.programs(gid)
+        items = [(Path(p).name, "In use" if i == 0 else "", str(Path(p).parent)
+                  if str(Path(p).parent) != "." else "Top folder") for i, p in enumerate(self._progs)]
+        self.picker = (gid, "exe", True, 0)
+        self.scene.overlay = ("picker", "Choose the program", "Pick the file that starts the game. "
+                              "Helpers like crash reporters are left out.", items, 0)
+
     def _uninstall(self, g):
-        self.inst.uninstall(g["id"])
+        if not self.inst.uninstall(g["id"]):
+            self.say("The SD card is missing, so the game can't be uninstalled now.", error=True)
+            return
         self.scene.focus = 0
         self.say(f"{g['title']} was uninstalled.")
 
@@ -513,6 +548,17 @@ class App:
             return f"{what} · {g['title']}" + (f" (+{more})" if more > 0 else "")
         return self.lib.activity()
 
+    def _check_mounts(self):
+        """Installed games whose folder appeared or vanished (SD card) get their state again."""
+        for g in self.lib.games:
+            info = self.inst.index.get(g["id"])
+            if info and g.get("state") in ("installed", "missing") and \
+                    (g["state"] == "installed") != Path(info["dir"]).exists():
+                log.info("install %s: folder %s", g["id"],
+                         "back" if g["state"] == "missing" else "gone")
+                self.lib.apply_installs()
+                return
+
     def update(self):
         now = time.time()
         if self.toast_until and now > self.toast_until:
@@ -528,7 +574,10 @@ class App:
             f = paths.KEY_FILE
             if f.exists() and f.stat().st_mtime != self.tried_mtime:
                 self.try_import(auto=True)     # Warpinator drop is picked up by itself
-        elif self.kind == "library":
+        if now > self.next_mount_check:               # SD card in/out: refresh install states
+            self.next_mount_check = now + 2
+            self._check_mounts()
+        if self.kind == "library":
             self._sync_library_scene()
             if self.lib.sync_error and not self.lib.syncing:
                 self.say("Couldn't refresh the library. Details are in the log.", error=True)

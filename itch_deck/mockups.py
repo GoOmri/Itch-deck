@@ -83,6 +83,17 @@ def _shots(t, version):
         ("20_game_confirm_uninstall", with_overlay(game("Starfall Ferry"), (
             "confirm", "Uninstall Starfall Ferry?", ["Frees 412 MB.", "Your saves are kept."],
             [("A", "Uninstall"), ("B", "Cancel")]))),
+        ("22_game_sd_missing", game("Pocket Volcano")),
+        ("23_game_program_picker", with_overlay(game("Moss & Rivets"), (
+            "picker", "Choose the program", "Pick the file that starts the game. Helpers like "
+            "crash reporters are left out.",
+            [("MossAndRivets.exe", "In use", "Top folder"), ("Launcher.exe", "", "Top folder"),
+             ("MossAndRivets-DX11.exe", "", "bin")], 0))),
+        ("24_game_picker_with_program", with_overlay(game("Moss & Rivets"), (
+            "picker", "Choose a build", "A installs it. Saves of Windows builds are kept separately.",
+            [("Program to run", "MossAndRivets.exe", "3 programs found · A to choose")] +
+            [(n, "Installed" if i == 0 else "", sub) for i, (n, sub, _r) in enumerate(fake.uploads())],
+            0))),
         ("21_settings", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log")),
     ]
 

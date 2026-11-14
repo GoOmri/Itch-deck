@@ -43,6 +43,39 @@ def sd_card():
     return None
 
 
+MEDIA = Path("/run/media")
+
+
+def on_card(path):
+    """True if path lives on removable media (SteamOS mounts the SD card under /run/media)."""
+    try:
+        Path(path).relative_to(MEDIA)
+        return True
+    except ValueError:
+        return False
+
+
+def card_missing(path):
+    """On removable media whose card isn't mounted. Never mkdir there: /run/media is a tmpfs,
+    so files would land in RAM/internal storage instead of on the card."""
+    if not on_card(path):
+        return False
+    p = Path(path)
+    for a in [p, *p.parents]:
+        if a == MEDIA:
+            return True
+        try:
+            if os.path.ismount(a):
+                return False
+        except OSError:
+            return True
+    return True
+
+
+def drive_name(path):
+    return "SD card" if on_card(path) else "internal storage"
+
+
 def install_root(cfg):
     if cfg.get("install_root"):
         return Path(cfg["install_root"])

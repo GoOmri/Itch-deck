@@ -27,7 +27,7 @@ _RAW = [
     ("Marble Monastery", "Cloister", "linux windows", 360, None),
     ("Neon Orchard", "Pixel Pomona", "windows", 2800, None),
     ("Owl Post Express", "Featherlight", "html", 0, None),
-    ("Pocket Volcano", "magma.exe", "windows", 450, None),
+    ("Pocket Volcano", "magma.exe", "windows", 450, "missing"),
     ("Rainbarrel", "drizzle", "linux", 120, None),
     ("Sundial Thieves", "Gnomon", "windows", 1100, None),
     ("Tin Can Astronaut", "Orbital Jam", "linux windows", 520, None),
@@ -47,6 +47,8 @@ def library():
         g["comment_count"] = 24 if i % 3 else 0
         if state == "downloading":
             g.update(progress=0.42, speed_mbs=11.8, eta_s=111)
+        if state == "missing":
+            g["missing"] = "card"
         out.append(g)
     return sorted(out, key=lambda g: g["title"].lower())
 

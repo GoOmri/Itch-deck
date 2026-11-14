@@ -30,7 +30,31 @@ v0.4.1 Deck test 14 Nov: Figment WINDOWS build (Change build -> figment-windows-
 v0.4.2 (Omri): install folder path removed from the game page (Settings still shows the root).
 M4 — DONE 14 Nov (Figment Windows build via Proton plays; quitting from the game menu returns to
   its page ✓; Steam -> Exit game closing the tile is intended, Omri confirmed).
-Next: M5 edge cases (exe picker, silent installers, HTML5, SD card). Ask Omri first.
+M5 edge cases — built 14 Nov on branch m5-edge-cases (merged to main), NOT yet released/tested.
+  - SD card: config.card_missing(path) = under /run/media with no mount (never mkdir there:
+    tmpfs). Install -> "SD card missing" error. Installed game whose dir is gone -> state
+    "missing" (g["missing"] = "card"|"files"): tile tag, game page text, Play/Uninstall greyed
+    (files-missing allows Uninstall). Installer.uninstall refuses (returns False) on a missing
+    card. App._check_mounts every 2 s re-applies states (card back = installed again).
+    Installed tab includes "missing".
+  - Space: messages name the drive (config.drive_name); 2nd check before unpack (size × 1.5),
+    download kept for Retry.
+  - Program picker: Installer.programs/set_exe (install.json exe + alternatives, exe_chosen).
+    "Program to run" = first row of Change build (only if >1 program); also offline / when no
+    other builds. Program list tags current one "In use".
+  - Silent installers: proton.installer_kind (inno/nsis/installshield), run_installer = umu-run
+    setup.exe in the game's prefix, Inno /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /NOICONS
+    /NOCANCEL /DIR=Z:\…, NSIS /S /D=Z:\… ; installs into <game>/files.inst then becomes files/.
+    Phases "proton" (new prefix) -> "installing" (indeterminate bar). 15 min timeout, cancel
+    kills the process group. Log: logs/games/<slug>-install.log. install.json "installer".
+    InstallShield / other -> "can't run silently, try Change build". Bare setup.exe uploads allowed.
+  - HTML5 / not playable: tile caption replaced by a dark tag on the art (W.tag).
+  Deck checklist v0.5.0: 1 Update app. 2 Take the SD card out (or eject in Desktop Mode): SD games
+  show "SD card missing", Play/Uninstall greyed, Install says SD card missing; card back -> normal
+  within ~2 s. 3 An Inno-installer game (Windows setup.exe) installs with NO window: "Preparing
+  Proton…"/"Installing…", then Play works. 4 A game with several programs: Change build -> Program
+  to run -> pick another -> Play starts it. 5 Browser games tagged on the art.
+  If broken: app.log "installer:", "install <id>:"; logs/games/<slug>-install.log.
 M0 spike — PASSED on Deck 14 Nov (checklist 1–6 all ✓). Focus hand-off to child and back works.
 M1 mockups — APPROVED 14 Nov. Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ
 M2 real library — v0.2.0 Deck test 14 Nov: 1,2,4,6,7 ✓. Count 129 = matches (itch shows 133 incl.
@@ -176,7 +200,7 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
   per-scene _h_<kind>() input. Flags: --windowed, --selftest (fake data, temp dirs), --render-mockups.
   Install/Cancel/Play/Uninstall via game_action(); confirm(title, body, yes, fn) dialog.
-  Change build = build picker (M4); exe picker + silent installers still M5.
+  Change build = build picker (M4) + "Program to run" row (M5).
 - proton.py: umu-run download/lookup, GE-Proton dir, per-game prefix + env (M4).
 - config.py (chmod 600, install_root: SD else ~/Games/itch, proton_versions), net.py (urllib +
   certifi; Offline/AuthError), stores/itch.py (owned-keys, quirk, dedupe), stores/itch_page.py
@@ -241,6 +265,7 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
 - 2026-11-14 16:39 — 83% at start of M3 build
 - 2026-11-14 17:43 — 87% at start of design pass
 - 2026-11-14 18:10 — 88% at start of M4 build
+- 2026-11-14 18:44 — 92% at start of M5 build
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while

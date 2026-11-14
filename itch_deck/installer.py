@@ -18,7 +18,7 @@ import time
 import zipfile
 from pathlib import Path
 
-from . import net, paths, proton
+from . import config, net, paths, proton
 from .stores.itch import pick_build
 
 log = logging.getLogger("itch-deck")
@@ -66,7 +66,7 @@ def _inside(root, target):
 
 def extract(archive, dest, allow_exe=False):
     """zip (keeps exec bits), tar.*, 7z (if py7zr is bundled), or a single runnable file
-    (a bare .exe only for Windows builds, and never an installer — those come in M5)."""
+    (a bare .exe only for Windows builds: a game or an installer, which _install runs silently)."""
     archive, dest = Path(archive), Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
     name = archive.name.lower()
@@ -120,9 +120,7 @@ def extract(archive, dest, allow_exe=False):
         return
     ext = name.rsplit(".", 1)[-1] if "." in name else ""
     if ext == "exe" and allow_exe:
-        if proton.is_installer(archive):
-            raise InstallError("This build is a Windows installer. Installers come in a later "
-                               "update. Try another build with Change build.")
+        pass                                        # a bare game .exe or a setup.exe (M5)
     elif ext in ("rar", "dmg", "apk", "exe", "msi", "pkg", "deb", "rpm", "jar"):
         raise InstallError(f".{ext} downloads aren't supported.")
     # a bare executable (AppImage, .x86_64, .sh, …): copy it in as-is
@@ -188,6 +186,23 @@ def find_exe(root, g, platform="linux"):
     found.sort(reverse=True)
     names = [f for _, f in found]
     return (names[0] if names else None), names[1:]
+
+
+def find_installer(root):
+    """A setup.exe in the top two levels (Inno / NSIS / InstallShield signature): installers
+    named like the game first, then ones called setup/install, then the biggest."""
+    found = []
+    for dirpath, _dirs, files in os.walk(root):
+        depth = len(Path(dirpath).relative_to(root).parts)
+        if depth > 1:
+            continue
+        for fn in files:
+            p = Path(dirpath) / fn
+            if fn.lower().endswith(".exe") and proton.is_installer(p):
+                named = any(k in fn.lower() for k in ("setup", "install"))
+                found.append(((named, -depth, p.stat().st_size), p))
+    found.sort(key=lambda x: x[0], reverse=True)
+    return found[0][1] if found else None
 
 
 def _find_win_exe(root, title, slug):
@@ -385,6 +400,9 @@ class Installer:
         self._upd(gid, size_mb=size // 1_000_000)
 
         root = Path(self.root_fn())
+        if config.card_missing(root):
+            raise InstallError("SD card missing. Insert it, or choose another install location "
+                               "in Settings.")
         try:
             root.mkdir(parents=True, exist_ok=True)
             free = shutil.disk_usage(root).free
@@ -394,8 +412,8 @@ class Installer:
         have = dl.with_name(dl.name + ".part")
         have = have.stat().st_size if have.exists() else 0
         if size and free + have < size * SPACE_FACTOR:
-            raise InstallError(f"Not enough space: needs about {_gb(size * SPACE_FACTOR)}, "
-                               f"{_gb(free)} free.")
+            raise InstallError(f"Not enough space on the {config.drive_name(root)}: needs about "
+                               f"{_gb(size * SPACE_FACTOR)}, {_gb(free)} free.")
         dl.parent.mkdir(parents=True, exist_ok=True)
         for old in dl.parent.glob(f"{gid}-*"):          # an older build's leftovers
             if not old.name.startswith(dl.name):
@@ -411,6 +429,11 @@ class Installer:
             self._upd(gid, state="downloading", phase="umu", progress=1)
             proton.fetch_umu(cancel=lambda: gid in self._cancel)
         self._upd(gid, state="downloading", phase="extract", progress=1)
+        free = shutil.disk_usage(root).free             # space may have gone during the download
+        if size and free < size * (SPACE_FACTOR - 1):
+            raise InstallError(f"Not enough space on the {config.drive_name(root)} to unpack: needs "
+                               f"about {_gb(size * (SPACE_FACTOR - 1))}, {_gb(free)} free. The "
+                               "download is kept, so Retry continues from here.")
 
         dest = self._game_dir(root, g)
         tmp = dest / "files.new"
@@ -418,13 +441,22 @@ class Installer:
         try:
             extract(dl, tmp, allow_exe=platform == "windows")
             exe, alts = find_exe(tmp, g, platform)
+            setup = None
+            if platform == "windows":
+                if exe and proton.is_installer(tmp / exe):
+                    setup = tmp / exe
+                elif not exe:
+                    setup = find_installer(tmp)
+            if setup:
+                kind = self._silent_install(gid, g, setup, tmp, root, dest)
+                exe, alts = find_exe(tmp, g, platform)
+                if not exe:
+                    raise InstallError("The installer finished, but no program to run was found.")
             if not exe:
                 raise InstallError("No program to run was found in the download.")
-            if platform == "windows" and proton.is_installer(tmp / exe):
-                raise InstallError("This build is a Windows installer. Installers come in a later "
-                                   "update. Try another build with Change build.")
-        except InstallError:
+        except (InstallError, proton.ProtonError, net.Cancelled):
             shutil.rmtree(tmp, ignore_errors=True)
+            shutil.rmtree(dest / "files.inst", ignore_errors=True)
             raise
         except (OSError, zipfile.BadZipFile, tarfile.TarError, EOFError) as e:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -439,6 +471,8 @@ class Installer:
                 "filename": build["filename"], "platform": platform, "exe": exe, "alternatives": alts[:10],
                 "size": used, "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
                 "dir": str(dest)}
+        if setup:
+            info["installer"] = kind
         if platform == "windows":                      # saves live here; kept on uninstall
             info["prefix"] = str(proton.prefix_dir(root, dest.name))
         _write_json(dest / "install.json", info)
@@ -449,6 +483,32 @@ class Installer:
                  time.time() - t0, dest, exe, len(alts))
         self._upd(gid, state="installed", phase=None, progress=0, fail_reason=None,
                   size_mb=used // 1_000_000)
+
+    def _silent_install(self, gid, g, setup, tmp, root, dest):
+        """Run setup.exe (Inno / NSIS) with no window into dest/files.inst, inside the game's
+        own prefix, then put the result where the extracted files were (tmp). Returns the kind."""
+        kind = proton.installer_kind(setup)
+        if kind not in proton.SILENT_KINDS:
+            name = {"installshield": "InstallShield"}.get(kind, "an unknown type")
+            raise InstallError(f"This build uses an installer ({name}) that can't run silently. "
+                               "Try another build with Change build.")
+        pdir, umu = proton.proton_dir(self.cfg), proton.umu_path()
+        if not pdir or not umu:
+            raise InstallError("Windows installers need GE-Proton and umu-launcher. Retry.")
+        target = dest / "files.inst"
+        shutil.rmtree(target, ignore_errors=True)
+        logs = paths.LOGS / "games"
+        logs.mkdir(parents=True, exist_ok=True)
+        self._upd(gid, state="downloading", phase="installing", progress=1)
+        proton.run_installer(umu, setup, kind, target,
+                             proton.env(pdir, proton.prefix_dir(root, dest.name)),
+                             logs / f"{dest.name}-install.log",
+                             cancel=lambda: gid in self._cancel,
+                             on_phase=lambda ph: self._upd(gid, phase=ph))
+        shutil.rmtree(tmp, ignore_errors=True)          # the setup.exe is not needed any more
+        target.replace(tmp)
+        log.info("install %s: %s installer done", gid, kind)
+        return kind
 
     def _game_dir(self, root, g):
         d = root / slug_of(g)
@@ -482,9 +542,35 @@ class Installer:
             return None
         return Path(info["dir"]) / "files" / info["exe"]
 
+    def programs(self, gid):
+        """Runnable files found at install time (chosen one first) that still exist."""
+        info = self.index.get(gid)
+        if not info:
+            return []
+        files = Path(info["dir"]) / "files"
+        out = [info["exe"]] + [a for a in info.get("alternatives", []) if a != info["exe"]]
+        return [p for p in out if (files / p).is_file()]
+
+    def set_exe(self, gid, rel):
+        """Program picker: run this file from now on (kept in install.json, so restarts and
+        updates keep it). The old choice stays in the list."""
+        info = self.index.get(gid)
+        if not info or rel not in self.programs(gid) or rel == info["exe"]:
+            return False
+        alts = [info["exe"]] + [a for a in info.get("alternatives", []) if a not in (rel, info["exe"])]
+        info["exe"], info["alternatives"], info["exe_chosen"] = rel, alts, True
+        _write_json(Path(info["dir"]) / "install.json", info)
+        _write_json(paths.INSTALLS, self.index)
+        log.info("install %s: program set to %s", gid, rel)
+        return True
+
     def uninstall(self, gid):
         """Forget the install now; delete the files in the background (big games take a while).
         Proton prefixes live in <root>/_prefixes and are kept, so saves survive."""
+        cur = self.index.get(gid)
+        if cur and config.card_missing(cur["dir"]):    # can't delete it, so don't forget it
+            log.info("uninstall %s: refused, SD card missing (%s)", gid, cur["dir"])
+            return False
         info = self.index.pop(gid, None)
         _write_json(paths.INSTALLS, self.index)
         self._upd(gid, state=None, phase=None)
@@ -492,3 +578,4 @@ class Installer:
             log.info("uninstall %s: %s", gid, info["dir"])
             threading.Thread(target=shutil.rmtree, args=(info["dir"],), kwargs={"ignore_errors": True},
                              daemon=True, name="uninstall").start()
+        return True

@@ -83,12 +83,96 @@ def env(proton, prefix):
     return {"WINEPREFIX": str(prefix), "PROTONPATH": str(proton), "GAMEID": "umu-default"}
 
 
-def is_installer(path):
-    """Inno Setup / NSIS / InstallShield signatures in the first 2 MB of an .exe."""
+def installer_kind(path):
+    """'inno' | 'nsis' | 'installshield' | None, from signatures in the first 2 MB of an .exe."""
     try:
         with open(path, "rb") as f:
             head = f.read(2_000_000)
     except OSError:
-        return False
-    return any(sig in head for sig in (b"Inno Setup", b"Nullsoft", b"NullsoftInst",
-                                       b"InstallShield"))
+        return None
+    if b"Inno Setup" in head:
+        return "inno"
+    if b"NullsoftInst" in head or b"Nullsoft" in head:
+        return "nsis"
+    if b"InstallShield" in head:
+        return "installshield"
+    return None
+
+
+def is_installer(path):
+    return installer_kind(path) is not None
+
+
+SILENT_KINDS = ("inno", "nsis")
+INSTALL_TIMEOUT_S = 15 * 60
+
+
+def win_path(path):
+    """Proton maps Z: to the Linux root."""
+    return "Z:" + str(path).replace("/", "\\")
+
+
+def silent_args(kind, target):
+    """Command-line switches that install with no window into target."""
+    if kind == "inno":
+        return ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/NOICONS",
+                "/NOCANCEL", f"/DIR={win_path(target)}"]
+    if kind == "nsis":
+        return ["/S", f"/D={win_path(target)}"]       # /D= must be last and unquoted
+    raise ProtonError("This installer type can't run silently.")
+
+
+def run_installer(umu, setup, kind, target, game_env, log_file, cancel=None, on_phase=None,
+                  timeout=INSTALL_TIMEOUT_S):
+    """Run a Windows installer silently through umu in the game's prefix. Blocks until it ends.
+    on_phase("proton") while umu builds a new prefix, then on_phase("installing")."""
+    import os
+    import signal
+    import subprocess
+    import time
+    from . import runner
+    Path(target).mkdir(parents=True, exist_ok=True)
+    cmd = [str(umu), str(setup)] + silent_args(kind, target)
+    env = runner.child_env()
+    env.update(game_env)
+    env.setdefault("WINEDEBUG", "-all")
+    prefix = game_env.get("WINEPREFIX")
+    phase = None
+    t0 = time.monotonic()
+    with open(log_file, "w") as out:
+        out.write(f"# installer ({kind}): {' '.join(cmd)}\n# env: {game_env}\n")
+        out.flush()
+        log.info("installer: %s %s -> %s", kind, Path(setup).name, target)
+        try:
+            proc = subprocess.Popen(cmd, cwd=Path(setup).parent, env=env, stdout=out,
+                                    stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                    start_new_session=True)
+        except OSError as e:
+            raise ProtonError(f"Couldn't start the installer: {e}") from None
+
+        def kill():
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+                proc.wait(5)
+            except (OSError, subprocess.TimeoutExpired):
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+        while proc.poll() is None:
+            want = "proton" if prefix and first_run(prefix) else "installing"
+            if want != phase and on_phase:
+                phase = want
+                on_phase(want)
+            if cancel and cancel():
+                kill()
+                raise net.Cancelled()
+            if time.monotonic() - t0 > timeout:
+                kill()
+                log.warning("installer: no exit after %d s, stopped", timeout)
+                raise ProtonError("The installer didn't finish (stopped after 15 min).")
+            time.sleep(0.5)
+    rc = proc.returncode
+    log.info("installer: exit %s after %.0f s", rc, time.monotonic() - t0)
+    if rc != 0:
+        raise ProtonError(f"The installer stopped with an error (code {rc}). Details are in the log.")

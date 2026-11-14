@@ -441,9 +441,9 @@ def tile(t, s, game, rect, focused=False):
     ty = r.bottom + t.u * 1.2
     col = t.text_c if (focused or playable) else t.faint
     text(t, s, game["title"], rect.x, ty, t.f_small, color=col, maxw=rect.w)
-    if not playable:
-        tag = "Browser game" if "html" in game["platforms"] else "Not playable here"
-        text(t, s, tag, rect.x, ty + t.f_small.get_height(), t.f_small, color=t.faint, maxw=rect.w)
+    if not playable:                  # info tag on the art, like the other tile badges
+        tag(t, s, "Browser game" if "html" in game["platforms"] else "Not playable here",
+            r.x + t.u, r.bottom - t.u, kind="dark", anchor="bottomleft")
 
 
 def _badges(t, s, game, r, playable):
@@ -457,9 +457,12 @@ def _badges(t, s, game, r, playable):
     elif st == "downloading":
         ring(t, s, (int(r.right - pad - t.u * 1.6), int(r.y + pad + t.u * 1.6)), int(t.u * 1.6),
              game.get("progress", 0),
-             busy=game.get("phase") == "extract" or not game.get("progress"))
+             busy=game.get("phase") in ("extract", "installing") or not game.get("progress"))
     elif st == "queued":
         tag(t, s, "Queued", r.right - pad, r.y + pad, kind="dark", anchor="topright")
+    elif st == "missing":
+        tag(t, s, "SD card missing" if game.get("missing") == "card" else "Files missing",
+            r.right - pad, r.y + pad, kind="dark", anchor="topright")
     elif st == "failed":
         tag(t, s, "Failed", r.right - pad, r.y + pad, kind="error", anchor="topright")
     # no platform badge: Linux vs Windows/Proton is handled for the user, not shown on the art
@@ -541,7 +544,7 @@ def rows(t, s, rect, items, focus, row_h=None):
                 button(t, s, br, btn)
                 x = br.x - t.u * 2
             text(t, s, info, x, r.centery, t.f_body, color=t.dim, anchor="midright")
-        elif value in ("Recommended", "Installed"):     # state tags (build picker)
+        elif value in ("Recommended", "Installed", "In use"):     # state tags (build picker)
             tag(t, s, value, r.right - t.u * 2.5, r.centery, kind="accent", anchor="midright")
         elif value:
             text(t, s, value, r.right - t.u * 2.5, r.centery, t.f_body, color=t.dim, anchor="midright")

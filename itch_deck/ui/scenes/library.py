@@ -20,7 +20,7 @@ class Library(Scene):
     @property
     def shown(self):
         if self.filt == "installed":
-            return [g for g in self.games if g.get("state") == "installed"]
+            return [g for g in self.games if g.get("state") in ("installed", "missing")]
         return self.games
 
     # --- input ---------------------------------------------------------

@@ -9,7 +9,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import net, paths
+from . import config, net, paths
 from .stores import itch_page
 
 log = logging.getLogger("itch-deck")
@@ -100,7 +100,11 @@ class Library:
         inst = self.installs.get(g["id"])
         if inst and Path(inst["dir"]).exists():
             g["state"], g["size_mb"] = "installed", inst.get("size", 0) // 1_000_000
-        elif g.get("state") == "installed":
+            g.pop("missing", None)
+        elif inst:                     # still installed, but its folder can't be reached
+            g["state"] = "missing"
+            g["missing"] = "card" if config.card_missing(inst["dir"]) else "files"
+        elif g.get("state") in ("installed", "missing"):
             g["state"] = None
         g.update(self.live.get(g["id"], {}))
 

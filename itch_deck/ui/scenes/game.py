@@ -41,6 +41,10 @@ class Game(Scene):
             return []
         if st == "installed":
             return [("Play", "▶", True), ("Uninstall", None, True), ("Change build", None, True)]
+        if st == "missing":            # SD card out: keep it, nothing to run or delete
+            if self.g.get("missing") == "card":
+                return [("Play", "▶", False), ("Uninstall", None, False)]
+            return [("Play", "▶", False), ("Uninstall", None, True)]
         if st in ("downloading", "queued") or self.phase:
             return [("Cancel", None, True)]
         if st == "failed":
@@ -295,6 +299,15 @@ class Game(Scene):
             W.text(t, s, self.fail_reason or "See the log for details.", r.x + t.u * 2.5,
                    r.y + t.u * 5.6, t.f_small, color=t.dim, maxw=w - t.u * 4)
             return r.bottom + t.u * 3
+        if g.get("state") == "missing":
+            if g.get("missing") == "card":
+                lines = ("SD card missing", "This game is installed on the SD card. Insert the "
+                         "card and it comes back by itself.")
+            else:
+                lines = ("Game files missing", "The install folder is gone. Uninstall removes it "
+                         "from the list, then you can install it again.")
+            y = W.text(t, s, lines[0], x, y, t.f_btn).bottom + t.u
+            return W.wrap(t, s, lines[1], x, y, t.f_small, w, color=t.dim) + t.u * 3
         if g.get("state") == "queued":
             y = W.text(t, s, "Queued — starts after the current download", x, y, t.f_body,
                        color=t.dim).bottom

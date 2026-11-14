@@ -263,8 +263,8 @@ def test_find_win_exe_and_installer_check(tmp_path):
     setup = tmp_path / "setup.exe"
     setup.write_bytes(b"MZ" + b"\0" * 100 + b"Inno Setup Setup Data")
     assert proton.is_installer(setup) and not proton.is_installer(root / best)
-    with pytest.raises(installer.InstallError, match="installer"):
-        installer.extract(setup, tmp_path / "o", allow_exe=True)
+    installer.extract(setup, tmp_path / "o", allow_exe=True)  # M5: installers are allowed through
+    assert installer.find_installer(tmp_path / "o").name == "setup.exe"
     with pytest.raises(installer.InstallError):            # Linux builds never take a bare .exe
         installer.extract(root / best, tmp_path / "o2")
     installer.extract(root / best, tmp_path / "o3", allow_exe=True)
@@ -329,3 +329,112 @@ def test_umu_command_env_and_zipapp(tmp_path):
     paths.UMU.unlink()
     proton.install_umu_tar(t)
     assert paths.UMU.read_bytes() == data and os.access(paths.UMU, os.X_OK)
+
+
+# --- M5 -------------------------------------------------------------------------------------
+FAKE_UMU = r"""#!/bin/sh
+# fake umu-run: "installs" into the /DIR= or /D= target, builds the prefix
+setup="$1"; shift
+for a in "$@"; do
+  case "$a" in /DIR=*) d="${a#/DIR=}";; /D=*) d="${a#/D=}";; esac
+done
+[ -n "$FAIL" ] && exit 3
+[ -n "$HANG" ] && sleep 30
+d=$(printf '%s' "${d#Z:}" | tr '\\' '/')
+mkdir -p "$d/bin" "$WINEPREFIX"
+printf 'MZgame' > "$d/bin/Quiet Quarry.exe"; printf 'MZ' > "$d/unins000.exe"
+touch "$WINEPREFIX/system.reg"
+echo "installed $setup into $d"
+"""
+INNO = b"MZ" + b"\0" * 200 + b"Inno Setup Setup Data (6.2.0)" + b"\0" * 2000
+
+
+def _umu(tmp_path):
+    _fake_proton(tmp_path)
+    paths.UMU.write_text(FAKE_UMU)
+    paths.UMU.chmod(0o755)
+
+
+def test_silent_inno_install(tmp_path, server):
+    data = _zip([("QuietQuarry_Setup.exe", INNO, 0o644)])
+    _Handler.files, _Handler.slow = {"/s.zip": data}, False
+    lib, inst = _setup(tmp_path, server, [_up(7, "s.zip", p_linux=False, p_windows=True, size=len(data))])
+    _umu(tmp_path)
+    phases = []
+    real = inst._upd
+    inst._upd = lambda gid, **kw: (phases.append(kw.get("phase")), real(gid, **kw))
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    g = lib.by_id("5")
+    assert g["state"] == "installed", g.get("fail_reason")
+    info = inst.index["5"]
+    assert info["installer"] == "inno" and info["exe"] == "bin/Quiet Quarry.exe"
+    files = tmp_path / "games/quiet-quarry/files"
+    assert not (files / "QuietQuarry_Setup.exe").exists() and not (files.parent / "files.inst").exists()
+    assert "installing" in phases or "proton" in phases
+    log_ = (paths.LOGS / "games/quiet-quarry-install.log").read_text()
+    assert "/VERYSILENT" in log_ and "/DIR=Z:" in log_
+
+
+def test_installer_failures(tmp_path, server, monkeypatch):
+    from itch_deck import proton
+    shield = b"MZ" + b"\0" * 100 + b"InstallShield" + b"\0" * 100
+    _Handler.files, _Handler.slow = {"/is.exe": shield, "/s.exe": INNO}, False
+    lib, inst = _setup(tmp_path, server, [_up(7, "is.exe", p_linux=False, p_windows=True, size=len(shield))])
+    _umu(tmp_path)
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    assert lib.games[0]["state"] == "failed" and "InstallShield" in lib.games[0]["fail_reason"]
+    monkeypatch.setenv("FAIL", "1")                 # installer exits with an error
+    inst.lib.store.uploads = [_up(8, "s.exe", p_linux=False, p_windows=True, size=len(INNO))]
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    assert "code 3" in lib.games[0]["fail_reason"]
+    assert not (tmp_path / "games/quiet-quarry/files.new").exists()
+    assert proton.silent_args("nsis", "/a/b")[-1] == "/D=Z:\\a\\b"
+    monkeypatch.delenv("FAIL")
+    monkeypatch.setenv("HANG", "1")                 # a hung installer is stopped
+    with pytest.raises(proton.ProtonError, match="didn't finish"):
+        proton.run_installer(paths.UMU, tmp_path / "x.exe", "inno", tmp_path / "t",
+                             {"WINEPREFIX": str(tmp_path / "p")}, tmp_path / "i.log", timeout=1)
+
+
+def test_sd_card_missing(tmp_path, server, monkeypatch):
+    from itch_deck import config
+    media = tmp_path / "media"
+    monkeypatch.setattr(config, "MEDIA", media)
+    card = media / "deck/SD/itch"
+    assert config.card_missing(card) and config.drive_name(card) == "SD card"
+    assert not config.card_missing(tmp_path / "games")
+    data = _zip([("quarry/quarry", ELF64, 0o755)])
+    _Handler.files, _Handler.slow = {"/q.zip": data}, False
+    lib, inst = _setup(tmp_path, server, [_up(9, "q.zip", size=len(data))])
+    inst.root_fn = lambda: card
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    assert "SD card missing" in lib.games[0]["fail_reason"] and not media.exists()
+    # an installed game on a card that was taken out
+    inst._upd("5", state=None, fail_reason=None)
+    inst.index["5"] = {"game_id": "5", "dir": str(card / "quiet-quarry"), "exe": "q", "upload_id": 9}
+    lib.apply_installs()
+    g = lib.by_id("5")
+    assert g["state"] == "missing" and g["missing"] == "card"
+    assert inst.uninstall("5") is False and "5" in inst.index
+    # card back -> installed again
+    (card / "quiet-quarry/files").mkdir(parents=True)
+    lib.apply_installs()
+    assert g["state"] == "installed" and "missing" not in g
+
+
+def test_program_picker_choice(tmp_path, server):
+    data = _zip([("q/quarry", ELF64 + b"x" * 5000, 0o755), ("q/editor", ELF64, 0o755)])
+    _Handler.files, _Handler.slow = {"/q.zip": data}, False
+    lib, inst = _setup(tmp_path, server, [_up(9, "q.zip", size=len(data))])
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    assert inst.programs("5") == ["q/quarry", "q/editor"]
+    assert inst.set_exe("5", "q/editor") and not inst.set_exe("5", "nope")
+    assert inst.exe_path("5").name == "editor" and inst.programs("5") == ["q/editor", "q/quarry"]
+    import json
+    saved = json.loads((tmp_path / "games/quiet-quarry/install.json").read_text())
+    assert saved["exe"] == "q/editor" and saved["exe_chosen"]
