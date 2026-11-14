@@ -2,8 +2,23 @@
 
 Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
+## Working on this repo (Omri, 14 Nov — several chats work on it in parallel)
+- Start of every session: `git fetch origin` and `git pull --rebase origin main`. Read NOTES.md.
+- Work on your own branch (e.g. `m4-proton`, `feel-pass`). Never commit straight to main.
+- main = ready to ship. Merge to main only when the work is finished: first merge the latest
+  origin/main into your branch, run `python -m pytest -q tests` and `python run.py --selftest`,
+  then push. If a push is rejected, pull and merge again; never force-push main.
+- Releases (bump VERSION in app.py + tag vX.Y.Z) are done by ONE chat at a time. Before tagging:
+  check `git branch -r --no-merged origin/main` for finished branches and ask Omri whether to
+  include them.
+- UI must follow the "Design pass" rules below: W.button (grey, focus lights up, only Play purple),
+  W.tag for labels, 5 theme font sizes, purple only for progress/state, t.dim for readable grey,
+  app name = W.APP_NAME ("scritch").
+- Write what you changed in NOTES.md before pushing, so the next chat knows.
+- Ask Omri before big changes.
+
 ## Current milestone
-M4 built (v0.4.0) — waiting for the Deck test (checklist under M4 below). v0.4.1 = M4 + design
+M4 DONE (v0.4.2). Next: M5. v0.4.1 = M4 + design
   pass; build picker shows "Installed" as an accent tag like "Recommended" (W.rows).
 v0.4.1 Deck test 14 Nov: Figment WINDOWS build (Change build -> figment-windows-32.zip) installs,
   "Preparing Proton…", short black screen, then plays with pad ✓. Linux build still crashes
@@ -13,6 +28,9 @@ v0.4.1 Deck test 14 Nov: Figment WINDOWS build (Change build -> figment-windows-
   our app: by design (Steam ends the tile's process tree; v0.3.0 showed it can't be refused).
   To get back to scritch, quit from the game's own menu.
 v0.4.2 (Omri): install folder path removed from the game page (Settings still shows the root).
+M4 — DONE 14 Nov (Figment Windows build via Proton plays; quitting from the game menu returns to
+  its page ✓; Steam -> Exit game closing the tile is intended, Omri confirmed).
+Next: M5 edge cases (exe picker, silent installers, HTML5, SD card). Ask Omri first.
 M0 spike — PASSED on Deck 14 Nov (checklist 1–6 all ✓). Focus hand-off to child and back works.
 M1 mockups — APPROVED 14 Nov. Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ
 M2 real library — v0.2.0 Deck test 14 Nov: 1,2,4,6,7 ✓. Count 129 = matches (itch shows 133 incl.
