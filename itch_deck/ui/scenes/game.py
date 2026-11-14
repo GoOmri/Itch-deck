@@ -14,6 +14,9 @@ def _mb(mb):
     return f"{mb / 1024:.1f} GB" if mb >= 1024 else f"{mb} MB"
 
 
+# the page's one purple button (DESIGN rule 1); Cancel never — the progress bar is the purple thing
+MAIN_ACTIONS = ("Install", "Retry install", "Play")
+
 class Game(Scene):
     """phase (optional): 'download' | 'extract' | 'installing' | 'proton' — what an active
     install is doing right now. fail_reason: text for a failed install."""
@@ -196,7 +199,7 @@ class Game(Scene):
         for i, (label, icon, en) in enumerate(self.actions()):  # one row; LEFT/RIGHT moves
             bw = W.button_w(t, label, icon)
             W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, enabled=en, icon=icon,
-                     accent=(label == "Play"),
+                     accent=(label in MAIN_ACTIONS),
                      focused=(self.section == "actions" and i == self.focus and not self.overlay))
             bx += bw + t.sm
         if self.actions():

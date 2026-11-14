@@ -6,8 +6,10 @@ there first, then use it.
 
 ## 1. Colour = meaning
 - **Purple** means *happening or yours*: progress, rings, spinners, the ✓ badge, Installed /
-  Recommended / Developer tags, the selected tab, the name, and the Play button and Update / Restart (only when an update is waiting). Never focus,
-  never decoration.
+  Recommended / Developer tags, the selected tab, the name. Never focus, never decoration.
+- **One purple button per page: its main action** (like Steam, PS5, Xbox): Install (or Retry
+  install) when not installed, Play when installed, Update / Restart when an update is waiting.
+  While downloading there is none: the progress bar is the purple thing, Cancel stays grey.
 - **Red** means *error*, nothing else.
 - **Everything else is neutral.** Background: blue→purple gradient. Surfaces: cool navy greys
   (`panel`, `panel_hi`).
@@ -33,7 +35,7 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 ## 5. Components (only these)
 | Need | Use |
 |---|---|
-| Press something | `W.button` (only Play and Update get `accent=True`) |
+| Press something | `W.button` (`accent=True` only for the page's main action) |
 | Label a fact | `W.tag(kind=neutral/accent/error/dark)` |
 | A list to pick from | `W.rows` |
 | Say something went wrong / is waiting | `W.notice(kind="error"/"busy")` |
@@ -62,6 +64,7 @@ Full-width content (grid, screenshot strip) uses the margins.
 ## 9. Motion = one tempo
 - State changes ease in ~120 ms (`MOTION_SPEED`); pages cross-fade in 160 ms; A press dips 6%.
 - Nothing moves on its own except spinners and progress.
+- No sound or vibration of our own (Omri, 14 Nov): Steam's own UI sounds/haptics are enough.
 - Mockups show the end state.
 
 ## 10. Words
