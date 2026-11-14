@@ -785,6 +785,7 @@ class App:
         elif self.kind == "game":
             sc = self.scene
             sc.offline = self.lib.offline
+            sc.card_out = getattr(self, "_card_out", False)
             g = self.lib.by_id(sc.g["id"])
             if g is not None and g is not sc.g:   # list replaced by a sync
                 sc.g = g

@@ -356,6 +356,13 @@ v0.6.2 = rest of M6 (Omri said go 14 Nov, after design-next was done; branch car
     6 Panzer Marshal Linux build -> Play -> message says to try the Windows build.
     7 Read README on GitHub: anything unclear?
 
+v0.6.2 Deck 14 Nov: all ✓ except 5: toasts show, but the game page didn't change. Repro: the
+  installed-game case updates fine; a NOT-installed game kept a normal Install with the card out.
+  Fix (branch card-back, NOT released — Omri: don't push yet): Game.card_out (App sets it from
+  _card_out each frame, in the page cache key): Install / Retry install greyed + info box "SD card
+  missing · Insert it to install this game, or change Install location in Settings." Mockup 22b.
+  VERSION still 0.6.2 on the branch: bump to 0.6.3 when releasing.
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so

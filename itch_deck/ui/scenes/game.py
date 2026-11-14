@@ -23,7 +23,7 @@ class Game(Scene):
     install is doing right now. fail_reason: text for a failed install."""
 
     def __init__(self, t, game, pos=(1, 1), focus=0, phase=None, fail_reason=None,
-                 install_path=None, offline=False,
+                 install_path=None, offline=False, card_out=False,
                  section="actions", shot=0, **kw):
         super().__init__(t, **kw)
         self.offline = offline
@@ -33,6 +33,7 @@ class Game(Scene):
         self.install_path = install_path
         self.section = section     # "actions" | "shots" | "desc"
         self.shot = shot           # focused screenshot
+        self.card_out = card_out   # install location is an SD card that isn't in (app sets it)
 
     @property
     def playable(self):
@@ -49,6 +50,8 @@ class Game(Scene):
             main = [("Play", "play", False)]
         elif st in ("downloading", "queued") or self.phase:
             return [("Cancel", None, True)]  # nothing else to do while it downloads
+        elif self.card_out:              # nowhere to install to until the card is back
+            main = [("Retry install" if st == "failed" else "Install", None, False)]
         elif st == "failed":
             main = [("Retry install", None, True)]
         elif self.offline:
@@ -146,7 +149,7 @@ class Game(Scene):
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
                g.get("controls_label"),
                g.get("cover_file"), self.section, self.focus, self.shot, bool(self.overlay),
-               self.offline, self.phase, self.fail_reason, self.install_path,
+               self.offline, self.card_out, self.phase, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
                W.frame_tick() if W.animating() else 0,   # redraw only while something moves
                getattr(self, "_end", 0))
@@ -341,6 +344,9 @@ class Game(Scene):
                 return ("info", "Browser game", "Open it on itch.io in a browser.")
             return ("info", "Not playable on the Deck", "It has no Linux or Windows download.")
         st = g.get("state")
+        if self.card_out and st in (None, "failed"):
+            return ("info", "SD card missing", "Insert it to install this game, or change "
+                    "Install location in Settings.")
         if st == "failed":
             return ("error", "Couldn't install", self.fail_reason or "See the log for details.")
         if st == "missing" and g.get("missing") == "card":

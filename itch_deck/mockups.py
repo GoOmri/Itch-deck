@@ -145,6 +145,7 @@ def _shots(t, version):
             "confirm", "Uninstall Starfall Ferry?", ["Frees 412 MB.", "Your saves are kept."],
             [("A", "Uninstall"), ("B", "Cancel")]))),
         ("22_game_sd_missing", game("Pocket Volcano")),
+        ("22b_game_sd_missing_install", game("Cinder Choir", card_out=True)),
         ("23_game_program_picker", with_overlay(game("Moss & Rivets"), (
             "picker", "Choose the program", "Pick the file that starts the game. Helpers like "
             "crash reporters are left out.",
