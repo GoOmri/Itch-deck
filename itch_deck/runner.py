@@ -111,7 +111,9 @@ def crashed(rc, secs):
 HINTS = (  # (text in the game's log, what to tell the user)
     ("rand_util_win.cc", "This game needs a newer GE-Proton (9 or later). Install it with "
                          "ProtonUp-Qt in Desktop Mode; scritch uses the newest one."),
-    ("libfuse", "This game is an AppImage that couldn't start. Uninstall and install it again."),
+    ("error while loading shared libraries", "This Linux build needs a library SteamOS doesn't "
+                                             "have. Try Change build → the Windows build."),
+    ("libfuse","This game is an AppImage that couldn't start. Uninstall and install it again."),
 )
 
 

@@ -644,6 +644,17 @@ class App:
     def _check_mounts(self):
         """Installed games whose folder appeared or vanished (SD card) get their state again."""
         self._pin_root()                    # a card inserted later becomes the install location
+        root = config.install_root(self.cfg)
+        out = config.card_missing(root)
+        if out != getattr(self, "_card_out", out):          # card taken out / put back
+            log.info("install root %s: %s", root, "card out" if out else "card back")
+            self.say("SD card removed." if out else "SD card is back.")
+            if not out:                     # clear "SD card missing" install errors
+                for g in self.lib.games:
+                    if g.get("state") == "failed" and \
+                            (g.get("fail_reason") or "").startswith("SD card missing"):
+                        self.inst._upd(g["id"], state=None, fail_reason=None)
+        self._card_out = out
         for g in self.lib.games:
             info = self.inst.index.get(g["id"])
             if info and g.get("state") in ("installed", "missing") and \

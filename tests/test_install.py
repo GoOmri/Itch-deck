@@ -509,3 +509,12 @@ def test_appimage_unpack(tmp_path):
     bad.write_text("#!/bin/sh\nexit 1\n")
     bad.chmod(0o755)
     assert installer.unpack_appimage(tmp_path, "bad.bin") == "bad.bin" and bad.exists()
+
+
+def test_crash_hint_missing_lib(tmp_path, monkeypatch):
+    from itch_deck import runner
+    monkeypatch.setattr(paths, "LOGS", tmp_path)
+    (tmp_path / "games").mkdir()
+    (tmp_path / "games/pm.log").write_text("./pm.bin: error while loading shared libraries: "
+                                           "libnss3.so: cannot open shared object file\n")
+    assert "Windows build" in runner.crash_hint("pm")

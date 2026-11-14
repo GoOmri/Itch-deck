@@ -24,6 +24,8 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - After ANY UI change: re-render mockups (`python run.py --render-mockups DIR`) and publish them as
   `after/` to the gallery artifact https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (Omri expects it current).
 - Ask Omri before big changes.
+- A push to main = a release (CI publishes the VERSION in app.py). Omri 14 Nov: no release
+  until he says, so finished work waits on its branch.
 
 ## Current milestone
 M4 DONE (v0.4.2). Next: M5. v0.4.1 = M4 + design
@@ -307,6 +309,18 @@ v0.6.1 (Omri chose "remember the SD card", 14 Nov): config.pin_install_root save
   5 Panzer Marshal -> Change build -> linux .bin -> Install -> Play (app.log "appimage ...:
   unpacked"). If 5 fails: send logs/games/panzermarshal.log.
   Games installed to ~/Games/itch during test 3 (A Good Snowman, Anarcute) stay there and work.
+v0.6.1 Deck 14 Nov: pin ✓ ("install root pinned: /run/media/deck/9273…/itch"); card out ->
+  install fails "SD card missing" ✓; card back -> install works, BUT the red error stayed on the
+  game page (Omri: want a small pop-up that the card is back). Panzer Marshal .bin still exit 127
+  after 0 s, and NO "appimage" log line -> it is NOT an AppImage (no AI magic). 127 from a started
+  ELF = most likely "error while loading shared libraries" (a lib SteamOS lacks). Need
+  logs/games/panzermarshal.log to know which lib.
+Branch card-back (NOT on main, NOT released — Omri 14 Nov: no app release until he says;
+  remember a push to main = a release, CI publishes VERSION): App._check_mounts tracks
+  card_missing(install root); on change toasts "SD card removed." / "SD card is back." and on
+  back clears failed installs whose fail_reason starts "SD card missing". runner HINTS: "error
+  while loading shared libraries" -> "needs a library SteamOS doesn't have. Try Change build ->
+  the Windows build." VERSION still 0.6.1 on the branch: bump when releasing.
 
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
