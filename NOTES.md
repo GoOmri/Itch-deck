@@ -333,6 +333,29 @@ Branch card-back (NOT on main, NOT released — Omri 14 Nov: no app release unti
   while loading shared libraries" -> "needs a library SteamOS doesn't have. Try Change build ->
   the Windows build." VERSION still 0.6.1 on the branch: bump when releasing.
 
+v0.6.2 = rest of M6 (Omri said go 14 Nov, after design-next was done; branch card-back has
+  design-next merged in + SD card toasts + missing-library hint):
+  - Settings: every row works, A hint names the action (Settings.ACTION). Install location cycles
+    config.install_choices() (SD card if mounted, Internal ~/Games/itch); new installs only; value
+    "SD card (missing)" when pinned card is out. Proton version cycles Auto (newest) + each
+    GE-Proton (cfg["proton"] None = auto; value "Auto · GE-ProtonX"). Saves of uninstalled games
+    = proton.leftover_prefixes(roots, installed folder names) under every root in use (skips a
+    missing card), sized in a thread (App._scan_saves, "Checking…"), A -> red confirm -> rmtree
+    in a thread -> rescan. "Comes in a later update." no longer reachable from Settings.
+  - Messages: no raw exceptions / exit codes / paths in the UI (installer start error, installer
+    exit code, "Can't write to the <drive>", mouse-mode uinput error -> log). proton.NEED_GE one
+    text for "GE-Proton isn't installed…". Mouse mode toast: "Mouse mode didn't start (…). The
+    game ran without it."
+  - README.md: setup (release, tile, GE-Proton, key), buttons, Settings, troubleshooting table,
+    logs, file layout, known limits, dev commands.
+  - selftest drives Settings (rows act, saves found + deleted). Mockup 21 values updated.
+  Deck checklist v0.6.2: 1 Update app -> 0.6.2. 2 Settings: Install location toggles SD/Internal
+    (toast), set it back to SD. 3 Proton version cycles Auto / your versions. 4 Saves of
+    uninstalled games shows a size (Figment's Windows prefix if uninstalled) -> A -> Delete.
+    5 Card out/in on a game page: "SD card removed." / "SD card is back.", the red error clears.
+    6 Panzer Marshal Linux build -> Play -> message says to try the Windows build.
+    7 Read README on GitHub: anything unclear?
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so

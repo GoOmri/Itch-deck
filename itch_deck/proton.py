@@ -1,6 +1,7 @@
 """Windows games (M4): umu-launcher + GE-Proton. One prefix per game in
 <install root>/_prefixes/<slug>, outside the game folder, so saves survive an uninstall."""
 import logging
+import os
 import shutil
 import tarfile
 from pathlib import Path
@@ -9,6 +10,9 @@ from . import config, net, paths
 
 log = logging.getLogger("itch-deck")
 UMU_LATEST = "https://api.github.com/repos/Open-Wine-Components/umu-launcher/releases/latest"
+
+
+NEED_GE = "GE-Proton isn't installed. Add it with ProtonUp-Qt in Desktop Mode."
 
 
 class ProtonError(Exception):
@@ -64,6 +68,32 @@ def proton_dir(cfg):
         return None
     d = paths.STEAM_TOOLS / name
     return d if (d / "proton").exists() else None
+
+
+def leftover_prefixes(roots, installed):
+    """Prefixes (saves) of games that aren't installed any more, under each root's _prefixes/.
+    installed = game folder names that are installed (their prefix has the same name)."""
+    out = []
+    for r in roots:
+        d = Path(r) / "_prefixes"
+        if config.card_missing(d):
+            continue
+        try:
+            out += [k for k in d.iterdir() if k.is_dir() and k.name not in installed]
+        except OSError:
+            pass
+    return out
+
+
+def dir_size(path):
+    total = 0
+    for dirpath, _dirs, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.lstat(os.path.join(dirpath, f)).st_size
+            except OSError:
+                pass
+    return total
 
 
 def prefix_dir(root, slug):
@@ -148,7 +178,8 @@ def run_installer(umu, setup, kind, target, game_env, log_file, cancel=None, on_
                                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                     start_new_session=True)
         except OSError as e:
-            raise ProtonError(f"Couldn't start the installer: {e}") from None
+            log.warning("installer: couldn't start %s: %s", setup, e)
+            raise ProtonError("Couldn't start the installer. Details are in the log.") from None
 
         def kill():
             try:
@@ -175,4 +206,4 @@ def run_installer(umu, setup, kind, target, game_env, log_file, cancel=None, on_
     rc = proc.returncode
     log.info("installer: exit %s after %.0f s", rc, time.monotonic() - t0)
     if rc != 0:
-        raise ProtonError(f"The installer stopped with an error (code {rc}). Details are in the log.")
+        raise ProtonError("The installer stopped with an error. Details are in the log.")

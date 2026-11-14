@@ -430,8 +430,8 @@ class Installer:
             raise InstallError("No Linux or Windows download found for this game.")
         log.info("install %s: %s build %s", gid, platform, build["filename"])
         if platform == "windows" and not proton.proton_dir(self.cfg):
-            raise InstallError("Windows games need GE-Proton. Install it with ProtonUp-Qt in "
-                               "Desktop Mode, then Retry.")
+            raise InstallError("Windows games need GE-Proton. Add it with ProtonUp-Qt in Desktop "
+                               "Mode, then Retry.")
         size = build["size"]
         self._upd(gid, size_mb=size // 1_000_000)
 
@@ -443,7 +443,9 @@ class Installer:
             root.mkdir(parents=True, exist_ok=True)
             free = shutil.disk_usage(root).free
         except OSError as e:
-            raise InstallError(f"Can't write to the install folder {root}.") from e
+            log.warning("install %s: can't write to %s: %s", gid, root, e)
+            raise InstallError(f"Can't write to the {config.drive_name(root)}. Check it isn't full "
+                               "or read-only.") from e
         dl = self._dl_dir() / f"{gid}-{build['id']}-{re.sub(r'[^A-Za-z0-9._-]', '_', build['filename'])}"
         have = dl.with_name(dl.name + ".part")
         have = have.stat().st_size if have.exists() else 0

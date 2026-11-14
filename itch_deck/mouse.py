@@ -201,7 +201,8 @@ class MouseMode:
                 try:
                     self.dev = VirtualMouse()
                 except OSError as e:
-                    self.error = f"couldn't create the virtual mouse: {e}"
+                    log.warning("mouse mode: uinput: %s", e)
+                    self.error = "couldn't create the virtual mouse"
         if self.error:
             log.warning("mouse mode: off (%s)", self.error)
             return False

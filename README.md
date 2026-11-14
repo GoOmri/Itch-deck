@@ -1,0 +1,134 @@
+# SCRiTCH (itch-deck)
+
+A controller-first launcher for your **itch.io** library on the **Steam Deck**. It shows up as one
+Steam tile in Game Mode. From there you can browse the games you own, install them, play and
+uninstall, all with the pad. Windows games run through GE-Proton automatically.
+
+- Your whole itch library, plus free games you added to your itch **collections**
+- Game pages with the full description, screenshots and comments (cached for offline use)
+- One-button installs: download, unpack, done. Windows installers (Inno Setup, NSIS) run silently
+- Linux games run natively, Windows games run through umu-launcher + GE-Proton (one prefix per
+  game, so your saves survive an uninstall)
+- **Mouse mode** for mouse-only games: the right stick moves the pointer, R2 clicks
+- Installs to the SD card by default, and updates itself from Settings
+
+It's a single Linux binary (Python + pygame-ce, built with PyInstaller). Nothing gets installed on
+the Deck's system, and you never need a terminal.
+
+## Setup (about 15 minutes, once)
+
+You need a Steam Deck (or another SteamOS / Linux PC) and an itch.io account.
+
+### 1. Get the app
+1. Switch to **Desktop Mode**. Open the
+   [latest release](https://github.com/GoOmri/Itch-deck/releases/latest) in Firefox and
+   download `itch-deck`.
+2. In Dolphin, make the folder `~/Applications/itch-deck/` and move the file into it.
+3. Right-click the file → **Properties → Permissions** → tick **Is executable**.
+
+### 2. Add it to Steam
+1. Steam → **Games → Add a Non-Steam Game to My Library → Browse**, then pick
+   `~/Applications/itch-deck/itch-deck`.
+2. In the tile's **Properties**, rename it (for example *SCRiTCH*). Leave **Compatibility**
+   off, because it's a native Linux app.
+3. Back in Game Mode: tile → controller icon → pick the **Gamepad** template.
+
+### 3. GE-Proton (for Windows games)
+In Desktop Mode, install **ProtonUp-Qt** from Discover and add the newest **GE-Proton**
+(version 9 or later). scritch uses the newest one it finds. You can pick another in Settings.
+
+### 4. Your itch API key
+1. On any computer: itch.io → **Settings → API keys → Generate new API key**.
+2. Save the key on its own in a text file called `itch_key.txt`, then send it to the Deck's
+   `~/Downloads` (Warpinator or KDE Connect both work).
+3. Open scritch in Game Mode. It finds the file, checks the key, saves it and deletes the text
+   file. Your library syncs.
+
+No file? On the Setup screen, choose **Type key**, then use Steam + X for the on-screen keyboard
+(or paste with Ctrl+V over RustDesk).
+
+The key is stored only in `~/.config/itch-deck/config.json`, which only your user can read.
+
+## Using it
+
+| Button | Library | Game page | Settings |
+|---|---|---|---|
+| D-pad / left stick | Move | Move | Move |
+| A | Open game | Press the focused button | Change the focused setting |
+| B | Quit | Back | Back |
+| X / L1 / R1 | Switch tabs | Previous / next game (L1/R1) | — |
+| Y | Refresh library | — | — |
+| L2 / R2 | Page up / down | — | — |
+| Start (☰) | Settings | Options | Back |
+
+- **Installing:** press Install. The download runs in the background (one at a time) and resumes
+  if you quit. Then the button turns into **Play**.
+- **Change build:** some games have several downloads (Linux, Windows, 32/64-bit, demos). Options
+  → Change build lets you pick another one. If a Linux build won't start, try the Windows build.
+- **Controls:** Options → Controls switches between *Auto*, *Pad* and *Mouse*. *Auto* turns on
+  mouse mode when the game's itch page lists only mouse or touchscreen input. In mouse mode the
+  right stick moves the pointer and R2 / A left-clicks. L2 / X right-clicks, the left stick
+  scrolls, and B / Start is Esc.
+- **Quitting a game:** use the game's own Quit. Steam → *Exit game* also works, but it closes
+  scritch too, because Steam ends the whole tile.
+
+### Settings
+- **Install location:** SD card or internal storage. This only applies to new installs;
+  installed games stay where they are. If the SD card is out, installs say "SD card missing".
+- **Saves of uninstalled games:** Windows games keep their saves after an uninstall, so a
+  reinstall picks them up again. This row shows how much space those saves take, and A deletes
+  them.
+- **Proton version:** *Auto* (newest GE-Proton) or a fixed version.
+- **Pointer speed:** slow / normal / fast, for mouse mode.
+- **Update app:** checks GitHub for a new version, downloads it and restarts. The previous
+  version is kept as `itch-deck.old` next to the app, in case you need to go back.
+
+## When something goes wrong
+
+| You see | Try |
+|---|---|
+| "Can't reach itch.io" | Check Wi-Fi. Games you've installed still play offline. |
+| "Key rejected" | Make a new API key and send it again (Settings → Re-import API key). |
+| "SD card missing" | Put the card back. scritch notices within a couple of seconds. |
+| "Windows games need GE-Proton" | Install it with ProtonUp-Qt (step 3 above). |
+| "…can't run silently" | The installer type isn't supported. Try Options → Change build. |
+| A game closes right after starting | Try Change build (Windows instead of Linux, or 64-bit). |
+| "needs a newer GE-Proton" | Add the newest GE-Proton in ProtonUp-Qt. |
+| A game's controls do nothing | It may be mouse-only. Set Options → Controls → Mouse. |
+
+**Logs** (open them in Dolphin; turn on *Show hidden files*):
+- `~/.local/state/itch-deck/logs/app.log`: what scritch did
+- `~/.local/state/itch-deck/logs/games/<game>.log`: the game's own output from its last run,
+  including the exact command line
+- `~/.local/state/itch-deck/logs/games/<game>-install.log`: the output of a Windows installer
+
+## Where things live
+
+```
+~/Applications/itch-deck/itch-deck      the app
+~/.config/itch-deck/config.json         settings + API key
+~/.local/share/itch-deck/               library cache, covers, game pages, umu-launcher
+~/.local/state/itch-deck/logs/          logs
+<SD card>/itch/<game>/                  installed games (or ~/Games/itch/ on internal storage)
+<SD card>/itch/_prefixes/<game>/        Windows saves (Proton prefixes)
+```
+
+## Known limits
+- **Browser (HTML5) games** are listed and tagged, but they can't be played from scritch yet.
+- **Paid games in collections** are only listed if you own them. Free ones are added.
+- Some Linux builds need libraries SteamOS doesn't ship (for example `libwebkit2gtk`). They stop
+  straight away. Use the Windows build instead.
+- All games share the tile's Steam Input layout. Keyboard-only games need a custom layout, or the
+  Deck's touchscreen.
+
+## For developers
+```
+pip install -r requirements.txt pytest
+python -m pytest -q tests          # unit tests (itch API from fixtures, installer, mouse mode)
+python run.py --selftest           # headless run through every screen with fake data
+python run.py --windowed           # run it on a desktop (keyboard: arrows, Enter, Esc, x, y, m)
+python run.py --render-mockups out # PNGs of every screen
+```
+Every push to `main` builds the binary on GitHub Actions (Ubuntu 22.04) and publishes a release
+named after `VERSION` in `itch_deck/app.py`. Read `NOTES.md` (working notes and decisions) and
+`DESIGN.md` (UI rules) before changing things.

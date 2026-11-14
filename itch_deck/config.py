@@ -90,6 +90,13 @@ def pin_install_root(cfg, installed_dirs=()):
     return True
 
 
+def install_choices():
+    """Install locations Settings can switch between: the SD card (when one is in) and internal."""
+    sd = sd_card()
+    return ([("SD card", sd / "itch")] if sd else []) + \
+        [("Internal storage", paths.HOME / "Games" / "itch")]
+
+
 def install_root(cfg):
     if cfg.get("install_root"):
         return Path(cfg["install_root"])

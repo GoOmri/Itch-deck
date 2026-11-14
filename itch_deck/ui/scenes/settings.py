@@ -33,8 +33,13 @@ class Settings(Scene):
         if act in (UP, DOWN):
             self.focus = (self.focus + (1 if act == DOWN else -1)) % n
 
+    ACTION = {"Refresh library": "Refresh", "Re-import API key": "Import", "Install location": "Change",
+              "Saves of uninstalled games": "Delete", "Proton version": "Change",
+              "Pointer speed": "Change", "Update app": "Check"}
+
     def hints(self):
-        return [("A", "Select"), ("B", "Back")]
+        label = self.items()[self.focus][0] if self.items() else ""
+        return [("A", self.ACTION.get(label, "Select")), ("B", "Back")]
 
     def draw_page(self, s):
         t = self.t

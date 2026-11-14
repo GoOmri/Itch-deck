@@ -17,7 +17,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.6.1"
+VERSION = "0.6.2"
 QUIT_DLG = ("confirm", "Quit SCRiTCH?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Comes in a later update."
@@ -152,14 +152,58 @@ class App:
         except OSError:
             pass
         protons = config.proton_versions()
+        want = self.cfg.get("proton")
+        proton_v = (want if want in protons else f"Auto · {protons[0]}") if protons else "Not installed"
+        label = "SD card" if config.on_card(root) else "Internal storage"
+        self._scan_saves()
         return {
-            "install_label": "SD card" if str(root).startswith("/run/media") else "Internal storage",
-            "install_path": str(root), "free": free,
-            "proton": self.cfg.get("proton") or (protons[0] if protons else "Not found"),
-            "prefix_size": "None yet", "last_sync": short_date(self.lib.synced_at),
+            "install_label": label + (" (missing)" if config.card_missing(root) else ""),
+            "install_path": str(root), "free": free, "proton": proton_v,
+            "prefix_size": "Checking…", "last_sync": short_date(self.lib.synced_at),
             "update": self.updater.row_value(),
             "pointer": self.cfg.get("pointer_speed", "normal").capitalize(),
         }
+
+    # --- Settings: saves of uninstalled games ---------------------------
+    def _save_roots(self):
+        roots = {str(config.install_root(self.cfg))}
+        roots |= {str(Path(i["dir"]).parent) for i in self.inst.index.values() if i.get("dir")}
+        return roots
+
+    def _scan_saves(self):
+        """Size of leftover prefixes, in the background (thousands of files per prefix)."""
+        self.saves = None
+        installed = {Path(i["dir"]).name for i in self.inst.index.values() if i.get("dir")}
+        roots = self._save_roots()
+
+        def work():
+            dirs = proton.leftover_prefixes(roots, installed)
+            self.saves = (dirs, sum(proton.dir_size(d) for d in dirs))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _saves_label(self):
+        if self.saves is None:
+            return "Checking…"
+        dirs, size = self.saves
+        return f"{len(dirs)} game{'s' * (len(dirs) != 1)} · {_gb(size)}" if dirs else "None"
+
+    def _delete_saves(self):
+        dirs = self.saves[0] if self.saves else []
+        if not dirs:
+            self.say("No saves of uninstalled games to delete.")
+            return
+
+        def go():
+            def work():
+                for d in dirs:
+                    log.info("settings: deleting prefix %s", d)
+                    shutil.rmtree(d, ignore_errors=True)
+                self._scan_saves()
+            threading.Thread(target=work, daemon=True).start()
+            self.say(f"Deleted the saves of {len(dirs)} uninstalled game{'s' * (len(dirs) != 1)}.")
+        self.confirm("Delete saves?", f"Saved games and settings of {len(dirs)} uninstalled "
+                     f"game{'s' * (len(dirs) != 1)} are deleted for good. Installed games keep "
+                     "theirs.", "Delete", go)
 
     # --- API key -------------------------------------------------------
     def try_import(self, auto=False):
@@ -515,7 +559,7 @@ class App:
         if info.get("platform") == "windows":
             umu, pdir = proton.umu_path(), proton.proton_dir(self.cfg)
             if not pdir:
-                self.say("GE-Proton isn't installed. Add it with ProtonUp-Qt in Desktop Mode.",
+                self.say(proton.NEED_GE,
                          error=True)
                 return
             if not umu:
@@ -554,7 +598,7 @@ class App:
         self.inp.flush()
         self.go_game(self.lib.by_id(g["id"]) or g)
         if mm and mm.error and not runner.crashed(rc, secs):
-            self.say(f"Mouse mode isn't available: {mm.error}.", error=True)
+            self.say(f"Mouse mode didn't start ({mm.error}). The game ran without it.", error=True)
         if runner.crashed(rc, secs):
             hint = runner.crash_hint(slug_of(g))
             log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
@@ -615,6 +659,34 @@ class App:
                     self.say("Updates only work in the released app.")
                 elif not u.busy():
                     u.check()
+            elif label == "Install location":
+                opts = config.install_choices()
+                cur = str(config.install_root(self.cfg))
+                i = next((k for k, (_, p) in enumerate(opts) if str(p) == cur), -1)
+                if len(opts) == 1 and i == 0:
+                    self.say("No SD card found. Games install to internal storage.")
+                else:
+                    name, path = opts[(i + 1) % len(opts)]
+                    self.cfg["install_root"] = str(path)
+                    config.save(self.cfg)
+                    self._card_out = config.card_missing(path)
+                    sc.v.update(self.settings_values())
+                    self.say(f"New games install to {name.lower()}. Installed games stay where they are."
+                             if name != "SD card" else "New games install to the SD card. "
+                             "Installed games stay where they are.")
+            elif label == "Proton version":
+                names = config.proton_versions()
+                if not names:
+                    self.say(proton.NEED_GE, error=True)
+                else:
+                    opts = [None] + names               # None = Auto (newest)
+                    cur = self.cfg.get("proton")
+                    i = opts.index(cur) if cur in opts else 0
+                    self.cfg["proton"] = opts[(i + 1) % len(opts)]
+                    config.save(self.cfg)
+                    sc.v.update(self.settings_values())
+            elif label == "Saves of uninstalled games":
+                self._delete_saves()
             elif label == "Pointer speed":
                 order = ("slow", "normal", "fast")
                 cur = self.cfg.get("pointer_speed", "normal")
@@ -624,8 +696,6 @@ class App:
             elif label == "Re-import API key":
                 self.go_setup("waiting", back=True)
                 self.try_import(auto=True)
-            else:
-                self.say("Comes in a later update.")
         elif not isinstance(act, tuple):
             sc.handle(act)
 
@@ -711,6 +781,7 @@ class App:
                 self.lib.sync_error = None
         elif self.kind == "settings":
             self.scene.v["update"] = self.updater.row_value()
+            self.scene.v["prefix_size"] = self._saves_label()
         elif self.kind == "game":
             sc = self.scene
             sc.offline = self.lib.offline
@@ -790,6 +861,32 @@ def selftest(screenshot=None):
     app.run(max_frames=6, script={1: A, 3: B})
     assert app.kind == "settings" and not app.scene.overlay and app.settings_back == "library", \
         (app.kind, app.scene.overlay)
+    # M6 Settings: every row does something; leftover saves found and deleted after Delete
+    pre = config.install_root(app.cfg) / "_prefixes" / "old-game"
+    pre.mkdir(parents=True, exist_ok=True)
+    (pre / "save.dat").write_bytes(b"x" * 2000)
+    app.go_settings()
+    for _ in range(50):
+        if app.saves is not None:
+            break
+        time.sleep(0.05)
+    app.update()
+    assert app.scene.v["prefix_size"].startswith("1 game"), app.scene.v["prefix_size"]
+    labels = [r[0] for r in app.scene.items()]
+    for lab in ("Install location", "Proton version", "Pointer speed"):
+        app.scene.focus = labels.index(lab)
+        app.handle(A)
+        assert app.scene.toast != LATER, lab
+    app.scene.focus = labels.index("Saves of uninstalled games")
+    assert app.scene.hints()[0] == ("A", "Delete")
+    app.handle(A)
+    assert app.scene.overlay and app.scene.overlay[0] == "confirm"
+    app.handle(A)
+    for _ in range(50):
+        if not pre.exists():
+            break
+        time.sleep(0.05)
+    assert not pre.exists(), "leftover prefix not deleted"
     # Play: a fake installed game (a tiny script) -> display released, game runs, display back
     app = App(windowed=True)
     app.lib.games = [dict(g) for g in fake.library()]

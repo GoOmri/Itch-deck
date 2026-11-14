@@ -389,7 +389,7 @@ def test_installer_failures(tmp_path, server, monkeypatch):
     inst.lib.store.uploads = [_up(8, "s.exe", p_linux=False, p_windows=True, size=len(INNO))]
     inst.enqueue(lib.games[0])
     _wait(inst)
-    assert "code 3" in lib.games[0]["fail_reason"]
+    assert "stopped with an error" in lib.games[0]["fail_reason"]
     assert not (tmp_path / "games/quiet-quarry/files.new").exists()
     assert proton.silent_args("nsis", "/a/b")[-1] == "/D=Z:\\a\\b"
     monkeypatch.delenv("FAIL")
@@ -518,3 +518,24 @@ def test_crash_hint_missing_lib(tmp_path, monkeypatch):
     (tmp_path / "games/pm.log").write_text("./pm.bin: error while loading shared libraries: "
                                            "libnss3.so: cannot open shared object file\n")
     assert "Windows build" in runner.crash_hint("pm")
+
+
+def test_leftover_prefixes(tmp_path, monkeypatch):
+    from itch_deck import config, proton
+    monkeypatch.setattr(config, "MEDIA", tmp_path / "media")
+    root = tmp_path / "games"
+    for name in ("kept", "gone"):
+        (root / "_prefixes" / name / "drive_c").mkdir(parents=True)
+        (root / "_prefixes" / name / "drive_c" / "save.dat").write_bytes(b"x" * 1000)
+    left = proton.leftover_prefixes([root, tmp_path / "nothing"], {"kept"})
+    assert [p.name for p in left] == ["gone"] and proton.dir_size(left[0]) == 1000
+    # a card that's out is skipped, not treated as empty or deleted
+    assert proton.leftover_prefixes([tmp_path / "media/deck/SD/itch"], set()) == []
+
+
+def test_install_choices(tmp_path, monkeypatch):
+    from itch_deck import config
+    monkeypatch.setattr(config, "sd_card", lambda: None)
+    assert [n for n, _ in config.install_choices()] == ["Internal storage"]
+    monkeypatch.setattr(config, "sd_card", lambda: tmp_path / "SD")
+    assert config.install_choices()[0] == ("SD card", tmp_path / "SD/itch")
