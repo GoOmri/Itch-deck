@@ -9,15 +9,32 @@ from .base import Scene
 TABS = (("all", "All"), ("installed", "Installed"), ("recent", "Recent"))
 SORTS = (("az", "A–Z"), ("added", "Recently added"))
 SHOWS = (("all", "Everything"), ("playable", "Playable here"))
+SESSIONS = (("any", "Any"), ("short", "Short"), ("long", "Long"))
+SHORT = ("a few seconds", "a few minutes", "about a half-hour")   # itch "Average session" values
 
 
 def playable(g):
     return bool(g["platforms"] & {"linux", "windows"})
 
 
-def visible(games, filt="all", sort="az", show="all"):
+def session_kind(g):
+    s = (g.get("session") or "").lower()
+    return "" if not s else ("short" if s in SHORT else "long")
+
+
+def genres(games):
+    """Genres in the library, most common first (developers' own itch "Genre")."""
+    from collections import Counter
+    return [x for x, _ in Counter(g["genre"] for g in games if g.get("genre")).most_common()]
+
+
+def visible(games, filt="all", sort="az", show="all", genre="any", session="any"):
     """The games a tab shows, in order (the app uses it too, for L1/R1 on the game page)."""
     gs = [g for g in games if playable(g)] if show == "playable" else list(games)
+    if genre != "any":
+        gs = [g for g in gs if g.get("genre") == genre]
+    if session != "any":
+        gs = [g for g in gs if session_kind(g) == session]
     if filt == "installed":
         gs = [g for g in gs if g.get("state") in ("installed", "missing")]
     if filt == "recent":                                    # newest play first
@@ -29,10 +46,12 @@ def visible(games, filt="all", sort="az", show="all"):
 
 class Library(Scene):
     def __init__(self, t, games, filt="all", focus=0, syncing=None, sync_page=0,
-                 offline_since=None, offline=False, sort="az", show="all", **kw):
+                 offline_since=None, offline=False, sort="az", show="all", genre="any",
+                 session="any", **kw):
         super().__init__(t, **kw)
         self.games, self.filt, self.focus = games, filt, focus
         self.sort, self.show = sort, show                   # X menu (saved in config by the app)
+        self.genre, self.session = genre, session
         self.syncing, self.sync_page = syncing, sync_page   # None | "first" | "bg"
         self.offline_since = offline_since
         self.offline = offline          # True with no cache yet: nothing to show
@@ -41,19 +60,25 @@ class Library(Scene):
 
     @property
     def shown(self):
-        return visible(self.games, self.filt, self.sort, self.show)
+        return visible(self.games, self.filt, self.sort, self.show, self.genre, self.session)
 
     def menu_items(self):
         """X: Sort & filter. Rows show their current value; A switches to the next value."""
-        return [("Sort", dict(SORTS)[self.sort], ""), ("Show", dict(SHOWS)[self.show], "")]
+        return [("Sort", dict(SORTS)[self.sort], ""), ("Show", dict(SHOWS)[self.show], ""),
+                ("Genre", "Any" if self.genre == "any" else self.genre, ""),
+                ("Session", dict(SESSIONS)[self.session], "")]
 
     def menu_next(self, label):
+        def step(cur, keys):
+            return keys[(keys.index(cur) + 1) % len(keys)] if cur in keys else keys[0]
         if label == "Sort":
-            keys = [k for k, _ in SORTS]
-            self.sort = keys[(keys.index(self.sort) + 1) % len(keys)]
+            self.sort = step(self.sort, [k for k, _ in SORTS])
+        elif label == "Show":
+            self.show = step(self.show, [k for k, _ in SHOWS])
+        elif label == "Genre":
+            self.genre = step(self.genre, ["any"] + genres(self.games))
         else:
-            keys = [k for k, _ in SHOWS]
-            self.show = keys[(keys.index(self.show) + 1) % len(keys)]
+            self.session = step(self.session, [k for k, _ in SESSIONS])
         self.focus, self._first, self._sy = 0, 0, None
         self.overlay = ("menu", "Sort & filter", "", self.menu_items(), self.overlay[4])
 

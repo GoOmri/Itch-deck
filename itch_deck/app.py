@@ -114,8 +114,10 @@ class App:
 
     def go_library(self):
         from .ui.scenes.library import Library as LibScene
-        sc = LibScene(self.t, self.lib.games, filt=self.filt,
-                      sort=self.cfg.get("library_sort", "az"), show=self.cfg.get("library_show", "all"))
+        c = self.cfg
+        sc = LibScene(self.t, self.lib.games, filt=self.filt, sort=c.get("library_sort", "az"),
+                      show=c.get("library_show", "all"), genre=c.get("library_genre", "any"),
+                      session=c.get("library_session", "any"))
         self._set("library", sc)
         self._sync_library_scene()
         ids = [g["id"] for g in sc.shown]
@@ -138,8 +140,10 @@ class App:
 
     def _shown(self):
         from .ui.scenes.library import visible
-        return visible(self.lib.games, self.filt, self.cfg.get("library_sort", "az"),
-                       self.cfg.get("library_show", "all"))
+        c = self.cfg
+        return visible(self.lib.games, self.filt, c.get("library_sort", "az"),
+                       c.get("library_show", "all"), c.get("library_genre", "any"),
+                       c.get("library_session", "any"))
 
     def settings_values(self):
         root = config.install_root(self.cfg)
@@ -331,7 +335,8 @@ class App:
         if sc.overlay and sc.overlay[0] == "menu":   # X: Sort & filter
             if act == A:
                 sc.menu_next(sc.overlay[3][sc.overlay[4]][0])
-                self.cfg["library_sort"], self.cfg["library_show"] = sc.sort, sc.show
+                self.cfg.update(library_sort=sc.sort, library_show=sc.show,
+                                library_genre=sc.genre, library_session=sc.session)
                 config.save(self.cfg)
             elif act in (B, X):
                 sc.overlay = None

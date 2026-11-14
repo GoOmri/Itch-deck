@@ -420,8 +420,8 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=Fal
         fill, col = mix(t.danger_btn, t.error, k), t.text_c
     elif accent and enabled:
         fill, col = mix(t.accent_btn, t.accent, k), t.text_c
-    elif not enabled:
-        fill, col = mix(t.panel, t.panel_hi, k), t.faint
+    elif not enabled:                              # greyed out, but focus still clearly shows
+        fill, col = mix(t.panel, t.focus_fill, k * 0.75), mix(t.faint, t.dim, k)
     else:
         fill, col = mix(t.panel_hi, t.focus_fill, k), mix(t.dim, t.text_c, k)
     panel(t, s, rect, fill)

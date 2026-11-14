@@ -306,8 +306,10 @@ class Library:
         g["comments"] = cs or None            # None = section hidden (forum games, parse miss)
         g["comment_count"] = d.get("comment_count", len(cs))
         g["inputs"] = d.get("inputs") or []
-        # pages cached before v0.6.0 have no "inputs": treat them as stale so they refetch
-        g["details_at"] = d.get("fetched") if "inputs" in d else None
+        g["genre"] = (d.get("genre") or [""])[0]
+        g["session"] = d.get("session") or ""
+        # pages cached before Genre/Average session were read: stale, so they refetch once
+        g["details_at"] = d.get("fetched") if "inputs" in d and "genre" in d else None
 
     def _fetch_page(self, g):
         if not g.get("url"):
@@ -326,7 +328,7 @@ class Library:
         _write_json(self._page_file(g), {
             "fetched": _now().isoformat(timespec="seconds"), "description": p["description"],
             "comments": p["comments"], "comment_count": p["comment_count"], "shots": n,
-            "inputs": p["inputs"]})
+            "inputs": p["inputs"], "genre": p["genre"], "session": p["session"]})
         log.info("page %s: %d paras, %d shots, %d comments", g["id"], len(p["description"]), n,
                  len(p["comments"]))
         g.pop("details_at", None)

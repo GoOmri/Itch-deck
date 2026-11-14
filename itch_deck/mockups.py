@@ -4,7 +4,8 @@ from pathlib import Path
 
 SIZES = [(1280, 800), (1920, 1080)]
 REAL = None   # --real DIR: (real library list, picked real game) instead of fake data
-STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase", "played", "added")
+STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase", "played", "added",
+              "genre", "session")
 
 
 def load_real(root, pick=None):
@@ -113,8 +114,8 @@ def _shots(t, version):
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
         ("06b_library_recent", Library(t, lib, filt="recent", focus=0)),
         ("06c_library_sort_filter", with_overlay(Library(t, lib, focus=0, sort="added"), (
-            "menu", "Sort & filter", "", [("Sort", "Recently added", ""), ("Show", "Everything", "")],
-            0))),
+            "menu", "Sort & filter", "", [("Sort", "Recently added", ""), ("Show", "Everything", ""),
+                                          ("Genre", "Puzzle", ""), ("Session", "Any", "")], 2))),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
         ("08_library_empty", Library(t, [])),
         ("09_library_quit", with_overlay(Library(t, lib, focus=0), quit_dlg)),

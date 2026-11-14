@@ -50,8 +50,10 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 - **Game page:** ONE main button (Play / Install / Retry install; Cancel while downloading)
   + a square **⚙ Options** button next to it. Everything else (Uninstall, Change build,
   Controls) is in that menu; ☰ opens it too. ☰ on a game page = its Options, never Settings.
-- **Library:** tabs All · Installed · Recent (L1/R1). **X = Sort & filter** (Sort: A–Z /
-  Recently added; Show: Everything / Playable here), remembered in config.
+- **Library:** tabs All · Installed · Recent (L1/R1) — no more tabs (Omri). **X = Sort &
+  filter**: Sort (A–Z / Recently added), Show (Everything / Playable here), Genre (Any + the
+  genres in the library), Session (Any / Short / Long, from itch's "Average session"; itch has
+  no time-to-beat). Remembered in config. Genre + session also show in the game's info line.
 - **Settings:** grouped (Library · Storage · Games · App) under LABEL-style headings; the list
   scrolls instead of squeezing rows. Settings is reached from the Library's ☰.
 - All small lists (Options, Sort & filter, build picker) are the same `W.menu`.
