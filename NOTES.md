@@ -34,9 +34,16 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
   build." (no exit codes in UI; details stay in the log). Picker shows the developer's file names,
   platform/size/date, and a "Recommended" pill (Linux native > Windows zip > installer).
   Game page shows itch short_text (API, cached). Initials covers = placeholder only.
-- Open: button glyphs Auto/Xbox/PlayStation — log pad names + SteamVirtualGamepadInfo on Deck in M2,
-  plus a Settings override. Full description + screenshots are NOT in itch's API; optional later
-  idea = read the public game page and cache it (ask Omri).
+- Hint-bar glyphs: white label + thin white outline (circle / pill), no Xbox colours (theme.glyph_c).
+- Open: glyph labels Auto/Xbox/PlayStation — log pad names + SteamVirtualGamepadInfo on Deck in M2,
+  plus a Settings override.
+- DECIDED (Omri: important for choosing games): full description + screenshots on the game page.
+  Not in itch's API -> read the game's public itch page (url from owned-keys), parse description
+  (HTML -> paragraphs, v1 text only) + screenshot URLs, cache text + downscaled shots (offline OK).
+  Fetch lazily on page open + low-priority background prefetch. Fragile if itch changes HTML:
+  fall back to short_text, log the parse failure. Build in M2.
+- Game page layout: hero (34% cover, info, actions in ONE ROW, L/R moves) then DOWN -> screenshots
+  strip (A = full-screen viewer, L/R browse) -> DOWN -> "About this game" description.
 
 ## Token usage log (Omri's Pro plan %, as he reports it — add a line each time)
 - 2026-11-14 00:08 — 72% at start of M0 build (planning + M0 in one chat)

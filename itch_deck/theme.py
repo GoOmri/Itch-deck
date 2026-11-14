@@ -20,8 +20,7 @@ class Theme:
     shade_a = 170             # modal backdrop alpha
     dimmed_a = 150            # overlay alpha on unplayable tiles
     child_bg = (120, 20, 30)
-    # pad glyph colours (Xbox layout, which is what Steam Input presents)
-    glyph = {"A": (98, 180, 76), "B": (220, 72, 62), "X": (60, 130, 220), "Y": (232, 188, 52)}
+    glyph_c = (235, 235, 235)  # pad glyphs: white label + thin white outline, no colours
     # motion / timing
     focus_scale = 1.06
     focus_ms = 120            # ease-out

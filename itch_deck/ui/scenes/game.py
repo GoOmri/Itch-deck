@@ -1,7 +1,7 @@
 """P3 Game page: big cover, info, state, actions. Picker (O1) and Confirm (O2) overlay it."""
 import pygame as pg
 
-from ...input import UP, DOWN
+from ...input import UP, DOWN, LEFT, RIGHT, A, B
 from .. import widgets as W
 from .base import Scene
 
@@ -18,13 +18,16 @@ class Game(Scene):
     install is doing right now. fail_reason: text for a failed install."""
 
     def __init__(self, t, game, pos=(1, 1), focus=0, phase=None, fail_reason=None,
-                 install_path=None, offline=False, **kw):
+                 install_path=None, offline=False,
+                 section="actions", shot=0, **kw):
         super().__init__(t, **kw)
         self.offline = offline
         self.g, self.pos, self.focus = game, pos, focus
         self.phase = phase or ("download" if game.get("state") == "downloading" else None)
         self.fail_reason = fail_reason
         self.install_path = install_path
+        self.section = section     # "actions" | "shots" | "desc"
+        self.shot = shot           # focused screenshot
 
     @property
     def playable(self):
@@ -46,11 +49,32 @@ class Game(Scene):
         return [("Install", None, True), ("Change build", None, True)]
 
     def handle(self, act):
-        n = len(self.actions())
-        if n and act in (UP, DOWN):
-            self.focus = (self.focus + (1 if act == DOWN else -1)) % n
+        n, shots = len(self.actions()), self.g.get("screens", 0)
+        if self.overlay and self.overlay[0] == "viewer":
+            if act in (LEFT, RIGHT):
+                self.shot = (self.shot + (1 if act == RIGHT else -1)) % shots
+                self.overlay = ("viewer",)
+            elif act == B:
+                self.overlay = None
+            return
+        order = ["actions"] + (["shots"] if shots else []) + ["desc"]
+        if act in (UP, DOWN):
+            i = order.index(self.section) + (1 if act == DOWN else -1)
+            self.section = order[max(0, min(len(order) - 1, i))]
+        elif act in (LEFT, RIGHT):
+            d = 1 if act == RIGHT else -1
+            if self.section == "actions" and n:
+                self.focus = max(0, min(n - 1, self.focus + d))
+            elif self.section == "shots":
+                self.shot = max(0, min(shots - 1, self.shot + d))
+        elif act == A and self.section == "shots":
+            self.overlay = ("viewer",)
 
     def hints(self):
+        if self.section == "shots":
+            return [("A", "View full screen"), ("B", "Back")]
+        if self.section == "desc":
+            return [("B", "Back")]
         h = [("A", "Select"), ("B", "Back"), ("LB", ""), ("RB", "Prev / next game")]
         if self.phase or self.g.get("state") in ("downloading", "queued"):
             h.insert(2, ("X", "Hold to cancel"))
@@ -63,15 +87,27 @@ class Game(Scene):
             return None
         if self.overlay[0] == "picker":
             return [("A", "Choose"), ("B", "Cancel")]
+        if self.overlay[0] == "viewer":
+            return [("◀", ""), ("▶", "Previous / next"), ("B", "Close")]
         return [("A", "Uninstall"), ("B", "Cancel")]
 
     # --- drawing -------------------------------------------------------
     def draw_page(self, s):
+        """Page is taller than the screen: hero (cover, info, actions), then About
+        (screenshots + full description from the itch page). DOWN scrolls into About."""
+        t = self.t
+        canvas = pg.Surface((t.w, int(t.h * 2.6)))
+        canvas.fill(t.bg)
+        self._hero(canvas)
+        about_y = self._top(canvas)
+        desc_y = self._about(canvas, about_y)
+        scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m}[self.section]
+        s.blit(canvas, (0, -max(0, scroll)))
+
+    def _top(self, s):
         t, g = self.t, self.g
-        self._hero(s)
-        cw = int((t.w - 2 * t.m) * 0.40)
-        ch = int(cw * t.cover_ratio)
-        cover_r = pg.Rect(t.m, t.m + t.u * 2, cw, ch)
+        cw = int((t.w - 2 * t.m) * 0.34)
+        cover_r = pg.Rect(t.m, t.m, cw, int(cw * t.cover_ratio))
         img = W.rounded(W.cover(t, g, cover_r.size), t.u * 1.5)
         if not self.playable:
             o = pg.Surface(cover_r.size, pg.SRCALPHA)
@@ -79,15 +115,15 @@ class Game(Scene):
             img.blit(o, (0, 0))
         s.blit(img, cover_r)
 
-        x = cover_r.right + t.u * 6
+        x = cover_r.right + t.u * 5
         maxw = t.w - t.m - x
         y = cover_r.y
         W.text(t, s, f"itch  ·  {self.pos[0]} of {self.pos[1]}", x, y, t.f_small, color=t.faint)
-        y += t.u * 3.5
-        y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom + t.u * 0.5
-        y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim).bottom + t.u * 2
+        y += t.u * 3.2
+        y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
+        y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim).bottom + t.u * 1.5
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
-            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.u * 75)) + t.u * 2
+            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.u * 80)) + t.u * 1.5
 
         px = x
         plat = [p for p in ("linux", "windows", "html", "mac", "soundtrack") if p in g["platforms"]]
@@ -97,17 +133,57 @@ class Game(Scene):
             px = W.pill(t, s, _mb(g["size_mb"]), px, y, fill=t.panel_hi).right + t.u
         if g.get("state") == "installed":
             W.pill(t, s, "✓ Installed", px, y, fill=t.accent, color=t.on_accent)
-        y += t.u * 6
+        y += t.u * 5
 
         y = self._status(s, x, y, maxw)
-        bw = min(maxw, t.u * 44)
-        acts = self.actions()
-        for i, (label, icon, en) in enumerate(acts):
-            W.button(t, s, pg.Rect(x, y, bw, t.btn_h), label, focused=(i == self.focus and not self.overlay),
-                     enabled=en, icon=icon)
+        bx = x
+        for i, (label, icon, en) in enumerate(self.actions()):  # one row; LEFT/RIGHT moves
+            bw = max(t.u * 20, t.f_btn.size(label)[0] + t.u * (9 if icon else 5))
+            W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, enabled=en, icon=icon,
+                     focused=(self.section == "actions" and i == self.focus and not self.overlay))
+            bx += bw + t.u * 1.5
+        if self.actions():
             y += t.btn_h + t.u * 1.5
         if self.install_path and g.get("state") == "installed":
-            W.text(t, s, self.install_path, x, y + t.u, t.f_small, color=t.faint, maxw=maxw)
+            y = W.text(t, s, self.install_path, x, y, t.f_small, color=t.faint, maxw=maxw).bottom
+        return max(cover_r.bottom, y) + t.u * 5
+
+    def _about(self, s, y):
+        """Screenshots strip + description, read from the game's public itch page and cached."""
+        t, g = self.t, self.g
+        n = g.get("screens", 0)
+        if n:
+            W.text(t, s, "Screenshots", t.m, y, t.f_small, color=t.dim)
+            y += t.u * 3.5
+            th = int(t.u * 17)
+            tw = int(th * 16 / 9)
+            fits = max(1, int((t.w - 2 * t.m + t.gap) // (tw + t.gap)))
+            first = max(0, min(self.shot - fits + 1, n - fits)) if self.section == "shots" else 0
+            for k, i in enumerate(range(first, min(n, first + fits))):
+                r = pg.Rect(t.m + k * (tw + t.gap), y, tw, th)
+                foc = self.section == "shots" and i == self.shot and not self.overlay
+                if foc:
+                    r = r.inflate(tw * (t.focus_scale - 1), th * (t.focus_scale - 1))
+                s.blit(W.rounded(W.screenshot(t, g, i, r.size), t.radius), r)
+                if foc:
+                    pg.draw.rect(s, t.accent, r.inflate(t.outline * 2, t.outline * 2), t.outline,
+                                 border_radius=t.radius + t.outline)
+            if first + fits < n:  # more to the right: count on the last visible shot
+                last = pg.Rect(t.m + (fits - 1) * (tw + t.gap), y, tw, th)
+                W.pill(t, s, f"+{n - first - fits} more", last.right - t.u, last.bottom - t.u,
+                       anchor="bottomright")
+            y += th + t.u * 5
+        desc_y = y
+        paras = g.get("description") or []
+        if paras:
+            y = W.text(t, s, "About this game", t.m, y, t.f_h2).bottom + t.u * 1.5
+            w = min(t.w - 2 * t.m, t.u * 125)
+            for para in paras:
+                y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=(205, 205, 205)) + t.f_body.get_linesize() * 0.6
+            W.text(t, s, "From the game's itch.io page", t.m, y + t.u, t.f_small, color=t.faint)
+        elif not n:
+            W.text(t, s, "More details load the next time you're online.", t.m, y, t.f_small, color=t.faint)
+        return desc_y
 
     def _hero(self, s):
         """Blurred, darkened cover across the top as a backdrop."""
@@ -170,6 +246,8 @@ class Game(Scene):
         return bar.bottom + t.u * 6
 
     def draw_overlay(self, s):
+        if self.overlay[0] == "viewer":
+            return self._viewer(s)
         if self.overlay[0] != "picker":
             return super().draw_overlay(s)
         t = self.t
@@ -184,3 +262,16 @@ class Game(Scene):
         W.text(t, s, title, r.x + t.u * 4, r.y + t.u * 3.5, t.f_h2)
         W.text(t, s, sub, r.x + t.u * 4, r.y + t.u * 8, t.f_small, color=t.dim)
         W.rows(t, s, pg.Rect(r.x + t.u * 2, r.y + t.u * 13, r.w - t.u * 4, 0), items, focus, row_h)
+
+    def _viewer(self, s):
+        """Full-screen screenshot viewer."""
+        t, n = self.t, self.g.get("screens", 0)
+        s.fill((0, 0, 0))
+        avail = pg.Rect(t.m, t.m, t.w - 2 * t.m, t.h - t.hint_h - 2 * t.m)
+        w = min(avail.w, int(avail.h * 16 / 9))
+        r = pg.Rect(0, 0, w, int(w * 9 / 16))
+        r.center = avail.center
+        s.blit(W.rounded(W.screenshot(t, self.g, self.shot, r.size), t.radius), r)
+        W.text(t, s, f"{self.shot + 1} / {n}", t.w - t.m, t.m * 0.5, t.f_small, color=t.dim,
+               anchor="midright")
+        W.text(t, s, self.g["title"], t.m, t.m * 0.5, t.f_small, color=t.dim, anchor="midleft")

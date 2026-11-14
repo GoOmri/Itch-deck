@@ -41,6 +41,8 @@ def library():
         g = {"id": f"g{i:03d}", "title": title, "author": author,
              "platforms": set(plats.split()), "size_mb": mb, "state": state}
         g["short_text"] = _TAGLINES.get(title, "")
+        g["screens"] = 0 if "html" in g["platforms"] else 3 + i % 4
+        g["description"] = _description(title, g["short_text"])
         if state == "downloading":
             g.update(progress=0.42, speed_mbs=11.8, eta_s=111)
         out.append(g)
@@ -63,4 +65,15 @@ def uploads():
         ("quietquarry-linux64.tar.gz", "Linux · 212 MB · updated 3 Oct", True),
         ("QuietQuarry_Windows.zip", "Windows · 240 MB · updated 3 Oct", False),
         ("QuietQuarry_Setup_v1.2.exe", "Windows installer · 238 MB · updated 1 Aug", False),
+    ]
+
+
+def _description(title, tagline):
+    """Stand-in for the full description read from the game's itch page (HTML -> paragraphs)."""
+    return [
+        f"{title} started as a game jam entry and grew into a small, finished indie game.",
+        f"Explore hand-drawn places, meet odd characters and find your own pace. {title} takes "
+        "about two to three hours to finish, with a few secrets for anyone who looks closely.",
+        "Features: full controller support · autosave · three save slots · original soundtrack.",
+        "Controls: left stick to move, A to interact, B to cancel, Start for the menu.",
     ]

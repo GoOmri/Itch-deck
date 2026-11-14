@@ -104,18 +104,45 @@ def cover(t, game, size):
     return out
 
 
+def screenshot(t, game, i, size):
+    """Placeholder screenshot (16:9). Real ones come from the itch page in M2."""
+    key = ("shot", game["id"], i, size)
+    if key in _cover_cache:
+        return _cover_cache[key]
+    w, h = 320, 180
+    base = pg.Surface((w, h))
+    hue = (_hue(game["id"], 1) + i * 0.07) % 1
+    top = [int(v * 255) for v in colorsys.hsv_to_rgb(hue, 0.35, 0.65)]
+    bot = [int(v * 255) for v in colorsys.hsv_to_rgb((hue + 0.1) % 1, 0.55, 0.25)]
+    for y in range(h):
+        k = y / h
+        pg.draw.line(base, [int(top[c] * (1 - k) + bot[c] * k) for c in range(3)], (0, y), (w, y))
+    gy = 120 + (zlib.crc32(f"{game['id']}{i}g".encode()) % 30)
+    pts = [(0, gy)] + [(x, gy - (zlib.crc32(f"{game['id']}{i}{x}".encode()) % 28)) for x in range(20, w, 40)] + [(w, gy), (w, h), (0, h)]
+    pg.draw.polygon(base, [max(0, c - 25) for c in bot], pts)
+    px = 40 + (zlib.crc32(f"{game['id']}{i}p".encode()) % 220)
+    pg.draw.rect(base, (245, 240, 230), (px, gy - 34, 14, 22), border_radius=3)
+    pg.draw.rect(base, (0, 0, 0), (8, 8, 70, 10), border_radius=3)
+    pg.draw.rect(base, (230, 230, 230), (10, 10, 40, 6), border_radius=2)
+    out = pg.transform.smoothscale(base, size)
+    _cover_cache[key] = out
+    return out
+
+
 # --- pad glyphs and hint bar ------------------------------------------------
 def glyph(t, s, btn, x, cy):
-    """Draw a button glyph with its left edge at x, centred on cy. Returns width."""
+    """Minimal button glyph: white label in a thin white outline (circle for face buttons,
+    rounded pill for LB/RB/START). Left edge at x, centred on cy. Returns width."""
     d = int(t.u * 3.2)
-    if btn in t.glyph:
+    lw = max(1, round(t.u / 6))
+    img = t.f_glyph.render(btn, True, t.glyph_c)
+    if len(btn) == 1:
         c = (int(x + d / 2), int(cy))
-        pg.draw.circle(s, t.glyph[btn], c, d // 2)
-        text(t, s, btn, c[0], c[1] + 1, t.f_glyph, color=(20, 20, 20), anchor="center")
+        pg.draw.circle(s, t.glyph_c, c, d // 2, lw)
+        s.blit(img, img.get_rect(center=(c[0], c[1] + 1)))
         return d
-    img = t.f_glyph.render(btn, True, t.text_c)
     r = pg.Rect(int(x), int(cy - d / 2), img.get_width() + t.u * 1.6, d)
-    pg.draw.rect(s, t.panel_hi, r, border_radius=d // 2)
+    pg.draw.rect(s, t.glyph_c, r, lw, border_radius=d // 2)
     s.blit(img, img.get_rect(center=(r.centerx, r.centery + 1)))
     return r.w
 
