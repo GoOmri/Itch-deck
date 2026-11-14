@@ -220,6 +220,11 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   Motion v3 (Omri: "bouncy backfired"): sliding plate + press dip REMOVED; buttons/rows light up
   in place. SPRING_BACK 0 (calm) everywhere except the tab underline (TAB_BACK 1.1). Pages swipe
   (page_slide_u 12); Library content swipes on tab switch (direction: Installed = right).
+  IA pass (branch ia-pass, NOT merged yet): game page = Play/Install + Change build only,
+  Uninstall/Controls in ☰ Options (W.menu "menu" overlay; ☰ no longer opens Settings from a game);
+  Library tabs All/Installed/Recent, X = Sort & filter (cfg library_sort/library_show; visible() in
+  scenes/library.py is the one filter, app._shown uses it); data: stores/itch "added" (key
+  created_at), paths.PLAYED + Library.mark_played (on play). Settings grouped + scrolls.
   Omri 14 Nov: name = "SCRiTCH" (W.APP_NAME), always purple in text (W.text_named); logo = purple letters, white i; scrolling = no overshoot (ease back=0).
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 

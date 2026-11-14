@@ -84,8 +84,30 @@ class Library:
         except Exception as e:  # noqa: BLE001
             log.warning("library cache unreadable: %s", e)
 
+    def mark_played(self, g):
+        """Remember when a game was started (Recent tab). Kept in its own small file."""
+        import time
+        g["played"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        d = self._played()                     # same dict _prep reads: survives a sync
+        d[g["id"]] = g["played"]
+        try:
+            paths.PLAYED.parent.mkdir(parents=True, exist_ok=True)
+            paths.PLAYED.write_text(json.dumps(d))
+        except (OSError, ValueError) as e:
+            log.warning("played.json: %s", e)
+
+    def _played(self):
+        if not hasattr(self, "_played_cache"):
+            try:
+                self._played_cache = json.loads(paths.PLAYED.read_text())
+            except (OSError, ValueError):
+                self._played_cache = {}
+        return self._played_cache
+
     def _prep(self, g):
         g = dict(g)
+        if self._played().get(g["id"]):
+            g["played"] = self._played()[g["id"]]
         g["platforms"] = set(g.get("platforms") or ["other"])
         g.setdefault("size_mb", 0)
         g.setdefault("state", None)

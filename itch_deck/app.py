@@ -114,7 +114,8 @@ class App:
 
     def go_library(self):
         from .ui.scenes.library import Library as LibScene
-        sc = LibScene(self.t, self.lib.games, filt=self.filt)
+        sc = LibScene(self.t, self.lib.games, filt=self.filt,
+                      sort=self.cfg.get("library_sort", "az"), show=self.cfg.get("library_show", "all"))
         self._set("library", sc)
         self._sync_library_scene()
         ids = [g["id"] for g in sc.shown]
@@ -136,9 +137,9 @@ class App:
                                        str(paths.LOGS / "app.log")))
 
     def _shown(self):
-        if self.filt == "installed":
-            return [g for g in self.lib.games if g.get("state") in ("installed", "missing")]
-        return self.lib.games
+        from .ui.scenes.library import visible
+        return visible(self.lib.games, self.filt, self.cfg.get("library_sort", "az"),
+                       self.cfg.get("library_show", "all"))
 
     def settings_values(self):
         root = config.install_root(self.cfg)
@@ -281,10 +282,20 @@ class App:
 
     def _h_library(self, act):
         sc = self.scene
+        if sc.overlay and sc.overlay[0] == "menu":   # X: Sort & filter
+            if act == A:
+                sc.menu_next(sc.overlay[3][sc.overlay[4]][0])
+                self.cfg["library_sort"], self.cfg["library_show"] = sc.sort, sc.show
+                config.save(self.cfg)
+            elif act in (B, X):
+                sc.overlay = None
+            else:
+                sc.handle(act)
+            return
         if act == A and sc.shown:
             self.go_game(sc.shown[sc.focus])
-        elif act == B and sc.filt == "installed":   # Installed tab: B goes back to All
-            sc.handle(X)
+        elif act == B and sc.filt != "all":           # other tabs: B goes back to All
+            sc.filt, sc.focus, sc._first, sc._sy = "all", 0, 0, None
             self.filt = sc.filt
         elif act == B:
             sc.overlay = QUIT_DLG
@@ -293,8 +304,8 @@ class App:
                 self.say("Refreshing library…")
         elif act == START:
             self.go_settings()
-        elif act in (L1, R1):                     # tabs: All / Installed (store tabs later)
-            sc.handle(X)
+        elif act in (L1, R1):                     # tabs: All / Installed / Recent
+            sc.next_tab(1 if act == R1 else -1)
             self.filt = sc.filt
         elif act in (UP, DOWN, LEFT, RIGHT, X) or act in ("L2", "R2"):
             sc.handle(act)
@@ -307,6 +318,11 @@ class App:
         if sc.overlay and sc.overlay[0] == "picker" and act == A:
             self._pick(sc)
             return
+        if sc.overlay and sc.overlay[0] == "menu" and act == A:      # ☰ Options
+            label = sc.overlay[3][sc.overlay[4]][0]
+            sc.overlay = None
+            self.game_action(sc.g, label)
+            return
         if sc.overlay:                    # screenshot viewer / build picker
             sc.handle(act)
             return
@@ -317,8 +333,8 @@ class App:
             if sc.g in shown and len(shown) > 1:
                 i = (shown.index(sc.g) + (1 if act == R1 else -1)) % len(shown)
                 self.go_game(shown[i])
-        elif act == START:
-            self.go_settings()
+        elif act == START:                # ☰ on a game = its Options (Steam Deck); Settings: Library
+            sc.open_options()
         elif act == A and sc.section == "actions":
             acts = sc.actions()
             if acts and acts[min(sc.focus, len(acts) - 1)][2]:
@@ -488,6 +504,7 @@ class App:
             self.say("The game's files are missing. Uninstall and install it again.", error=True)
             return
         info = self.inst.index[g["id"]]
+        self.lib.mark_played(g)             # Recent tab
         umu = env = hold = None
         sub = None
         if info.get("platform") == "windows":

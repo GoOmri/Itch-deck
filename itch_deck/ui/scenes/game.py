@@ -43,8 +43,7 @@ class Game(Scene):
         if not self.playable:
             return []
         if st == "installed":
-            return [("Play", "play", True), ("Uninstall", None, True), ("Change build", None, True),
-                    ("Controls", None, True)]
+            return [("Play", "play", True), ("Change build", None, True)]   # rest: ☰ Options
         if st == "missing":            # SD card out: keep it, nothing to run or delete
             if self.g.get("missing") == "card":
                 return [("Play", "play", False), ("Uninstall", None, False)]
@@ -57,9 +56,17 @@ class Game(Scene):
             return [("Install — needs internet", None, False)]
         return [("Install", None, True), ("Change build", None, True)]
 
+    def options(self):
+        """☰ Options: actions that don't need to sit on the page (Omri: no buttons everywhere)."""
+        return ["Uninstall", "Controls"] if self.g.get("state") == "installed" else []
+
+    def open_options(self):
+        if self.options():
+            self.overlay = ("menu", "Options", "", [(o, "", "") for o in self.options()], 0)
+
     def handle(self, act):
         n, shots = len(self.actions()), self.g.get("screens", 0)
-        if self.overlay and self.overlay[0] == "picker":   # A (choose) is handled by the app
+        if self.overlay and self.overlay[0] in ("picker", "menu"):   # A is handled by the app
             kind, title, sub, items, focus = self.overlay
             if act in (UP, DOWN) and items:
                 focus = max(0, min(len(items) - 1, focus + (1 if act == DOWN else -1)))
@@ -103,7 +110,8 @@ class Game(Scene):
         if self.section in ("desc", "comments"):
             return [("B", "Back")]
         # Steam order: extra actions first, then A, with B always last (far right)
-        h = [("L1", ""), ("R1", "Prev / next game")]
+        h = [("MENU", "Options")] if self.options() else []
+        h += [("L1", ""), ("R1", "Prev / next game")]
         if self.actions():
             h.append(("A", "Select"))
         return h + [("B", "Back")]
@@ -113,6 +121,8 @@ class Game(Scene):
             return None
         if self.overlay[0] == "picker":
             return [("A", "Choose"), ("B", "Cancel")]
+        if self.overlay[0] == "menu":
+            return [("A", "Select"), ("B", "Close")]
         if self.overlay[0] == "viewer":
             return [("◀", ""), ("▶", "Previous / next"), ("B", "Close")]
         return [("A", "Uninstall"), ("B", "Cancel")]
@@ -347,24 +357,9 @@ class Game(Scene):
     def draw_overlay(self, s):
         if self.overlay[0] == "viewer":
             return self._viewer(s)
-        if self.overlay[0] != "picker":
+        if self.overlay[0] not in ("picker", "menu"):
             return super().draw_overlay(s)
-        t = self.t
-        _, title, sub, items, focus = self.overlay
-        W.shade(t, s)
-        w = min(t.w - 2 * t.m, t.read_w)
-        row_h = int(t.u * 8.5)
-        pad = t.lg
-        head = t.f_h2.get_linesize() + t.f_small.get_linesize() + t.md
-        h = pad * 2 + head + len(items) * (row_h + t.u // 2)
-        r = pg.Rect(0, 0, w, h)
-        r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
-        W.panel(t, s, r)
-        ty = W.text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom
-        W.text(t, s, sub, r.x + pad, ty, t.f_small, color=t.dim)
-        # rows sit inset by (pad - row padding) so their text lines up with the title
-        W.rows(t, s, pg.Rect(r.x + pad - t.md, r.y + pad + head, r.w - 2 * (pad - t.md), 0),
-               items, focus, row_h, key="picker")
+        W.menu(self.t, s, *self.overlay[1:])
 
     def _viewer(self, s):
         """Full-screen screenshot viewer."""
