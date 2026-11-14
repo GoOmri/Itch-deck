@@ -731,13 +731,14 @@ def main(argv=None):
     p.add_argument("--selftest", action="store_true", help="headless smoke test")
     p.add_argument("--screenshot", help="with --selftest: save last frame as PNG")
     p.add_argument("--render-mockups", metavar="DIR", help="save every page/state as PNGs to DIR")
+    p.add_argument("--real", metavar="DATA", help="with --render-mockups: use a copy of the real cache (library.json, covers, pages, shots); SCRITCH_GAME=title picks the game")
     a = p.parse_args(argv)
     setup_logging()
     log.info("start v%s args=%s", VERSION, argv or sys.argv[1:])
 
     if a.render_mockups:
         from .mockups import render
-        files = render(a.render_mockups, VERSION)
+        files = render(a.render_mockups, VERSION, real=a.real)
         print(f"{len(files)} mockups -> {a.render_mockups}")
         return 0
     if a.selftest:

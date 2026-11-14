@@ -3,6 +3,45 @@ import os
 from pathlib import Path
 
 SIZES = [(1280, 800), (1920, 1080)]
+REAL = None   # --real DIR: (real library list, picked real game) instead of fake data
+STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase")
+
+
+def load_real(root, pick=None):
+    """Omri's cached itch data (library.json, covers/, pages/, shots/ — never in the repo).
+    Returns (games, one game for the game-page states: `pick` title/id, else random)."""
+    import os
+    import random
+    from pathlib import Path
+    from . import paths
+    from .library import Library
+    root = Path(root)
+    paths.LIBRARY, paths.COVERS = root / "library.json", root / "covers"
+    paths.PAGES, paths.SHOTS = root / "pages", root / "shots"
+    lib = Library(None)
+    for g in lib.games:
+        lib._apply_page(g)
+    games = lib.games
+    pick = pick or os.environ.get("SCRITCH_GAME")
+    if pick:
+        g = next(x for x in games if pick.lower() in (x["id"], x["title"].lower()))
+    else:
+        ok = [x for x in games if x.get("screens", 0) >= 3 and x.get("description")
+              and x["platforms"] & {"linux", "windows"}]
+        g = random.choice(ok)
+    print(f"real data: {len(games)} games, game page = {g['title']} ({g['id']})")
+    return games, g
+
+
+def _realify(lib):
+    """Real games in the grid, wearing the fake states (installed, downloading, ...) by position."""
+    games, _ = REAL
+    out = []
+    for i, r in enumerate(games):
+        g = dict(r)
+        g.update({k: lib[i % len(lib)][k] for k in STATE_KEYS if k in lib[i % len(lib)]})
+        out.append(g)
+    return out
 
 
 def _act(scene, text):
@@ -28,7 +67,16 @@ def _shots(t, version):
     n = len(lib)
 
     def game(title, **kw):
+        if REAL:                         # the picked real game, in this fake game's state
+            g = dict(REAL[1])
+            g.update({k: by[title][k] for k in STATE_KEYS if k in by[title]})
+            g["size_mb"] = g.get("size_mb") or by[title]["size_mb"]
+            return Game(t, g, pos=(idx[title] + 1, n), **kw)
         return Game(t, by[title], pos=(idx[title] + 1, n), **kw)
+
+    if REAL:
+        lib = _realify(lib)
+        n = len(lib)
 
     settings_vals = {
         "install_label": "SD card", "install_path": "/run/media/deck/SD/itch", "free": "112 GB",
@@ -98,12 +146,14 @@ def _shots(t, version):
     ]
 
 
-def render(outdir, version):
+def render(outdir, version, real=None):
+    global REAL
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     import pygame as pg
     from .theme import Theme
     pg.init()
+    REAL = load_real(real) if real else None
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     files = []

@@ -279,13 +279,15 @@ class Game(Scene):
         key = (g["id"], g.get("cover_file"), tuple(g.get("shot_files") or ()), shot, t.w, h)
         if getattr(self, "_hero_key", None) == key:
             return s.blit(self._hero_img, (0, 0))
-        if shot:
-            hero = W.screenshot(t, g, 0, (t.w, h)).copy()
+        if shot:                         # softened: colours + composition, never competes with text
+            sharp = W.screenshot(t, g, 0, (t.w, h))
+            soft = pg.transform.smoothscale(sharp, (max(1, t.w // 10), max(1, h // 10)))
+            hero = pg.transform.smoothscale(soft, (t.w, h))
         else:
             small = pg.transform.smoothscale(W.cover(self.t, g, (315, 250)), (24, 14))
             hero = pg.transform.smoothscale(small, (t.w, h))
         dark = pg.Surface((t.w, h), pg.SRCALPHA)
-        dark.fill((0, 0, 0, 140 if shot else 150))      # keeps white text readable
+        dark.fill((0, 0, 0, 120 if shot else 150))      # keeps white text readable
         hero.blit(dark, (0, 0))
         out = pg.Surface((t.w, h), pg.SRCALPHA)
         out.blit(hero, (0, 0))
