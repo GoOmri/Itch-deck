@@ -143,7 +143,13 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   - Viewer letterboxes real screenshots (contain=True); strip thumbs still crop.
   - faint grey only for disabled/separators; readable secondary text = dim.
   - Removed dead Theme.button/hint_bar/modal/text.
-  Next (asked): animation + feedback (A press, focus fade, page transitions, toast slide).
+  Feel pass (14 Nov, branch feel-pass, after v0.4.1): widgets.anim(key, target) = eased 0..1
+  per widget key (("btn", label), ("row", label), ("tile", gid), ("shot", gid, i), ("toast", msg));
+  MOTION_SPEED 22 (~120 ms). Buttons/rows fade into focus_fill, tiles/shots grow smoothly,
+  toast slides up + fades in. A press = widgets.press(scene.press_key()) -> 6% dip, PRESS_S 0.18.
+  Page switch = App._set snapshots the old frame, App._fade fades it out (theme.page_fade_ms 160).
+  Game page canvas redraws only while W.animating(). Mockups unchanged (LIVE off = end state).
+  UNTESTED on Deck: check feel + frame rate on the game page during focus moves.
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 
 ## Code map
