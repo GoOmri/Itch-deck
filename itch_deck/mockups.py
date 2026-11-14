@@ -134,7 +134,8 @@ def _shots(t, version):
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
-            "menu", "Options", "", [("Uninstall", "", ""), ("Controls", "", "")], 0))),
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "", "")], 0))),
         ("16_game_failed", game("Grave Gardener",
                                 fail_reason="No runnable file found in the download (Windows build).")),
         ("17_game_browser", game("Frog Parliament")),

@@ -380,6 +380,22 @@ def icon_draw(s, name, center, size, color):
         pg.draw.polygon(s, color, pts)
         pg.draw.aalines(s, color, True, pts)
         return int(a * 2)
+    if name == "gear":                   # 8 teeth + hole, supersampled for smooth edges
+        k = 4
+        d = int(h * k)
+        big = pg.Surface((d, d), pg.SRCALPHA)
+        c, r1, r2 = d / 2, d * 0.5, d * 0.36
+        pts = []
+        for i in range(8):
+            a = i * math.pi / 4
+            for da, rr in ((-0.30, r2), (-0.18, r1), (0.18, r1), (0.30, r2)):
+                pts.append((c + rr * math.cos(a + da), c + rr * math.sin(a + da)))
+        pg.draw.polygon(big, color, pts)
+        pg.draw.circle(big, color, (c, c), r2)
+        pg.draw.circle(big, (0, 0, 0, 0), (c, c), d * 0.15)
+        img = pg.transform.smoothscale(big, (int(h), int(h)))
+        s.blit(img, img.get_rect(center=(int(cx), int(cy))))
+        return int(h)
     if name == "check":
         w = max(2, round(h * 0.2))
         pts = [(cx - h * 0.42, cy + h * 0.02), (cx - h * 0.12, cy + h * 0.32),
@@ -409,12 +425,7 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=Fal
     else:
         fill, col = mix(t.panel_hi, t.focus_fill, k), mix(t.dim, t.text_c, k)
     panel(t, s, rect, fill)
-    gap, ih = t.sm, int(t.f_btn.get_height() * 0.5)
-    w = t.f_btn.size(label)[0] + ((int(ih * 0.9) + gap) if icon else 0)
-    x = rect.centerx - w / 2                       # icon + label centred as one group
-    if icon:
-        x += icon_draw(s, icon, (x + ih * 0.45, rect.centery), ih, col) + gap
-    text(t, s, label, x, rect.centery, t.f_btn, color=col, anchor="midleft")
+    _btn_label(t, s, rect, label, icon, col)
 
 
 def button_row(t, s, x, y, items, focus, key=None):
@@ -430,6 +441,9 @@ def button_row(t, s, x, y, items, focus, key=None):
 
 
 def _btn_label(t, s, rect, label, icon, col):
+    if icon == "gear":                             # icon-only button
+        icon_draw(s, "gear", rect.center, int(rect.h * 0.46), col)
+        return
     gap, ih = t.sm, int(t.f_btn.get_height() * 0.5)
     w = t.f_btn.size(label)[0] + ((int(ih * 0.9) + gap) if icon else 0)
     x = rect.centerx - w / 2                       # icon + label centred as one group
@@ -439,7 +453,9 @@ def _btn_label(t, s, rect, label, icon, col):
 
 
 def button_w(t, label, icon=None):
-    """Natural width of a button (label + padding), at least btn_min."""
+    """Natural width of a button (label + padding), at least btn_min. ⚙ = square."""
+    if icon == "gear":
+        return t.btn_h
     w = t.f_btn.size(label)[0] + (t.f_btn.get_height() * 0.5 + t.sm if icon else 0)
     return int(max(t.u * 18, w + t.md * 2))
 

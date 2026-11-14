@@ -39,27 +39,36 @@ class Game(Scene):
         return bool(self.g["platforms"] & {"linux", "windows"})
 
     def actions(self):
-        """[(label, icon, enabled)]"""
+        """[(label, icon, enabled)]: ONE main button + the ⚙ Options button (Omri)."""
         st = self.g.get("state")
+        if not self.playable:
+            main = []
+        elif st == "installed":
+            main = [("Play", "play", True)]
+        elif st == "missing":            # SD card out / files gone: nothing to run
+            main = [("Play", "play", False)]
+        elif st in ("downloading", "queued") or self.phase:
+            return [("Cancel", None, True)]  # nothing else to do while it downloads
+        elif st == "failed":
+            main = [("Retry install", None, True)]
+        elif self.offline:
+            main = [("Install — needs internet", None, False)]
+        else:
+            main = [("Install", None, True)]
+        return main + ([("Options", "gear", True)] if self.options() else [])
+
+    def options(self):
+        """⚙ / ☰ Options: everything that isn't the main action."""
+        g, st = self.g, self.g.get("state")
         if not self.playable:
             return []
         if st == "installed":
-            return [("Play", "play", True), ("Change build", None, True)]   # rest: ☰ Options
-        if st == "missing":            # SD card out: keep it, nothing to run or delete
-            if self.g.get("missing") == "card":
-                return [("Play", "play", False), ("Uninstall", None, False)]
-            return [("Play", "play", False), ("Uninstall", None, True)]
+            return ["Uninstall", "Change build", "Controls"]
+        if st == "missing":
+            return [] if g.get("missing") == "card" else ["Uninstall"]
         if st in ("downloading", "queued") or self.phase:
-            return [("Cancel", None, True)]
-        if st == "failed":
-            return [("Retry install", None, True), ("Change build", None, True)]
-        if self.offline:
-            return [("Install — needs internet", None, False)]
-        return [("Install", None, True), ("Change build", None, True)]
-
-    def options(self):
-        """☰ Options: actions that don't need to sit on the page (Omri: no buttons everywhere)."""
-        return ["Uninstall", "Controls"] if self.g.get("state") == "installed" else []
+            return []
+        return ["Change build"]
 
     def open_options(self):
         if self.options():

@@ -47,9 +47,9 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 | Show which buttons do what | `W.hint_bar` |
 
 ## 5b. Where things go (Omri, 14 Nov)
-- **Game page:** only the actions you came for, on the page (Play or Install, Change build;
-  Cancel while downloading; Retry install after a failure). Everything else for that game
-  (Uninstall, Controls) is in **☰ Options**. ☰ on a game page = its Options, never Settings.
+- **Game page:** ONE main button (Play / Install / Retry install; Cancel while downloading)
+  + a square **⚙ Options** button next to it. Everything else (Uninstall, Change build,
+  Controls) is in that menu; ☰ opens it too. ☰ on a game page = its Options, never Settings.
 - **Library:** tabs All · Installed · Recent (L1/R1). **X = Sort & filter** (Sort: A–Z /
   Recently added; Show: Everything / Playable here), remembered in config.
 - **Settings:** grouped (Library · Storage · Games · App) under LABEL-style headings; the list

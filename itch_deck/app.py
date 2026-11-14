@@ -339,8 +339,11 @@ class App:
             sc.open_options()
         elif act == A and sc.section == "actions":
             acts = sc.actions()
-            if acts and acts[min(sc.focus, len(acts) - 1)][2]:
-                self.game_action(sc.g, acts[min(sc.focus, len(acts) - 1)][0])
+            label = acts[min(sc.focus, len(acts) - 1)] if acts else None
+            if label and label[0] == "Options":        # the ⚙ button
+                sc.open_options()
+            elif label and label[2]:
+                self.game_action(sc.g, label[0])
         elif not isinstance(act, tuple):
             sc.handle(act)
 
