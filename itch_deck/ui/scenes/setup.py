@@ -19,6 +19,9 @@ class Setup(Scene):
         self.status, self.focus = status, focus
         self.typing, self.typed = typing, typed
 
+    def press_key(self):
+        return None if self.typing else ("btn", self.buttons()[self.focus])
+
     def buttons(self):
         if self.status == "offline":
             return ["Retry", "Type key"]

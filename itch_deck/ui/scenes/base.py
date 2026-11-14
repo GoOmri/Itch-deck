@@ -11,6 +11,7 @@ class Scene:
     # subclasses implement
     def draw_page(self, s): ...
     def hints(self): return []
+    def press_key(self): return None   # widget key that dips on A (widgets.press)
 
     def draw(self, s):
         s.blit(W.backdrop(self.t), (0, 0))

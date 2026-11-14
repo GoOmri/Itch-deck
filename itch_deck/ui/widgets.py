@@ -26,6 +26,66 @@ def ease(cur, target, speed=16.0):
     return val, now
 
 
+# --- motion -----------------------------------------------------------------
+# Widgets are stateless, so animated amounts live here, keyed by what they belong to
+# (("btn", label), ("row", label), ("tile", game id), ("toast", msg)). Mockups (LIVE off) snap.
+_ANIM, _PRESS = {}, {}
+_busy_until = 0.0
+
+
+def anim(key, target, start=None, speed=None):
+    """Eased 0..1 amount for `key` heading to `target`. start=0 makes a new key animate in
+    (default: a new key starts at its target). Stored x1000 so ease()'s 0.5 snap is tiny."""
+    global _busy_until
+    import time
+    cur = _ANIM.get(key)
+    if cur is None and start is not None and LIVE:
+        cur = (start * 1000.0, time.monotonic())
+    val = ease(cur, target * 1000.0, speed or MOTION_SPEED)
+    if val[0] != target * 1000.0:
+        _busy_until = val[1] + 0.05
+    _ANIM[key] = val
+    if len(_ANIM) > 400:
+        _ANIM.clear()
+    return val[0] / 1000.0
+
+
+def press(key):
+    """A was pressed on `key`: its widget does a quick shrink-and-spring."""
+    global _busy_until
+    import time
+    if key is not None and LIVE:
+        _PRESS[key] = time.monotonic()
+        _busy_until = time.monotonic() + PRESS_S + 0.05
+
+
+def pressed(key):
+    """0..1 dip of a press: down fast, springs back (0 = at rest)."""
+    import time
+    t0 = _PRESS.get(key)
+    if t0 is None:
+        return 0.0
+    k = (time.monotonic() - t0) / PRESS_S
+    if k >= 1:
+        _PRESS.pop(key, None)
+        return 0.0
+    return min(1.0, k / 0.3) if k < 0.3 else (1 - (k - 0.3) / 0.7) ** 2
+
+
+def animating():
+    """True while anything above is still moving (cached pages use it to keep redrawing)."""
+    import time
+    return LIVE and time.monotonic() < _busy_until
+
+
+def mix(a, b, k):
+    return tuple(int(a[i] + (b[i] - a[i]) * k) for i in range(3))
+
+
+MOTION_SPEED = 22.0   # ease rate: ~120 ms to settle (matches theme.focus_ms)
+PRESS_S = 0.18        # length of the A-press dip
+
+
 # --- basics -----------------------------------------------------------------
 def fit(font, txt, maxw):
     """Cut text with an ellipsis so it fits maxw pixels."""
@@ -283,17 +343,20 @@ def focus_ring(t, s, rect):
                  border_radius=t.radius + t.outline)
 
 
-def button(t, s, rect, label, focused=False, enabled=True, icon=None, play=False):
+def button(t, s, rect, label, focused=False, enabled=True, icon=None, play=False, key=None):
     """The one button: all the same grey. Focus (= hover on a pad) lights it up — no colour,
     no outline. Only Play is purple (play=True); focused it lights up to the bright accent."""
+    key = key or ("btn", label)
+    k = anim(key, 1.0 if focused else 0.0)          # eased focus amount
     if play and enabled:
-        fill, col = (t.accent if focused else t.accent_btn), t.text_c
+        fill, col = mix(t.accent_btn, t.accent, k), t.text_c
     elif not enabled:
-        fill, col = (t.panel_hi if focused else t.panel), t.faint
-    elif focused:
-        fill, col = t.focus_fill, t.text_c
+        fill, col = mix(t.panel, t.panel_hi, k), t.faint
     else:
-        fill, col = t.panel_hi, t.dim
+        fill, col = mix(t.panel_hi, t.focus_fill, k), mix(t.dim, t.text_c, k)
+    p = pressed(key)
+    if p:                                           # A press: shrink 6%, spring back
+        rect = rect.inflate(-rect.w * 0.06 * p, -rect.h * 0.06 * p)
     panel(t, s, rect, fill)
     gap = t.u * 1.2
     w = t.f_btn.size(label)[0] + ((t.f_btn.size(icon)[0] + gap) if icon else 0)
@@ -425,9 +488,9 @@ def progress(t, s, rect, frac=None, phase=0.3):
 def tile(t, s, game, rect, focused=False):
     """Library tile: cover in rect, title under it. rect is the unscaled cover area."""
     playable = game["platforms"] & {"linux", "windows"}
-    r = rect
-    if focused:
-        r = rect.inflate(rect.w * (t.focus_scale - 1), rect.h * (t.focus_scale - 1))
+    k = anim(("tile", game["id"]), 1.0 if focused else 0.0)
+    grow = (t.focus_scale - 1) * k - 0.05 * pressed(("tile", game["id"]))
+    r = rect.inflate(rect.w * grow, rect.h * grow) if grow else rect
     img = rounded(cover(t, game, r.size), t.radius)
     if not playable:
         img = img.copy()
@@ -435,7 +498,7 @@ def tile(t, s, game, rect, focused=False):
         pg.draw.rect(o, (0, 0, 0, t.dimmed_a), o.get_rect(), border_radius=t.radius)
         img.blit(o, (0, 0))
     s.blit(img, r.topleft)
-    if focused:
+    if k > 0.5:
         focus_ring(t, s, r)
     _badges(t, s, game, r, playable)
     ty = r.bottom + t.u * 1.2
@@ -504,13 +567,19 @@ def modal(t, s, title, body, hints, width_u=64):
 
 
 def toast(t, s, msg, error=False):
+    k = anim(("toast", msg), 1.0, start=0.0, speed=16.0)   # slides up + fades in once
     img = t.f_body.render(msg, True, t.text_c)
     r = pg.Rect(0, 0, img.get_width() + t.u * 6, img.get_height() + t.u * 3)
-    r.midbottom = (int(t.cx), t.h - t.hint_h - t.u * 3)
-    panel(t, s, r, t.panel_hi, radius=r.h // 2)
+    box = pg.Surface(r.size, pg.SRCALPHA)
+    lr = box.get_rect()
+    panel(t, box, lr, t.panel_hi, radius=r.h // 2)
     if error:
-        pg.draw.circle(s, t.error, (r.x + t.u * 2.2, r.centery), t.u * 0.7)
-    s.blit(img, img.get_rect(midleft=(r.x + t.u * (3.6 if error else 3), r.centery)))
+        pg.draw.circle(box, t.error, (t.u * 2.2, lr.centery), t.u * 0.7)
+    box.blit(img, img.get_rect(midleft=(t.u * (3.6 if error else 3), lr.centery)))
+    if k < 1:
+        box.set_alpha(int(255 * k))
+    r.midbottom = (int(t.cx), int(t.h - t.hint_h - t.u * 3 + (1 - k) * t.u * 4))
+    s.blit(box, r)
 
 
 def banner(t, s, msg, y):
@@ -528,8 +597,11 @@ def rows(t, s, rect, items, focus, row_h=None):
     y = rect.y
     for i, (label, value, sub) in enumerate(items):
         r = pg.Rect(rect.x, y, rect.w, row_h)
-        if i == focus:
-            panel(t, s, r, t.focus_fill)
+        k = anim(("row", label), 1.0 if i == focus else 0.0)
+        if k > 0.01:
+            p = pressed(("row", label))
+            rr = r.inflate(-r.w * 0.02 * p, -r.h * 0.06 * p) if p else r
+            panel(t, s, rr, mix(t.panel_hi, t.focus_fill, k))
         ly = r.centery - (t.f_small.get_height() // 2 if sub else 0)
         text(t, s, label, r.x + t.u * 2.5, ly, t.f_btn, anchor="midleft")
         if sub:

@@ -24,6 +24,9 @@ class Library(Scene):
         return self.games
 
     # --- input ---------------------------------------------------------
+    def press_key(self):
+        return ("tile", self.shown[self.focus]["id"]) if self.shown and not self.overlay else None
+
     def handle(self, act):
         n, c = len(self.shown), self.t.grid_cols
         if act == X:

@@ -53,6 +53,7 @@ class App:
         self.on_confirm = None          # what A does on the open confirm dialog (None = Quit)
         self.running = True
         self.scene, self.kind = None, None
+        self.fade_from, self.fade_t0 = None, 0.0     # page cross-fade (see _fade)
         self.toast_until = 0
         self.filt, self.lib_focus_id = "all", None
         self.key_result = None          # (status, key, file, user) from the checking thread
@@ -74,6 +75,7 @@ class App:
 
     # --- display -------------------------------------------------------
     def open_display(self):
+        self.fade_from = None
         pg = self.pg
         pg.display.init()
         pg.font.init()
@@ -93,6 +95,12 @@ class App:
         self.toast_until = time.time() + self.t.toast_s
 
     def _set(self, kind, scene):
+        from .ui import widgets as W
+        if self.scene is not None and W.LIVE:
+            try:
+                self.fade_from, self.fade_t0 = self.screen.copy(), time.monotonic()  # cross-fade
+            except Exception:  # noqa: BLE001  - display closed (game running): no fade
+                self.fade_from = None
         self.kind, self.scene = kind, scene
         self.toast_until = 0
 
@@ -206,6 +214,9 @@ class App:
     # --- per-scene input -----------------------------------------------
     def handle(self, act):
         sc = self.scene
+        if act == A and not (sc.overlay and sc.overlay[0] == "confirm"):
+            from .ui import widgets as W
+            W.press(sc.press_key())
         if sc.overlay and sc.overlay[0] == "confirm":
             if act == A:
                 fn = self.on_confirm if sc.overlay is not QUIT_DLG else None
@@ -479,6 +490,17 @@ class App:
             self.say(f"{g['title']} closed right after starting. Details are in its log.",
                      error=True)
 
+    def _fade(self):
+        """Old page fades out over the new one after a page switch (theme.page_fade_ms)."""
+        if self.fade_from is None:
+            return
+        k = (time.monotonic() - self.fade_t0) * 1000 / self.t.page_fade_ms
+        if k >= 1:
+            self.fade_from = None
+            return
+        self.fade_from.set_alpha(int(255 * (1 - k) ** 2))   # ease-out
+        self.screen.blit(self.fade_from, (0, 0))
+
     def _splash(self, msg, sub=None):
         """One plain frame while the screen changes hands (less of Steam's UI flickers through)."""
         from .ui import widgets as W
@@ -627,6 +649,7 @@ class App:
                 self.handle(script[frame])
             self.update()
             self.scene.draw(self.screen)
+            self._fade()
             self.pg.display.flip()
             clock.tick(60)
             frame += 1

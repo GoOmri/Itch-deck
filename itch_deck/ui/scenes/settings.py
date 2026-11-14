@@ -22,6 +22,9 @@ class Settings(Scene):
             ("Re-import API key", "", "Reads ~/Downloads/itch_key.txt again"),
         ]
 
+    def press_key(self):
+        return ("row", self.items()[self.focus][0])
+
     def handle(self, act):
         n = len(self.items())
         if act in (UP, DOWN):
