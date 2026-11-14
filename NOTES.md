@@ -48,7 +48,15 @@ M3 native install — v0.3.0 built 14 Nov, NOT yet tested on Deck. Linux builds 
   Top bar: "Downloading 42% · Game (+N)" / "Refreshing library" / "Covers 40/120" / "Game details
   12/90" (Library.jobs counters), hidden when idle. Windows-only -> "next update" message.
   If broken on Deck, check app.log "install <id>:", "uploads <id>:", "play:".
-Next: Deck test M3 (checklist in chat 14 Nov), then M4 (umu + GE-Proton).
+v0.3.0 Deck test 14 Nov: 1-4,7,9,10 ✓. ✗ Figment installed but didn't launch (crash toast) —
+  waiting for logs/games/figment.log + app.log "uploads/install/play" lines. ✗ Steam -> Exit game
+  ignored (stuck "Exiting game", app kept running), mid-install and after a play.
+v0.3.1: own SIGTERM/SIGHUP/SIGINT handler installed before pygame.init + SDL_NO_SIGNAL_HANDLERS
+  (logs "signal N: quitting"), stops a running game, Timer 3 s -> os._exit; main ends with
+  os._exit(0). Verified: SIGTERM exits source + frozen binary, no leftover process. Spinner/ring
+  now supersampled 4x (widgets._arc, cached); tile ring spins while unpacking / 0%.
+  "Cancel install" button -> "Cancel". Crash toast no longer says "Try Change build" (M5).
+Next: fix Figment from its log, retest 5, 6, 8; then M4 (umu + GE-Proton).
 
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,

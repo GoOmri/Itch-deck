@@ -11,6 +11,14 @@ from . import paths
 log = logging.getLogger("itch-deck")
 OVERLAP_S = 1.0          # keep our window up while the game maps its own (less Steam UI flicker)
 CRASH_S = 15             # a non-zero exit sooner than this = "closed right after starting"
+_proc = None             # the running game, so a quit signal can stop it too
+
+
+def stop_child():
+    p = _proc
+    if p and p.poll() is None:
+        log.info("play: stopping game (pid %d)", p.pid)
+        p.terminate()
 
 
 def child_env():
@@ -35,6 +43,7 @@ def command(exe):
 
 
 def run(exe, slug, on_started=None, pump=None):
+    global _proc
     """Start exe, call on_started() after OVERLAP_S (or sooner if it already exited), wait.
     pump() keeps our window alive during the overlap. Returns (returncode, seconds)."""
     logs = paths.LOGS / "games"
@@ -50,6 +59,7 @@ def run(exe, slug, on_started=None, pump=None):
             log.warning("play: could not start %s: %s", exe, e)
             out.write(f"# could not start: {e}\n")
             return None, 0.0
+        _proc = proc
         log.info("play: started %s (pid %d)", exe, proc.pid)
         while proc.poll() is None and time.time() - t0 < OVERLAP_S:
             if pump:
@@ -58,6 +68,7 @@ def run(exe, slug, on_started=None, pump=None):
         if on_started:
             on_started()
         rc = proc.wait()
+        _proc = None
         secs = time.time() - t0
         out.write(f"# exit code {rc} after {secs:.0f}s\n")
     log.info("play: %s exited %s after %.0fs", slug, rc, secs)

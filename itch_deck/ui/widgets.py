@@ -284,33 +284,58 @@ def pill(t, s, label, x, y, fill=None, color=None, font=None, anchor="topleft"):
     return r
 
 
-def ring(t, s, center, r, frac, width=None):
-    """Download progress ring."""
-    width = width or max(3, r // 4)
-    pg.draw.circle(s, (0, 0, 0), center, r + 2)
-    pg.draw.circle(s, t.line, center, r, width)
-    if frac > 0:
+_ARCS = {}
+_SS = 4          # supersampling: draw arcs 4x larger, smoothscale down = smooth edges
+
+
+def _arc(r, width, start, sweep, color, track, disc=None):
+    """Anti-aliased ring/arc image (cached). start/sweep in turns (0..1), 0 = 12 o'clock."""
+    start = round(start * 120) / 120            # 120 steps per turn: smooth, cache stays small
+    key = (r, width, start, round(sweep, 3), color, track, disc)
+    img = _ARCS.get(key)
+    if img is not None:
+        return img
+    pad = 3
+    R, Wd = r * _SS, width * _SS
+    size = (r + pad) * 2 * _SS
+    c = (size / 2, size / 2)
+    big = pg.Surface((size, size), pg.SRCALPHA)
+    if disc:
+        pg.draw.circle(big, disc, c, R + 2 * _SS)
+    if track:
+        pg.draw.circle(big, track, c, R, Wd)
+    if sweep > 0:
+        n = max(8, int(160 * sweep))
         pts_o, pts_i = [], []
-        n = max(2, int(60 * frac))
         for i in range(n + 1):
-            a = -math.pi / 2 + 2 * math.pi * frac * i / n
-            pts_o.append((center[0] + r * math.cos(a), center[1] + r * math.sin(a)))
-            pts_i.append((center[0] + (r - width) * math.cos(a), center[1] + (r - width) * math.sin(a)))
-        pg.draw.polygon(s, t.accent, pts_o + pts_i[::-1])
+            a = 2 * math.pi * (start + sweep * i / n) - math.pi / 2
+            pts_o.append((c[0] + R * math.cos(a), c[1] + R * math.sin(a)))
+            pts_i.append((c[0] + (R - Wd) * math.cos(a), c[1] + (R - Wd) * math.sin(a)))
+        pg.draw.polygon(big, color, pts_o + pts_i[::-1])
+    img = pg.transform.smoothscale(big, (size // _SS, size // _SS))
+    if len(_ARCS) > 600:
+        _ARCS.clear()
+    _ARCS[key] = img
+    return img
+
+
+def _turn():
+    import time
+    return time.monotonic() * 1.2 if LIVE else 0.0
+
+
+def ring(t, s, center, r, frac, width=None, busy=False):
+    """Download progress ring. busy=True (unpacking / waiting): a spinning arc instead."""
+    width = width or max(3, r // 4)
+    start, sweep = (_turn() % 1, 0.3) if busy else (0, max(0.0, min(1.0, frac)))
+    img = _arc(r, width, start, sweep, t.accent, t.line, disc=(0, 0, 0))
+    s.blit(img, img.get_rect(center=center))
 
 
 def spinner(t, s, center, r, phase=0.0, width=None):
     width = width or max(3, r // 5)
-    if LIVE:
-        import time
-        phase += time.monotonic() * 1.2
-    pg.draw.circle(s, t.panel_hi, center, r, width)
-    pts_o, pts_i = [], []
-    for i in range(31):
-        a = phase * 2 * math.pi + 1.5 * math.pi * i / 30
-        pts_o.append((center[0] + r * math.cos(a), center[1] + r * math.sin(a)))
-        pts_i.append((center[0] + (r - width) * math.cos(a), center[1] + (r - width) * math.sin(a)))
-    pg.draw.polygon(s, t.accent, pts_o + pts_i[::-1])
+    img = _arc(r, width, (phase + _turn()) % 1, 0.75, t.accent, t.panel_hi)
+    s.blit(img, img.get_rect(center=center))
 
 
 def progress(t, s, rect, frac=None, phase=0.3):
@@ -361,7 +386,8 @@ def _badges(t, s, game, r, playable):
         text(t, s, "✓", c[0], c[1] + 1, t.f_glyph, color=t.on_accent, anchor="center")
     elif st == "downloading":
         ring(t, s, (int(r.right - pad - t.u * 2.2), int(r.y + pad + t.u * 2.2)), int(t.u * 2.2),
-             game.get("progress", 0))
+             game.get("progress", 0),
+             busy=game.get("phase") == "extract" or not game.get("progress"))
     elif st == "queued":
         pill(t, s, "Queued", r.right - pad, r.y + pad, anchor="topright")
     elif st == "failed":

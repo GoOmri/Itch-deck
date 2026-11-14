@@ -16,7 +16,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Choosing a build comes in a later update."
@@ -311,7 +311,7 @@ class App:
             elif self.inst.enqueue(g):
                 if self.inst.current and self.inst.current != gid:
                     self.say("Queued. It starts after the current download.")
-        elif label == "Cancel install":
+        elif label == "Cancel":
             self.confirm("Cancel the install?", f"{g['title']} stops downloading and the partial "
                          "download is deleted.", "Cancel install", lambda: self.inst.cancel(gid))
         elif label == "Uninstall":
@@ -349,7 +349,8 @@ class App:
         self.inp.flush()
         self.go_game(self.lib.by_id(g["id"]) or g)
         if runner.crashed(rc, secs):
-            self.say(f"{g['title']} closed right after starting. Try Change build.", error=True)
+            self.say(f"{g['title']} closed right after starting. Details are in its log.",
+                     error=True)
 
     def _splash(self, msg):
         """One plain frame while the screen changes hands (less of Steam's UI flickers through)."""
@@ -540,5 +541,32 @@ def main(argv=None):
         selftest(a.screenshot)
         print("selftest ok")
         return 0
-    App(windowed=a.windowed).run()
-    return 0
+    exit_on_signals()
+    app = App(windowed=a.windowed)
+    _APP[0] = app
+    app.run()
+    log.info("quit")
+    logging.shutdown()
+    os._exit(0)          # don't wait on background threads (downloads resume next launch)
+
+
+_APP = [None]
+
+
+def exit_on_signals():
+    """Steam's "Exit game" sends SIGTERM. Handle it ourselves (installed before pygame.init, so
+    SDL keeps its hands off): stop a running game, leave the main loop, and hard-exit after 3 s
+    if anything stalls."""
+    import signal
+    os.environ["SDL_NO_SIGNAL_HANDLERS"] = "1"
+
+    def on_signal(num, _frame):
+        log.info("signal %d: quitting", num)
+        if _APP[0]:
+            _APP[0].running = False
+        runner.stop_child()
+        t = threading.Timer(3.0, lambda: os._exit(0))
+        t.daemon = True
+        t.start()
+    for name in ("SIGTERM", "SIGHUP", "SIGINT"):
+        signal.signal(getattr(signal, name), on_signal)

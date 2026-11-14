@@ -42,7 +42,7 @@ class Game(Scene):
         if st == "installed":
             return [("Play", "▶", True), ("Uninstall", None, True), ("Change build", None, True)]
         if st in ("downloading", "queued") or self.phase:
-            return [("Cancel install", None, True)]
+            return [("Cancel", None, True)]
         if st == "failed":
             return [("Retry install", None, True), ("Change build", None, True)]
         if self.offline:
