@@ -5,6 +5,14 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 ## Current milestone
 M4 built (v0.4.0) — waiting for the Deck test (checklist under M4 below). v0.4.1 = M4 + design
   pass; build picker shows "Installed" as an accent tag like "Recommended" (W.rows).
+v0.4.1 Deck test 14 Nov: Figment WINDOWS build (Change build -> figment-windows-32.zip) installs,
+  "Preparing Proton…", short black screen, then plays with pad ✓. Linux build still crashes
+  (known, stays). Game showed Xbox/Steam glyphs, not PS: Steam Input hands Proton games a virtual
+  Xbox pad. Possible later test: tile with Steam Input off + PROTON_ENABLE_HIDRAW=1 (risky: our
+  app + Deck's own controls rely on Steam Input). Steam -> Exit game closes the whole tile incl.
+  our app: by design (Steam ends the tile's process tree; v0.3.0 showed it can't be refused).
+  To get back to scritch, quit from the game's own menu.
+v0.4.2 (Omri): install folder path removed from the game page (Settings still shows the root).
 M0 spike — PASSED on Deck 14 Nov (checklist 1–6 all ✓). Focus hand-off to child and back works.
 M1 mockups — APPROVED 14 Nov. Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ
 M2 real library — v0.2.0 Deck test 14 Nov: 1,2,4,6,7 ✓. Count 129 = matches (itch shows 133 incl.

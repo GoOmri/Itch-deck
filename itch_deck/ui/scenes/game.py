@@ -182,8 +182,6 @@ class Game(Scene):
             bx += bw + t.u * 1.5
         if self.actions():
             y += t.btn_h + t.u * 1.5
-        if self.install_path and g.get("state") == "installed":
-            y = W.text(t, s, self.install_path, x, y, t.f_small, color=t.dim, maxw=maxw).bottom
         return max(cover_r.bottom, y) + t.u * 5
 
     def _about(self, s, y):

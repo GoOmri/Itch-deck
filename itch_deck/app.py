@@ -17,7 +17,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 QUIT_DLG = ("confirm", "Quit scritch?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Comes in a later update."
