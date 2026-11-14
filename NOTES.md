@@ -31,6 +31,7 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
 
 ## Token usage log (Omri's Pro plan %, as he reports it — add a line each time)
 - 2026-11-14 00:08 — 72% at start of M0 build (planning + M0 in one chat)
+- 2026-11-14 11:24 — 73% → 76% for M1 mockups (+ logging M0 Deck results) = 3%
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while
