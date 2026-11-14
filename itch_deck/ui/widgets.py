@@ -363,12 +363,12 @@ def focus_ring(t, s, rect):
                  border_radius=t.radius + t.outline)
 
 
-def button(t, s, rect, label, focused=False, enabled=True, icon=None, play=False, key=None):
+def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=False, key=None):
     """The one button: all the same grey. Focus (= hover on a pad) lights it up — no colour,
-    no outline. Only Play is purple (play=True); focused it lights up to the bright accent."""
+    no outline. accent=True (Play, Update only) = purple; focused it lights up to bright accent."""
     key = key or ("btn", label)
     k = anim(key, 1.0 if focused else 0.0)          # eased focus amount
-    if play and enabled:
+    if accent and enabled:
         fill, col = mix(t.accent_btn, t.accent, k), t.text_c
     elif not enabled:
         fill, col = mix(t.panel, t.panel_hi, k), t.faint
@@ -653,7 +653,8 @@ def rows(t, s, rect, items, focus, row_h=None):
             if btn:                                # the real button (row focus = its focus)
                 br = pg.Rect(0, 0, button_w(t, btn), int(t.btn_h * 0.8))
                 br.midright = (x, r.centery)
-                button(t, s, br, btn)
+                button(t, s, br, btn, focused=(i == focus),       # row focus = A presses it
+                       accent=btn in ("Update", "Restart"))      # purple only when one is waiting
                 x = br.x - t.sm
             text(t, s, info, x, r.centery, t.f_body, color=t.dim, anchor="midright")
         elif value in ("Recommended", "Installed", "In use"):     # state tags (build picker)

@@ -11,7 +11,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - Releases (bump VERSION in app.py + tag vX.Y.Z) are done by ONE chat at a time. Before tagging:
   check `git branch -r --no-merged origin/main` for finished branches and ask Omri whether to
   include them.
-- UI must follow the "Design pass" rules below: W.button (grey, focus lights up, only Play purple),
+- UI must follow the "Design pass" rules below: W.button (grey, focus lights up, only Play + Update purple via accent=True),
   W.tag for labels, 5 theme font sizes, purple only for progress/state, t.dim for readable grey,
   app name = W.APP_NAME ("scritch").
 - Write what you changed in NOTES.md before pushing, so the next chat knows.

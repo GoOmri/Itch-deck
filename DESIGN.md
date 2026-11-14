@@ -6,7 +6,7 @@ there first, then use it.
 
 ## 1. Colour = meaning
 - **Purple** means *happening or yours*: progress, rings, spinners, the ✓ badge, Installed /
-  Recommended / Developer tags, the selected tab, the name, and the Play button. Never focus,
+  Recommended / Developer tags, the selected tab, the name, and the Play button and Update / Restart (only when an update is waiting). Never focus,
   never decoration.
 - **Red** means *error*, nothing else.
 - **Everything else is neutral.** Background: blue→purple gradient. Surfaces: cool navy greys
@@ -33,7 +33,7 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 ## 5. Components (only these)
 | Need | Use |
 |---|---|
-| Press something | `W.button` (only Play gets `play=True`) |
+| Press something | `W.button` (only Play and Update get `accent=True`) |
 | Label a fact | `W.tag(kind=neutral/accent/error/dark)` |
 | A list to pick from | `W.rows` |
 | Say something went wrong / is waiting | `W.notice(kind="error"/"busy")` |

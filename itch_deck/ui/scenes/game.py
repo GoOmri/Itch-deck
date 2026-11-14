@@ -196,7 +196,7 @@ class Game(Scene):
         for i, (label, icon, en) in enumerate(self.actions()):  # one row; LEFT/RIGHT moves
             bw = W.button_w(t, label, icon)
             W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, enabled=en, icon=icon,
-                     play=(label == "Play"),
+                     accent=(label == "Play"),
                      focused=(self.section == "actions" and i == self.focus and not self.overlay))
             bx += bw + t.sm
         if self.actions():
