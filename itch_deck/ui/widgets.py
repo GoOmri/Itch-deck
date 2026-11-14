@@ -52,6 +52,22 @@ def rounded(img, radius):
     return out
 
 
+def backdrop(t):
+    """Soft diagonal gradient: dark blue (top-left) to dark purple (bottom-right)."""
+    key = ("bg", t.w, t.h)
+    if key not in _cover_cache:
+        sw, sh = 48, 30
+        small = pg.Surface((sw, sh))
+        (r1, g1, b1), (r2, g2, b2) = t.bg_from, t.bg_to
+        for y in range(sh):
+            for x in range(sw):
+                k = min(1.0, max(0.0, (x / sw) * 0.55 + (y / sh) * 0.75 - 0.15))
+                k = k * k * (3 - 2 * k)  # smoothstep, keeps it soft
+                small.set_at((x, y), (int(r1 + (r2 - r1) * k), int(g1 + (g2 - g1) * k), int(b1 + (b2 - b1) * k)))
+        _cover_cache[key] = pg.transform.smoothscale(small, (t.w, t.h))
+    return _cover_cache[key]
+
+
 def shade(t, s, alpha=None, rect=None):
     rect = rect or s.get_rect()
     o = pg.Surface(rect.size, pg.SRCALPHA)
@@ -144,6 +160,17 @@ def glyph(t, s, btn, x, cy, ink=None):
             yy = r.centery + k * gap
             pg.draw.line(s, ink, (r.centerx - bw // 2, yy), (r.centerx + bw // 2 - 1, yy), lw)
         return r.w
+    if btn in ("◀", "▶"):  # drawn, not font glyphs: smaller and optically centred
+        ctr = (x + d / 2, cy)
+        pg.draw.aacircle(s, c, (int(ctr[0]), int(ctr[1])), d // 2)
+        pg.draw.circle(s, c, (int(ctr[0]), int(ctr[1])), d // 2 - 1)
+        a, hh = d * 0.20, d * 0.22   # half-width / half-height of the triangle
+        sgn = 1 if btn == "▶" else -1
+        ox = ctr[0] + sgn * d * 0.04  # nudge toward the point so it *looks* centred
+        pts = [(ox - sgn * a, ctr[1] - hh), (ox - sgn * a, ctr[1] + hh), (ox + sgn * a, ctr[1])]
+        pg.draw.polygon(s, ink, pts)
+        pg.draw.aalines(s, ink, True, pts)
+        return d
     img = t.f_glyph.render(btn, True, ink)
     img = img.subsurface(img.get_bounding_rect())
     if len(btn) == 1:

@@ -34,6 +34,9 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
   build." (no exit codes in UI; details stay in the log). Picker shows the developer's file names,
   platform/size/date, and a "Recommended" pill (Linux native > Windows zip > installer).
   Game page shows itch short_text (API, cached). Initials covers = placeholder only.
+- Background: soft diagonal gradient dark blue (bg_from, top-left) -> dark purple (bg_to, bottom-right),
+  like Omri's Game Night app; panels are cool navy-greys. widgets.backdrop(t), cached per size.
+- ◀ ▶ glyphs are drawn triangles (smaller, optically centred), not font characters.
 - Glyphs = Steam's visual language (Omri sent a Steam Deck screenshot as the reference): SOLID white
   shapes with the label knocked out in dark ink (glyph_c / glyph_ink). A B X Y = circle, L1 R1 L2 R2 =
   small rounded square, ☰ (hint key MENU) = white pill. Footer: actions RIGHT-aligned, labels white

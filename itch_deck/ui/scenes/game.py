@@ -97,8 +97,7 @@ class Game(Scene):
         """Page is taller than the screen: hero (cover, info, actions), then About
         (screenshots + full description from the itch page). DOWN scrolls into About."""
         t = self.t
-        canvas = pg.Surface((t.w, int(t.h * 2.6)))
-        canvas.fill(t.bg)
+        canvas = pg.Surface((t.w, int(t.h * 2.6)), pg.SRCALPHA)  # transparent: gradient shows through
         self._hero(canvas)
         about_y = self._top(canvas)
         desc_y = self._about(canvas, about_y)
@@ -187,16 +186,22 @@ class Game(Scene):
         return desc_y
 
     def _hero(self, s):
-        """Blurred, darkened cover across the top as a backdrop."""
+        """Blurred, darkened cover across the top, fading out into the page gradient."""
         t = self.t
+        h = int(t.h * 0.75)
         small = pg.transform.smoothscale(W.cover(self.t, self.g, (315, 250)), (24, 14))
-        hero = pg.transform.smoothscale(small, (t.w, int(t.h * 0.75)))
-        s.blit(hero, (0, 0))
-        fade = pg.Surface((t.w, int(t.h * 0.75)), pg.SRCALPHA)
-        for yy in range(fade.get_height()):
-            a = int(185 + 70 * (yy / fade.get_height()))
-            pg.draw.line(fade, (*t.bg, min(255, a)), (0, yy), (t.w, yy))
-        s.blit(fade, (0, 0))
+        hero = pg.transform.smoothscale(small, (t.w, h))
+        dark = pg.Surface((t.w, h), pg.SRCALPHA)
+        dark.fill((0, 0, 0, 150))
+        hero.blit(dark, (0, 0))
+        out = pg.Surface((t.w, h), pg.SRCALPHA)
+        out.blit(hero, (0, 0))
+        mask = pg.Surface((t.w, h), pg.SRCALPHA)
+        for yy in range(h):
+            a = int(200 * (1 - yy / h) ** 1.4)
+            pg.draw.line(mask, (255, 255, 255, a), (0, yy), (t.w, yy))
+        out.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+        s.blit(out, (0, 0))
 
     def _status(self, s, x, y, maxw):
         t, g = self.t, self.g

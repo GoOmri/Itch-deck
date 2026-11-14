@@ -13,7 +13,7 @@ class Scene:
     def hints(self): return []
 
     def draw(self, s):
-        s.fill(self.t.bg)
+        s.blit(W.backdrop(self.t), (0, 0))
         self.draw_page(s)
         if self.overlay:
             self.draw_overlay(s)

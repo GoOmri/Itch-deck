@@ -6,10 +6,12 @@ FONTS = Path(__file__).parent / "assets" / "fonts"
 
 class Theme:
     # colours
-    bg = (18, 18, 18)
-    panel = (34, 34, 34)
-    panel_hi = (48, 48, 48)
-    line = (60, 60, 60)
+    bg = (16, 16, 30)          # flat fallback (overlays); pages use the gradient below
+    bg_from = (12, 14, 26)     # gradient top-left: dark blue (matches Game Night)
+    bg_to = (34, 24, 58)       # gradient bottom-right: dark purple
+    panel = (32, 32, 50)
+    panel_hi = (48, 46, 72)
+    line = (64, 62, 90)
     text_c = (240, 240, 240)
     dim = (150, 150, 150)
     faint = (100, 100, 100)
@@ -22,7 +24,7 @@ class Theme:
     child_bg = (120, 20, 30)
     glyph_c = (240, 240, 240)  # pad glyphs: solid white shape (Steam style)
     glyph_ink = (14, 14, 14)   # letter knocked out of the white shape
-    hint_bg = (10, 10, 10)
+    hint_bg = (9, 10, 20)
     # motion / timing
     focus_scale = 1.06
     focus_ms = 120            # ease-out
