@@ -20,9 +20,6 @@ class Setup(Scene):
         self.back = back           # opened from Settings (a key already works): B goes back
         self.typing, self.typed = typing, typed
 
-    def press_key(self):
-        return None if self.typing else ("btn", self.buttons()[self.focus])
-
     def buttons(self):
         if self.status == "offline":
             return ["Retry", "Type key"]

@@ -36,7 +36,7 @@ class Theme:
     # motion / timing
     focus_scale = 1.06
     page_ms = 260             # page slide + fade (motion tempo: widgets.MOTION_MS)
-    page_slide_u = 6          # how far a page slides in, in units
+    page_slide_u = 12         # how far a page (or tab) swipes in, in units
     toast_s = 4.0
     # grid
     cover_ratio = 250 / 315   # itch cover h / w

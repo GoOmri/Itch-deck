@@ -37,7 +37,7 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 ## 5. Components (only these)
 | Need | Use |
 |---|---|
-| Press something | `W.button_row` (rows) / `W.button` (single); `accent=True` only for the page's main action |
+| Press something | `W.button_row` (a row) / `W.button` (one); `accent=True` only for the page's main action |
 | Label a fact | `W.tag(kind=neutral/accent/error/dark)` |
 | A list to pick from | `W.rows` |
 | Say something went wrong / is waiting | `W.notice(kind="error"/"busy")` |
@@ -63,17 +63,17 @@ XS 1u · S 2u · M 3u · L 5u · XL 8u, plus the page margin (6u).
 
 Full-width content (grid, screenshot strip) uses the margins.
 
-## 9. Motion = one curve, one tempo
-- Every move uses `W.spring` (slow start, quick middle, small overshoot, settle) over
-  `MOTION_MS` (240 ms): focus, tiles, toasts, underline. Never a different curve.
-- Scrolling is the one exception: same curve and tempo, but no overshoot (`back=0`, Omri).
-- Focus is ONE plate per group (button row, list) that slides to the focused item
-  (`W.button_row`, `W.rows`); the All/Installed underline slides the same way.
-- Pages slide in and fade (`page_ms` 260): from the right going deeper (Library → game →
-  Settings), from the left going back.
-- A press dips 6% and springs back.
+## 9. Motion = calm, one tempo
+- Every move uses `W.spring` with no overshoot (`SPRING_BACK` 0: slow start, smooth settle)
+  over `MOTION_MS` (240 ms). Omri: no bounce.
+- What moves: pages swipe in (from the right going deeper, from the left going back), the
+  Library content swipes when switching All/Installed, tiles and screenshots grow on focus,
+  toasts slide up, scrolling glides.
+- The ONE springy thing: the All/Installed underline (`TAB_BACK`). Omri likes it.
+- Buttons and rows never move: focus lights them up in place (a short fade). No sliding
+  highlight, no press dip.
 - Waiting should feel lively: the busy bar bounces end to end (`BUSY_SWEEP_S` 0.75 s),
-  stretching mid-flight; the tile ring spins and breathes. Nothing else moves on its own.
+  stretching mid-flight; the tile ring spins and breathes.
 - No sound or vibration of our own (Omri, 14 Nov): Steam's own UI sounds/haptics are enough.
 - Mockups show the end state.
 

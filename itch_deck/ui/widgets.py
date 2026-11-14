@@ -42,11 +42,11 @@ def ease(cur, target, ms=None, back=None):
 # --- motion -----------------------------------------------------------------
 # Widgets are stateless, so animated amounts live here, keyed by what they belong to
 # (("btn", label), ("row", label), ("tile", game id), ("toast", msg)). Mockups (LIVE off) snap.
-_ANIM, _PRESS = {}, {}
+_ANIM = {}
 _busy_until = 0.0
 
 
-def anim(key, target, start=None, ms=None):
+def anim(key, target, start=None, ms=None, back=None):
     """Eased 0..1 amount for `key` heading to `target`. start=0 makes a new key animate in
     (default: a new key starts at its target). Values may overshoot 0..1 a little (spring)."""
     global _busy_until
@@ -55,35 +55,13 @@ def anim(key, target, start=None, ms=None):
     if cur is None and start is not None and LIVE:
         v = start * 1000.0
         cur = (v, v, v, time.monotonic())
-    val = ease(cur, target * 1000.0, ms)
+    val = ease(cur, target * 1000.0, ms, back)
     if val[0] != target * 1000.0:
         _busy_until = time.monotonic() + 0.05
     _ANIM[key] = val
     if len(_ANIM) > 400:
         _ANIM.clear()
     return val[0] / 1000.0
-
-
-def press(key):
-    """A was pressed on `key`: its widget does a quick shrink-and-spring."""
-    global _busy_until
-    import time
-    if key is not None and LIVE:
-        _PRESS[key] = time.monotonic()
-        _busy_until = time.monotonic() + PRESS_S + 0.05
-
-
-def pressed(key):
-    """0..1 dip of a press: down fast, springs back (0 = at rest)."""
-    import time
-    t0 = _PRESS.get(key)
-    if t0 is None:
-        return 0.0
-    k = (time.monotonic() - t0) / PRESS_S
-    if k >= 1:
-        _PRESS.pop(key, None)
-        return 0.0
-    return min(1.0, k / 0.3) if k < 0.3 else (1 - (k - 0.3) / 0.7) ** 2
 
 
 def animating():
@@ -97,9 +75,9 @@ def mix(a, b, k):
     return tuple(int(a[i] + (b[i] - a[i]) * k) for i in range(3))
 
 
-MOTION_MS = 240       # every focus / tile / plate / scroll / toast move (one tempo)
-SPRING_BACK = 1.1     # overshoot amount of spring(); 0 = plain ease-in-out
-PRESS_S = 0.18        # length of the A-press dip
+MOTION_MS = 240       # every focus / tile / scroll / toast / page move (one tempo)
+SPRING_BACK = 0.0     # overshoot of spring(): 0 = calm ease-in-out (Omri: no bounce)
+TAB_BACK = 1.1        # the one springy thing: the All/Installed underline
 
 
 # --- basics -----------------------------------------------------------------
@@ -407,9 +385,6 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=Fal
         fill, col = mix(t.panel, t.panel_hi, k), t.faint
     else:
         fill, col = mix(t.panel_hi, t.focus_fill, k), mix(t.dim, t.text_c, k)
-    p = pressed(key)
-    if p:                                           # A press: shrink 6%, spring back
-        rect = rect.inflate(-rect.w * 0.06 * p, -rect.h * 0.06 * p)
     panel(t, s, rect, fill)
     gap, ih = t.sm, int(t.f_btn.get_height() * 0.5)
     w = t.f_btn.size(label)[0] + ((int(ih * 0.9) + gap) if icon else 0)
@@ -419,43 +394,15 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=Fal
     text(t, s, label, x, rect.centery, t.f_btn, color=col, anchor="midleft")
 
 
-def plate_color(t, accent, enabled):
-    """Colour of the lit focus plate over a button: bright purple on the main action."""
-    return t.accent if (accent and enabled) else (t.panel_hi if not enabled else t.focus_fill)
-
-
-def anim_color(key, target):
-    return tuple(int(max(0, min(255, anim((key, i), target[i])))) for i in range(3))
-
-
-def plate(t, s, key, rect, color):
-    """THE focus plate: one lit panel per group that slides (spring) to the focused item."""
-    x, y = anim((key, "x"), rect.x), anim((key, "y"), rect.y)
-    w, h = anim((key, "w"), rect.w), anim((key, "h"), rect.h)
-    panel(t, s, pg.Rect(int(x), int(y), int(w), int(h)), anim_color((key, "c"), color))
-
-
-def button_row(t, s, x, y, items, focus, key):
-    """A row of buttons sharing one sliding focus plate. items: [(label, icon, enabled, accent)];
-    focus = index or None (row not focused). Returns the button rects."""
+def button_row(t, s, x, y, items, focus, key=None):
+    """A row of buttons; each lights up in place when focused (nothing slides).
+    items: [(label, icon, enabled, accent)]; focus = index or None. Returns the rects."""
     rects, bx = [], x
-    for label, icon, en, acc in items:
+    for i, (label, icon, en, acc) in enumerate(items):
         r = pg.Rect(int(bx), int(y), button_w(t, label, icon), t.btn_h)
+        button(t, s, r, label, focused=(i == focus), enabled=en, icon=icon, accent=acc)
         rects.append(r)
         bx = r.right + t.sm
-        p = pressed(("btn", label))
-        rr = r.inflate(-r.w * 0.06 * p, -r.h * 0.06 * p) if p else r
-        panel(t, s, rr, t.accent_btn if (acc and en) else (t.panel if not en else t.panel_hi))
-    if focus is not None and items:
-        label, icon, en, acc = items[focus]
-        r = rects[focus]
-        p = pressed(("btn", label))
-        plate(t, s, key, r.inflate(-r.w * 0.06 * p, -r.h * 0.06 * p) if p else r,
-              plate_color(t, acc, en))
-    for i, ((label, icon, en, acc), r) in enumerate(zip(items, rects)):
-        k = anim(("btn", label), 1.0 if i == focus else 0.0)
-        col = t.faint if not en else (t.text_c if acc else mix(t.dim, t.text_c, k))
-        _btn_label(t, s, r, label, icon, col)
     return rects
 
 
@@ -617,7 +564,7 @@ def tile(t, s, game, rect, focused=False):
     """Library tile: cover in rect, title under it. rect is the unscaled cover area."""
     playable = game["platforms"] & {"linux", "windows"}
     k = anim(("tile", game["id"]), 1.0 if focused else 0.0)
-    grow = (t.focus_scale - 1) * k - 0.05 * pressed(("tile", game["id"]))
+    grow = (t.focus_scale - 1) * k
     r = rect.inflate(rect.w * grow, rect.h * grow) if grow else rect
     img = rounded(cover(t, game, r.size), t.radius)
     if not playable:
@@ -734,16 +681,15 @@ def notice(t, s, x, y, w, title, body=None, kind="error"):
 
 
 def rows(t, s, rect, items, focus, row_h=None, key="rows"):
-    """Settings/Picker list with one sliding focus plate. items: [(label, value, sub)]."""
+    """Settings/Picker list; the focused row lights up in place. items: [(label, value, sub)]."""
     row_h = row_h or int(t.u * 8.5)
     pad = t.md                                     # inset inside the row
-    if items and focus is not None and 0 <= focus < len(items):
-        r = pg.Rect(rect.x, rect.y + focus * (row_h + t.u // 2), rect.w, row_h)
-        p = pressed(("row", items[focus][0]))
-        plate(t, s, key, r.inflate(-r.w * 0.02 * p, -r.h * 0.06 * p) if p else r, t.focus_fill)
     y = rect.y
     for i, (label, value, sub) in enumerate(items):
         r = pg.Rect(rect.x, y, rect.w, row_h)
+        k = anim((key, label), 1.0 if i == focus else 0.0)
+        if k > 0.01:
+            panel(t, s, r, mix(t.panel_hi, t.focus_fill, k))
         ly = r.centery - (t.f_small.get_height() // 2 if sub else 0)
         text(t, s, label, r.x + pad, ly, t.f_btn, anchor="midleft")
         if sub:

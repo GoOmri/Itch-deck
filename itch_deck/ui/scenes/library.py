@@ -24,9 +24,6 @@ class Library(Scene):
         return self.games
 
     # --- input ---------------------------------------------------------
-    def press_key(self):
-        return ("tile", self.shown[self.focus]["id"]) if self.shown and not self.overlay else None
-
     def handle(self, act):
         n, c = len(self.shown), self.t.grid_cols
         if act == X:
@@ -47,6 +44,23 @@ class Library(Scene):
     def draw_page(self, s):
         t = self.t
         y = self._top_bar(s)
+        key = ("tabswipe", id(self))
+        if getattr(self, "_tab_filt", self.filt) != self.filt:      # tab changed: swipe in
+            self._tab_dir = 1 if self.filt == "installed" else -1   # Installed is to the right
+            W._ANIM.pop(key, None)                                  # restart from 0
+        self._tab_filt = self.filt
+        k = W.anim(key, 1.0, start=0.0 if key not in W._ANIM and hasattr(self, "_tab_dir")
+                   else None, ms=t.page_ms)
+        if k < 1:                       # content slides in from the tab's side and fades in
+            buf = pg.Surface(s.get_size(), pg.SRCALPHA)
+            self._content(buf, y)
+            buf.set_alpha(int(255 * max(0.0, min(1.0, k * 1.5))))
+            s.blit(buf, (int((1 - k) * t.u * t.page_slide_u * getattr(self, "_tab_dir", 1)), 0))
+            return
+        self._content(s, y)
+
+    def _content(self, s, y):
+        t = self.t
         if self.syncing == "first":
             return self._center_msg(s, y, f"Syncing library… page {self.sync_page}",
                                     "This is only slow the first time.", spinner=True)
@@ -71,7 +85,8 @@ class Library(Scene):
             lr = W.text(t, s, label, x, base, t.f_btn, color=t.text_c if on else t.dim,
                         anchor="baseleft")
             if on:                       # underline slides between tabs (spring)
-                ux, uw = W.anim(("tab", "x"), lr.x), W.anim(("tab", "w"), lr.w)
+                ux = W.anim(("tab", "x"), lr.x, back=W.TAB_BACK)
+                uw = W.anim(("tab", "w"), lr.w, back=W.TAB_BACK)
                 pg.draw.rect(s, t.accent, (int(ux), base + t.xs, int(uw), max(2, t.u // 3)))
             x = lr.right + t.md
         n = len(self.shown)

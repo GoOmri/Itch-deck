@@ -116,18 +116,6 @@ class Game(Scene):
             return [("◀", ""), ("▶", "Previous / next"), ("B", "Close")]
         return [("A", "Uninstall"), ("B", "Cancel")]
 
-    def press_key(self):
-        """Which widget dips when A is pressed (see widgets.press)."""
-        if self.overlay and self.overlay[0] == "picker" and self.overlay[3]:
-            return ("row", self.overlay[3][self.overlay[4]][0])
-        if self.overlay:
-            return None
-        if self.section == "actions" and self.actions():
-            return ("btn", self.actions()[self.focus][0])
-        if self.section == "shots":
-            return ("shot", self.g["id"], self.shot)
-        return None
-
     # --- drawing -------------------------------------------------------
     def draw_page(self, s):
         """Page is taller than the screen: hero (cover, info, actions), then About
@@ -217,7 +205,7 @@ class Game(Scene):
                 r = pg.Rect(t.m + k * (tw + t.gap), y, tw, th)
                 foc = self.section == "shots" and i == self.shot and not self.overlay
                 k = W.anim(("shot", g["id"], i), 1.0 if foc else 0.0)
-                grow = (t.focus_scale - 1) * k - 0.05 * W.pressed(("shot", g["id"], i))
+                grow = (t.focus_scale - 1) * k
                 if grow:
                     r = r.inflate(tw * grow, th * grow)
                 s.blit(W.rounded(W.screenshot(t, g, i, r.size), t.radius), r)

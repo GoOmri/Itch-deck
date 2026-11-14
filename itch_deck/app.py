@@ -216,9 +216,6 @@ class App:
     # --- per-scene input -----------------------------------------------
     def handle(self, act):
         sc = self.scene
-        if act == A and not (sc.overlay and sc.overlay[0] == "confirm"):
-            from .ui import widgets as W
-            W.press(sc.press_key())
         if sc.overlay and sc.overlay[0] == "confirm":
             if act == A:
                 fn = self.on_confirm if sc.overlay is not QUIT_DLG else None
