@@ -53,7 +53,7 @@ class App:
         self.on_confirm = None          # what A does on the open confirm dialog (None = Quit)
         self.running = True
         self.scene, self.kind = None, None
-        self.fade_from, self.fade_t0 = None, 0.0     # page cross-fade (see _fade)
+        self.fade_from, self.fade_t0, self.fade_dir = None, 0.0, 1   # page slide (_transition)
         self.toast_until = 0
         self.filt, self.lib_focus_id = "all", None
         self.key_result = None          # (status, key, file, user) from the checking thread
@@ -97,8 +97,10 @@ class App:
     def _set(self, kind, scene):
         from .ui import widgets as W
         if self.scene is not None and W.LIVE:
+            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3}
+            self.fade_dir = 1 if depth.get(kind, 0) >= depth.get(self.kind, 0) else -1  # in / back
             try:
-                self.fade_from, self.fade_t0 = self.screen.copy(), time.monotonic()  # cross-fade
+                self.fade_from, self.fade_t0 = self.screen.copy(), time.monotonic()  # slide + fade
             except Exception:  # noqa: BLE001  - display closed (game running): no fade
                 self.fade_from = None
         self.kind, self.scene = kind, scene
@@ -490,16 +492,26 @@ class App:
             self.say(f"{g['title']} closed right after starting. Details are in its log.",
                      error=True)
 
-    def _fade(self):
-        """Old page fades out over the new one after a page switch (theme.page_fade_ms)."""
-        if self.fade_from is None:
-            return
-        k = (time.monotonic() - self.fade_t0) * 1000 / self.t.page_fade_ms
+    def _transition(self):
+        """Page switch: the new page slides in (from the right going deeper, from the left going
+        back) on the spring curve while the old frame fades out over it (theme.page_ms)."""
+        from .ui import widgets as W
+        t = self.t
+        k = (time.monotonic() - self.fade_t0) * 1000 / t.page_ms
         if k >= 1:
             self.fade_from = None
+            self.scene.draw(self.screen)
             return
-        self.fade_from.set_alpha(int(255 * (1 - k) ** 2))   # ease-out
-        self.screen.blit(self.fade_from, (0, 0))
+        buf = getattr(self, "_page_buf", None)
+        if buf is None or buf.get_size() != self.screen.get_size():
+            buf = self._page_buf = self.pg.Surface(self.screen.get_size())
+        self.scene.draw(buf)
+        e = W.spring(k)
+        off = int((1 - e) * t.u * t.page_slide_u * self.fade_dir)
+        self.screen.blit(W.backdrop(t), (0, 0))
+        self.screen.blit(buf, (off, 0))
+        self.fade_from.set_alpha(int(255 * max(0.0, 1 - k * 1.6)))   # old page gone by ~60%
+        self.screen.blit(self.fade_from, (int(-e * t.u * t.page_slide_u * 0.5 * self.fade_dir), 0))
 
     def _splash(self, msg, sub=None):
         """One plain frame while the screen changes hands (less of Steam's UI flickers through)."""
@@ -648,8 +660,10 @@ class App:
             if script and frame in script:
                 self.handle(script[frame])
             self.update()
-            self.scene.draw(self.screen)
-            self._fade()
+            if self.fade_from is not None:
+                self._transition()
+            else:
+                self.scene.draw(self.screen)
             self.pg.display.flip()
             clock.tick(60)
             frame += 1

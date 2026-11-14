@@ -35,8 +35,8 @@ class Theme:
     hint_bg = (9, 10, 20)
     # motion / timing
     focus_scale = 1.06
-    focus_ms = 120            # ease-out (widgets.MOTION_SPEED)
-    page_fade_ms = 160        # cross-fade between pages
+    page_ms = 260             # page slide + fade (motion tempo: widgets.MOTION_MS)
+    page_slide_u = 6          # how far a page slides in, in units
     toast_s = 4.0
     # grid
     cover_ratio = 250 / 315   # itch cover h / w

@@ -12,18 +12,31 @@ LIVE = False   # True in the running app: animate. False for mockups: draw the e
 APP_NAME = "scritch"          # shown name; binary, data folders and repo keep itch-deck for now
 
 
-def ease(cur, target, speed=16.0):
-    """Frame-rate independent ease-out toward target. Snaps when not LIVE or on first use."""
+def spring(x):
+    """THE motion curve (DESIGN rule 9): slow start, quick middle, small overshoot, settle.
+    An ease-in-out-back with a mild back (SPRING_BACK)."""
+    x = max(0.0, min(1.0, x))
+    c = SPRING_BACK * 1.525
+    if x < 0.5:
+        return (2 * x) ** 2 * ((c + 1) * 2 * x - c) / 2
+    return ((2 * x - 2) ** 2 * ((c + 1) * (2 * x - 2) + c) + 2) / 2
+
+
+def ease(cur, target, ms=None):
+    """Time-based tween toward target on the spring curve; retargets smoothly mid-flight.
+    State tuple: (value, from, to, start_time) — callers keep it and read [0].
+    Snaps when not LIVE or on first use (mockups show the end state)."""
     import time
     now = time.monotonic()
+    target = float(target)
     if cur is None or not LIVE:
-        return float(target), now
-    val, last = cur
-    k = 1 - math.exp(-speed * min(0.1, now - last))
-    val += (target - val) * k
-    if abs(target - val) < 0.5:
-        val = float(target)
-    return val, now
+        return (target, target, target, now)
+    val, frm, to, t0 = cur
+    if target != to:                       # new destination: start from where we are now
+        frm, to, t0 = val, target, now
+    k = (now - t0) * 1000 / (ms or MOTION_MS)
+    val = to if k >= 1 else frm + (to - frm) * spring(k)
+    return (val, frm, to, t0)
 
 
 # --- motion -----------------------------------------------------------------
@@ -33,17 +46,18 @@ _ANIM, _PRESS = {}, {}
 _busy_until = 0.0
 
 
-def anim(key, target, start=None, speed=None):
+def anim(key, target, start=None, ms=None):
     """Eased 0..1 amount for `key` heading to `target`. start=0 makes a new key animate in
-    (default: a new key starts at its target). Stored x1000 so ease()'s 0.5 snap is tiny."""
+    (default: a new key starts at its target). Values may overshoot 0..1 a little (spring)."""
     global _busy_until
     import time
     cur = _ANIM.get(key)
     if cur is None and start is not None and LIVE:
-        cur = (start * 1000.0, time.monotonic())
-    val = ease(cur, target * 1000.0, speed or MOTION_SPEED)
+        v = start * 1000.0
+        cur = (v, v, v, time.monotonic())
+    val = ease(cur, target * 1000.0, ms)
     if val[0] != target * 1000.0:
-        _busy_until = val[1] + 0.05
+        _busy_until = time.monotonic() + 0.05
     _ANIM[key] = val
     if len(_ANIM) > 400:
         _ANIM.clear()
@@ -79,10 +93,12 @@ def animating():
 
 
 def mix(a, b, k):
+    k = max(0.0, min(1.0, k))                     # spring overshoot must not break colours
     return tuple(int(a[i] + (b[i] - a[i]) * k) for i in range(3))
 
 
-MOTION_SPEED = 22.0   # ease rate: ~120 ms to settle (matches theme.focus_ms)
+MOTION_MS = 240       # every focus / tile / plate / scroll / toast move (one tempo)
+SPRING_BACK = 1.1     # overshoot amount of spring(); 0 = plain ease-in-out
 PRESS_S = 0.18        # length of the A-press dip
 
 
@@ -386,6 +402,55 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=Fal
     text(t, s, label, x, rect.centery, t.f_btn, color=col, anchor="midleft")
 
 
+def plate_color(t, accent, enabled):
+    """Colour of the lit focus plate over a button: bright purple on the main action."""
+    return t.accent if (accent and enabled) else (t.panel_hi if not enabled else t.focus_fill)
+
+
+def anim_color(key, target):
+    return tuple(int(max(0, min(255, anim((key, i), target[i])))) for i in range(3))
+
+
+def plate(t, s, key, rect, color):
+    """THE focus plate: one lit panel per group that slides (spring) to the focused item."""
+    x, y = anim((key, "x"), rect.x), anim((key, "y"), rect.y)
+    w, h = anim((key, "w"), rect.w), anim((key, "h"), rect.h)
+    panel(t, s, pg.Rect(int(x), int(y), int(w), int(h)), anim_color((key, "c"), color))
+
+
+def button_row(t, s, x, y, items, focus, key):
+    """A row of buttons sharing one sliding focus plate. items: [(label, icon, enabled, accent)];
+    focus = index or None (row not focused). Returns the button rects."""
+    rects, bx = [], x
+    for label, icon, en, acc in items:
+        r = pg.Rect(int(bx), int(y), button_w(t, label, icon), t.btn_h)
+        rects.append(r)
+        bx = r.right + t.sm
+        p = pressed(("btn", label))
+        rr = r.inflate(-r.w * 0.06 * p, -r.h * 0.06 * p) if p else r
+        panel(t, s, rr, t.accent_btn if (acc and en) else (t.panel if not en else t.panel_hi))
+    if focus is not None and items:
+        label, icon, en, acc = items[focus]
+        r = rects[focus]
+        p = pressed(("btn", label))
+        plate(t, s, key, r.inflate(-r.w * 0.06 * p, -r.h * 0.06 * p) if p else r,
+              plate_color(t, acc, en))
+    for i, ((label, icon, en, acc), r) in enumerate(zip(items, rects)):
+        k = anim(("btn", label), 1.0 if i == focus else 0.0)
+        col = t.faint if not en else (t.text_c if acc else mix(t.dim, t.text_c, k))
+        _btn_label(t, s, r, label, icon, col)
+    return rects
+
+
+def _btn_label(t, s, rect, label, icon, col):
+    gap, ih = t.sm, int(t.f_btn.get_height() * 0.5)
+    w = t.f_btn.size(label)[0] + ((int(ih * 0.9) + gap) if icon else 0)
+    x = rect.centerx - w / 2                       # icon + label centred as one group
+    if icon:
+        x += icon_draw(s, icon, (x + ih * 0.45, rect.centery), ih, col) + gap
+    text(t, s, label, x, rect.centery, t.f_btn, color=col, anchor="midleft")
+
+
 def button_w(t, label, icon=None):
     """Natural width of a button (label + padding), at least btn_min."""
     w = t.f_btn.size(label)[0] + (t.f_btn.get_height() * 0.5 + t.sm if icon else 0)
@@ -483,7 +548,11 @@ def _turn():
 def ring(t, s, center, r, frac, width=None, busy=False):
     """Download progress ring. busy=True (unpacking / waiting): a spinning arc instead."""
     width = width or max(3, r // 4)
-    start, sweep = (_turn() % 1, 0.3) if busy else (0, max(0.0, min(1.0, frac)))
+    if busy:                                     # lively: spins + the arc breathes long/short
+        tt = _turn() * 1.5
+        start, sweep = tt % 1, 0.18 + 0.42 * (0.5 - 0.5 * math.cos(tt * 2.4))
+    else:
+        start, sweep = 0, max(0.0, min(1.0, frac))
     img = _arc(r, width, start, sweep, t.accent, (255, 255, 255, 60), disc=(0, 0, 0, t.chip_a))
     s.blit(img, img.get_rect(center=center))
 
@@ -496,17 +565,25 @@ def spinner(t, s, center, r, phase=0.0, width=None):
 
 def progress(t, s, rect, frac=None, phase=0.3):
     """frac=None draws an indeterminate bar that glides back and forth (live app)."""
-    if frac is None and LIVE:
-        x = _turn() * 0.5 % 2
-        phase = 0.5 - 0.5 * math.cos(math.pi * x)         # eased ping-pong 0..1..0
+    stretch = 1.0
+    if frac is None and LIVE:                    # bouncy: springs end to end, stretches
+        import time                              # mid-flight, squashes at the ends
+        x = time.monotonic() / BUSY_SWEEP_S % 2
+        x, back = (x, False) if x < 1 else (x - 1, True)
+        phase = spring(x)
+        phase = 1 - phase if back else phase
+        stretch = 0.6 + 1.1 * math.sin(math.pi * x)
     pg.draw.rect(s, t.panel_hi, rect, border_radius=rect.h // 2)
     if frac is None:
-        seg = rect.w // 4
-        x = rect.x + int((rect.w - seg) * phase)
+        seg = max(rect.h, int(rect.w * 0.22 * stretch))
+        x = rect.x + int((rect.w - seg) * max(0.0, min(1.0, phase)))
         pg.draw.rect(s, t.accent, (x, rect.y, seg, rect.h), border_radius=rect.h // 2)
     elif frac > 0:
         pg.draw.rect(s, t.accent, (rect.x, rect.y, max(rect.h, int(rect.w * frac)), rect.h),
                      border_radius=rect.h // 2)
+
+
+BUSY_SWEEP_S = 0.75   # one end-to-end bounce of the indeterminate bar
 
 
 # --- tiles ------------------------------------------------------------------
@@ -589,7 +666,7 @@ def modal(t, s, title, body):
 
 
 def toast(t, s, msg, error=False):
-    k = anim(("toast", msg), 1.0, start=0.0, speed=16.0)   # slides up + fades in once
+    k = anim(("toast", msg), 1.0, start=0.0)       # slides up + fades in once
     img = t.f_body.render(msg, True, t.text_c)
     dot = t.u * 0.7 if error else 0                 # red dot = this toast is an error
     r = pg.Rect(0, 0, img.get_width() + t.md * 2 + (dot * 2 + t.sm if error else 0),
@@ -603,7 +680,7 @@ def toast(t, s, msg, error=False):
         x += dot * 2 + t.sm
     box.blit(img, img.get_rect(midleft=(x, lr.centery)))
     if k < 1:
-        box.set_alpha(int(255 * k))
+        box.set_alpha(int(255 * max(0.0, min(1.0, k))))
     r.midbottom = (int(t.cx), int(t.h - t.hint_h - t.md + (1 - k) * t.md))
     s.blit(box, r)
 
@@ -630,18 +707,17 @@ def notice(t, s, x, y, w, title, body=None, kind="error"):
     return r
 
 
-def rows(t, s, rect, items, focus, row_h=None):
-    """Settings/Picker list. items: [(label, value, sub)] — value/sub may be ''."""
+def rows(t, s, rect, items, focus, row_h=None, key="rows"):
+    """Settings/Picker list with one sliding focus plate. items: [(label, value, sub)]."""
     row_h = row_h or int(t.u * 8.5)
     pad = t.md                                     # inset inside the row
+    if items and focus is not None and 0 <= focus < len(items):
+        r = pg.Rect(rect.x, rect.y + focus * (row_h + t.u // 2), rect.w, row_h)
+        p = pressed(("row", items[focus][0]))
+        plate(t, s, key, r.inflate(-r.w * 0.02 * p, -r.h * 0.06 * p) if p else r, t.focus_fill)
     y = rect.y
     for i, (label, value, sub) in enumerate(items):
         r = pg.Rect(rect.x, y, rect.w, row_h)
-        k = anim(("row", label), 1.0 if i == focus else 0.0)
-        if k > 0.01:
-            p = pressed(("row", label))
-            rr = r.inflate(-r.w * 0.02 * p, -r.h * 0.06 * p) if p else r
-            panel(t, s, rr, mix(t.panel_hi, t.focus_fill, k))
         ly = r.centery - (t.f_small.get_height() // 2 if sub else 0)
         text(t, s, label, r.x + pad, ly, t.f_btn, anchor="midleft")
         if sub:

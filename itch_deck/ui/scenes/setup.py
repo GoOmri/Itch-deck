@@ -64,11 +64,8 @@ class Setup(Scene):
         y = W.notice(t, s, x, y, w, msg, kind="error" if err else "busy").bottom + t.md
         if self.typing:
             return self._field(s, x, y, w)
-        bx = x
-        for i, label in enumerate(self.buttons()):
-            bw = W.button_w(t, label)
-            W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, focused=(i == self.focus))
-            bx += bw + t.sm
+        W.button_row(t, s, x, y, [(lb, None, True, False) for lb in self.buttons()],
+                     self.focus, key=("plate", "setup"))
         W.text(t, s, "Type key opens a field — press Steam + X for the on-screen keyboard.",
                x, y + t.btn_h + t.md, t.f_small, color=t.dim, maxw=w)
 

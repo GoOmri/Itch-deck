@@ -70,8 +70,9 @@ class Library(Scene):
             on = self.filt == key
             lr = W.text(t, s, label, x, base, t.f_btn, color=t.text_c if on else t.dim,
                         anchor="baseleft")
-            if on:
-                pg.draw.rect(s, t.accent, (lr.x, base + t.xs, lr.w, max(2, t.u // 3)))
+            if on:                       # underline slides between tabs (spring)
+                ux, uw = W.anim(("tab", "x"), lr.x), W.anim(("tab", "w"), lr.w)
+                pg.draw.rect(s, t.accent, (int(ux), base + t.xs, int(uw), max(2, t.u // 3)))
             x = lr.right + t.md
         n = len(self.shown)
         right = t.w - t.m

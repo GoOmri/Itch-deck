@@ -205,6 +205,10 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   (error/busy) replaces 3 hand-drawn boxes + unused W.banner; modal = body only (actions in
   footer); empty Library no longer repeats Y Refresh; W.icon_draw (play, check) replaces ✓ ▶
   font chars; game status: not playable / missing = one "note" style, failed = W.notice.
+  Motion v2 (14 Nov, Omri): W.spring = the one curve (ease-in-out-back, SPRING_BACK 1.1) for
+  everything via W.ease (time-based tween, MOTION_MS 240). Focus = sliding plate (W.plate /
+  button_row / rows key=...), tab underline slides, pages slide+fade (App._transition,
+  theme.page_ms 260, direction by depth). Busy bar bounces (BUSY_SWEEP_S 0.75) with stretch.
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 
 ## Code map

@@ -157,7 +157,7 @@ class Game(Scene):
         self.off = min(getattr(self, "off", 0), self._max_off)
         scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m + self.off,
                   "comments": comments_y - t.m + self.off}[self.section]
-        self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll), speed=14)
+        self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll))
         s.blit(canvas, (0, -int(self._sy[0])))
         if self._live_bar:                       # indeterminate bar: cheap per-frame overlay
             W.progress(t, s, self._live_bar.move(0, -int(self._sy[0])), None, phase=0.35)
@@ -195,14 +195,11 @@ class Game(Scene):
         y = self._status(s, x, y, maxw)
         if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
             y = max(y, cover_r.bottom - t.btn_h)
-        bx = x
-        for i, (label, icon, en) in enumerate(self.actions()):  # one row; LEFT/RIGHT moves
-            bw = W.button_w(t, label, icon)
-            W.button(t, s, pg.Rect(bx, y, bw, t.btn_h), label, enabled=en, icon=icon,
-                     accent=(label in MAIN_ACTIONS),
-                     focused=(self.section == "actions" and i == self.focus and not self.overlay))
-            bx += bw + t.sm
-        if self.actions():
+        acts = self.actions()                    # one row; LEFT/RIGHT slides the plate
+        on = self.section == "actions" and not self.overlay
+        W.button_row(t, s, x, y, [(lb, ic, en, lb in MAIN_ACTIONS) for lb, ic, en in acts],
+                     self.focus if on and acts else None, key=("plate", "game"))
+        if acts:
             y += t.btn_h + t.sm
         return max(cover_r.bottom, y) + t.lg
 
@@ -375,7 +372,7 @@ class Game(Scene):
         W.text(t, s, sub, r.x + pad, ty, t.f_small, color=t.dim)
         # rows sit inset by (pad - row padding) so their text lines up with the title
         W.rows(t, s, pg.Rect(r.x + pad - t.md, r.y + pad + head, r.w - 2 * (pad - t.md), 0),
-               items, focus, row_h)
+               items, focus, row_h, key="picker")
 
     def _viewer(self, s):
         """Full-screen screenshot viewer."""

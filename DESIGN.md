@@ -35,7 +35,7 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 ## 5. Components (only these)
 | Need | Use |
 |---|---|
-| Press something | `W.button` (`accent=True` only for the page's main action) |
+| Press something | `W.button_row` (rows) / `W.button` (single); `accent=True` only for the page's main action |
 | Label a fact | `W.tag(kind=neutral/accent/error/dark)` |
 | A list to pick from | `W.rows` |
 | Say something went wrong / is waiting | `W.notice(kind="error"/"busy")` |
@@ -61,9 +61,16 @@ XS 1u · S 2u · M 3u · L 5u · XL 8u, plus the page margin (6u).
 
 Full-width content (grid, screenshot strip) uses the margins.
 
-## 9. Motion = one tempo
-- State changes ease in ~120 ms (`MOTION_SPEED`); pages cross-fade in 160 ms; A press dips 6%.
-- Nothing moves on its own except spinners and progress.
+## 9. Motion = one curve, one tempo
+- Every move uses `W.spring` (slow start, quick middle, small overshoot, settle) over
+  `MOTION_MS` (240 ms): focus, tiles, scrolling, toasts, underline. Never a different curve.
+- Focus is ONE plate per group (button row, list) that slides to the focused item
+  (`W.button_row`, `W.rows`); the All/Installed underline slides the same way.
+- Pages slide in and fade (`page_ms` 260): from the right going deeper (Library → game →
+  Settings), from the left going back.
+- A press dips 6% and springs back.
+- Waiting should feel lively: the busy bar bounces end to end (`BUSY_SWEEP_S` 0.75 s),
+  stretching mid-flight; the tile ring spins and breathes. Nothing else moves on its own.
 - No sound or vibration of our own (Omri, 14 Nov): Steam's own UI sounds/haptics are enough.
 - Mockups show the end state.
 
