@@ -186,6 +186,13 @@ class Library:
                     self._fetch_page(g)
             except net.Offline as e:
                 log.info("%s %s: offline (%s)", kind, gid, e)
+            except net.NotFound:
+                log.info("%s %s: gone on itch.io (404)", kind, gid)
+                if kind == "page":
+                    _write_json(self._page_file(g), {"fetched": _now().isoformat(timespec="seconds"),
+                                                     "missing": True})
+                    g.pop("details_at", None)
+                    self._apply_page(g)
             except Exception:  # noqa: BLE001
                 log.exception("%s %s failed", kind, gid)
             finally:
@@ -224,6 +231,7 @@ class Library:
             d = json.loads(self._page_file(g).read_text())
         except (OSError, ValueError):
             return
+        g["page_missing"] = bool(d.get("missing"))
         g["description"] = d.get("description") or []
         files = [str(p) for p in sorted((paths.SHOTS / g["id"]).glob("*.jpg"),
                                         key=lambda p: int(p.stem))] if d.get("shots") else []
@@ -245,6 +253,10 @@ class Library:
             log.warning("page %s: no description found (itch markup changed?)", g["id"])
         if p["saw_comments_markup"] and not p["comments"]:
             log.warning("page %s: comments markup present but none parsed", g["id"])
+            dbg = paths.LOGS / "pages"            # keep a few samples to fix the parser
+            dbg.mkdir(parents=True, exist_ok=True)
+            if len(list(dbg.glob("*.html"))) < 5:
+                (dbg / f"{g['id']}.html").write_text(html)
         n = self._save_shots(g, p["shots"][:MAX_SHOTS])
         _write_json(self._page_file(g), {
             "fetched": _now().isoformat(timespec="seconds"), "description": p["description"],

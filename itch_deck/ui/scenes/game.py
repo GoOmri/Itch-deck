@@ -200,7 +200,8 @@ class Game(Scene):
                 y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=(205, 205, 205)) + t.f_body.get_linesize() * 0.6
             y = W.text(t, s, "From the game's itch.io page", t.m, y + t.u, t.f_small, color=t.faint).bottom
         elif not n:
-            msg = ("Loading details from itch.io…" if g.get("details_loading") or not self.offline
+            msg = ("This game's itch.io page no longer exists." if g.get("page_missing") else
+                   "Loading details from itch.io…" if g.get("details_loading") or not self.offline
                    and not g.get("details_at") else
                    "More details load the next time you're online." if self.offline else
                    "This game's itch page has no description.")

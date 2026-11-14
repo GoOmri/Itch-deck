@@ -12,6 +12,10 @@ class Offline(Exception):
     """Network unreachable / timed out / server error."""
 
 
+class NotFound(Exception):
+    """HTTP 404: the page/file is gone. Not a network problem, don't retry."""
+
+
 class AuthError(Exception):
     """itch rejected the API key."""
 
@@ -41,6 +45,8 @@ def get(url, key=None, timeout=20, accept=None):
     except urllib.error.HTTPError as e:
         if e.code in (401, 403) and key:
             raise AuthError(f"HTTP {e.code}") from None
+        if e.code in (404, 410):
+            raise NotFound(f"HTTP {e.code}") from None
         raise Offline(f"HTTP {e.code}") from None
     except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, ssl.SSLError) as e:
         raise Offline(type(e).__name__ + ": " + str(getattr(e, "reason", e))) from None

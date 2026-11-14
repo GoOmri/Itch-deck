@@ -14,7 +14,7 @@ from .library import Library, short_date
 from .stores.itch import ItchStore
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Installing comes in the next update."

@@ -158,4 +158,4 @@ def parse(html):
             shots.append(u)
     return {"description": _paragraphs(p.desc_parts), "shots": shots, "comments": comments,
             "comment_count": len(p.posts), "has_more": p.more_link or len(p.posts) > MAX_COMMENTS,
-            "saw_comments_markup": "community_post" in html}
+            "saw_comments_markup": bool(re.search(r'class="(?:[^"]* )?community_post[ "]', html))}

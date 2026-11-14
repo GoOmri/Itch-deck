@@ -76,6 +76,8 @@ def test_page_parse_garbage_never_crashes():
     p = itch_page.parse("<div class='formatted_description'><p>unclosed <b>bold")
     assert p["description"] == ["unclosed bold"]
     assert itch_page.parse("")["comments"] == []
+    assert not itch_page.parse('<div class="community_post_list"></div>')["saw_comments_markup"]
+    assert itch_page.parse(PAGE)["saw_comments_markup"]
 
 
 def test_cache_roundtrip(tmp_path):

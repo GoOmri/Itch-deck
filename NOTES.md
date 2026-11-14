@@ -9,7 +9,13 @@ M2 real library — v0.2.0 Deck test 14 Nov: 1,2,4,6,7 ✓. Count 129 = matches 
   non-game products). Fixed in v0.2.1: platforms come from owned-keys "traits" (all showed "No
   download"); long description/comments scroll inside the section (DOWN steps, then next section);
   "Loading details…" while fetching; prefetch throttled 1.5 s/game.
-  OPEN: many game pages showed no details while online — waiting for Omri's app.log.
+  Log (v0.2.0): pages DO load (desc + 4–8 shots); "no details" was the 3–5 s fetch on open (0.2.0
+  only fetched on open) + one 404 page treated as offline. v0.2.2: 404 -> "page no longer exists",
+  not retried; stricter comments-markup check. 1 of 10 pages parsed comments (305112, 10). If the
+  warning persists, samples are saved to logs/pages/<id>.html (max 5) — ask Omri for one.
+  Pads seen: "Steam Deck Controller", "Steam Virtual Gamepad" (DualSense via Steam).
+  SteamVirtualGamepadInfo = path to ~/.local/share/Steam/config/virtualgamepadinfo.txt (read it
+  for glyph auto-detect).
   itch.io is blocked from Claude's workspace: API + page parsing tested only with fixtures.
   First things to check on Deck if broken: app.log lines "itch sync:", "page <id>:", "pad added:".
 Next: M3 native install (ask Omri before starting).
