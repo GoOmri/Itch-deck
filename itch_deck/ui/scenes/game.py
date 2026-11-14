@@ -164,9 +164,7 @@ class Game(Scene):
 
         x = cover_r.right + t.lg
         maxw = t.w - t.m - x
-        y = cover_r.y - W.cap_gap(t.f_small)    # capitals of the first line = cover top edge
-        y = W.text(t, s, f"itch  ·  {self.pos[0]} of {self.pos[1]}", x, y, t.f_small,
-                   color=t.dim).bottom
+        y = cover_r.y - W.cap_gap(t.f_h1)       # capitals of the title = cover top edge
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
         info = f"by {g['author']}" + (f"  ·  {_mb(g['size_mb'])}" if g["size_mb"] else "")
         r = W.text(t, s, info, x, y, t.f_body, color=t.dim)      # one info line, no loose tags
@@ -184,10 +182,13 @@ class Game(Scene):
         y = self._status(s, x, y, maxw)
         if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
             y = max(y, cover_r.bottom - t.btn_h)
-        acts = self.actions()                    # one row; LEFT/RIGHT slides the plate
+        acts = self.actions()                    # one row; LEFT/RIGHT moves focus
         on = self.section == "actions" and not self.overlay
-        W.button_row(t, s, x, y, [(lb, ic, en, lb in MAIN_ACTIONS) for lb, ic, en in acts],
-                     self.focus if on and acts else None, key=("plate", "game"))
+        rects = W.button_row(t, s, x, y, [(lb, ic, en, lb in MAIN_ACTIONS) for lb, ic, en in acts],
+                             self.focus if on and acts else None)
+        if self.phase and self.playable and rects:      # progress sits next to Cancel
+            px = rects[-1].right + t.lg
+            self._progress_inline(s, px, y, min(x + maxw - px, t.read_w))
         if acts:
             y += t.btn_h + t.sm
         return max(cover_r.bottom, y) + t.lg
@@ -330,31 +331,36 @@ class Game(Scene):
             y = W.text(t, s, "Queued — starts after the current download", x, y, t.f_body,
                        color=t.dim).bottom
             return y + t.md
-        if not self.phase:
-            return y
-        base = y + t.f_btn.get_ascent()            # label and speed share a baseline
-        bar = pg.Rect(x, y + t.f_btn.get_linesize() + t.xs, w, max(6, t.u))
+        return y                        # download / install progress: in the button row
+
+    def _progress_inline(self, s, x, y, w):
+        """Progress next to Cancel, inside the button row's height (no extra lines under it)."""
+        t, g = self.t, self.g
+        bar_h = max(6, t.u)
+        lh = t.f_btn.get_linesize()
+        top = y + (t.btn_h - (lh + t.sm + bar_h)) // 2
+        base = top + t.f_btn.get_ascent()          # label and details share a baseline
+        bar = pg.Rect(x, top + lh + t.sm, w, bar_h)
         if self.phase == "download":
             p = g.get("progress", 0)
-            W.text(t, s, f"Downloading  {int(p * 100)}%", x, base, t.f_btn, anchor="baseleft")
-            m, sec = divmod(int(g.get("eta_s", 0)), 60)
-            W.text(t, s, f"{g.get('speed_mbs', 0):.1f} MB/s · {m}:{sec:02d} left", bar.right, base,
-                   t.f_small, color=t.dim, anchor="baseright")
+            label = f"Downloading  {int(p * 100)}%"
+            info = (f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}  ·  "
+                    f"{g.get('speed_mbs', 0):.1f} MB/s")
             W.progress(t, s, bar, p)
-            sub = f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}"
         else:
-            label, sub = {
+            label, info = {
                 "extract": ("Extracting…", "Unpacking the download"),
-                "installing": ("Installing…", "The game's installer is running silently. "
-                                              "No progress % for installers."),
-                "proton": ("Preparing Proton…", "First run only — about 30 s"),
-                "umu": ("Getting umu-launcher…", "One-time download for Windows games"),
+                "installing": ("Installing…", "Installer runs silently"),
+                "proton": ("Preparing Proton…", "First run only, about 30 s"),
+                "umu": ("Getting umu-launcher…", "One-time, for Windows games"),
             }[self.phase]
-            W.text(t, s, label, x, y, t.f_btn)
             W.progress(t, s, bar, 0)          # track only; draw_page animates the segment live
             self._live_bar = bar
-        r = W.text(t, s, sub, x, bar.bottom + t.xs, t.f_small, color=t.dim, maxw=maxw)
-        return r.bottom + t.md
+        lr = W.text(t, s, label, x, base, t.f_btn, anchor="baseleft")
+        room = max(0, bar.right - lr.right - t.md)
+        if t.f_small.size(info)[0] > room:          # too tight (Deck): drop the last detail
+            info = info.rsplit("  ·  ", 1)[0]
+        W.text(t, s, info, bar.right, base, t.f_small, color=t.dim, anchor="baseright", maxw=room)
 
     def draw_overlay(self, s):
         if self.overlay[0] == "viewer":
