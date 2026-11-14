@@ -491,7 +491,9 @@ class App:
         self.inp.flush()
         self.go_game(self.lib.by_id(g["id"]) or g)
         if runner.crashed(rc, secs):
-            self.say(f"{g['title']} closed right after starting. Details are in its log.",
+            hint = runner.crash_hint(slug_of(g))
+            log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
+            self.say(hint or f"{g['title']} closed right after starting. Details are in its log.",
                      error=True)
 
     def _transition(self):

@@ -105,3 +105,18 @@ def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=No
 
 def crashed(rc, secs):
     return rc is None or (rc != 0 and secs < CRASH_S) or secs < 3
+
+
+HINTS = (  # (text in the game's log, what to tell the user)
+    ("rand_util_win.cc", "This game needs a newer GE-Proton (9 or later). Install it with "
+                         "ProtonUp-Qt in Desktop Mode; scritch uses the newest one."),
+)
+
+
+def crash_hint(slug):
+    """A known cause found in the game's log, or None."""
+    try:
+        text = (paths.LOGS / "games" / f"{slug}.log").read_text(errors="replace")[-20000:]
+    except OSError:
+        return None
+    return next((msg for needle, msg in HINTS if needle in text), None)

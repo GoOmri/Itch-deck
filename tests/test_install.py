@@ -438,3 +438,40 @@ def test_program_picker_choice(tmp_path, server):
     import json
     saved = json.loads((tmp_path / "games/quiet-quarry/install.json").read_text())
     assert saved["exe"] == "q/editor" and saved["exe_chosen"]
+
+
+def test_crash_hint_old_proton(tmp_path):
+    from itch_deck import runner
+    paths.use_root(tmp_path)
+    (paths.LOGS / "games").mkdir(parents=True)
+    (paths.LOGS / "games/pm.log").write_text("[1114/205806.280:FATAL:rand_util_win.cc(60)] Check failed: hmod.\n")
+    assert "GE-Proton" in runner.crash_hint("pm")
+    assert runner.crash_hint("nope") is None
+
+
+def test_pad_kept_by_instance_id():
+    from itch_deck import input as inp
+
+    class J:
+        def __init__(self, i): self.i = i
+        def get_instance_id(self): return 7          # instance ids grow after a display re-open
+        def get_guid(self): return "g"
+
+    class C:
+        def __init__(self, i): self.id, self.name = i, "DualSense"
+
+    class Ctl:
+        Controller = C
+        @staticmethod
+        def is_controller(i): return True
+
+    class PG:
+        class joystick:
+            Joystick = J
+            @staticmethod
+            def get_count(): return 1
+
+    o = object.__new__(inp.Input)
+    o.pg, o.ctl, o.pads = PG, Ctl, {}
+    o.rescan(); o.rescan(); o.rescan()
+    assert list(o.pads) == [7]

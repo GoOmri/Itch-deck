@@ -48,7 +48,9 @@ class Input:
                 return
             if self.ctl.is_controller(index):
                 c = self.ctl.Controller(index)
-                self.pads[c.id] = c
+                self.pads[iid] = c         # by instance id, like the dedupe above and REMOVED
+                                           # events (c.id is not it: after a game run the pad
+                                           # was re-opened every 2 s)
                 guid = ""
                 try:
                     guid = self.pg.joystick.Joystick(index).get_guid()

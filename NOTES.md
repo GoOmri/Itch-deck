@@ -247,6 +247,16 @@ v0.5.3: collections sync. After owned keys: GET /profile/collections, then per c
   free games added, M paid skipped". Panzer Marshal is in Omri's "cats" collection = test game.
   Not handled: Inno split installers (setup.exe + setup-1.bin as separate uploads, e.g. Stranger More).
 
+v0.5.3 Deck test 14 Nov (Panzer Marshal via "cats" collection): collections sync ✓ ("cats" -> 3
+  free games). NSIS silent install ✓ (3.2.13 x64-Setup.exe, /S /D=, exit 0 after 69 s, exe
+  "Panzer Marshal.exe" found). Play ✗: Chromium/Electron FATAL rand_util_win.cc "Check failed:
+  hmod" (ProcessPrng / bcryptprimitives missing) under GE-Proton8-11, the newest on the Deck ->
+  needs GE-Proton 9+. Also: after returning from a game, "pad added: DualSense" every 2 s:
+  Input._add stored pads under c.id but deduped by joystick instance id.
+Branch pad-fix-proton-hint (NOT released, waiting for Omri): pads keyed by instance id;
+  runner.crash_hint(slug) reads the game log for known causes (rand_util_win.cc -> "needs a
+  newer GE-Proton (9 or later)"), shown instead of the generic crash toast.
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so
