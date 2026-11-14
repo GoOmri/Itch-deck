@@ -257,6 +257,12 @@ v0.5.4 (released 14 Nov, branch pad-fix-proton-hint): pads keyed by instance id;
   runner.crash_hint(slug) reads the game log for known causes (rand_util_win.cc -> "needs a
   newer GE-Proton (9 or later)"), shown instead of the generic crash toast.
 
+v0.5.4 Deck 14 Nov: Omri installed GE-Proton11-12 (Settings picked it) -> Panzer Marshal runs
+  (title screen, new game) = M5 installer path works end to end. No input from Deck pad or
+  DualSense: the game is mouse/touch only (itch: "Inputs: Mouse, Touchscreen"), and the tile's
+  Steam Input layout is plain Gamepad (pitfall #5). Workarounds: Deck touchscreen; tile layout
+  "Gamepad with Mouse Trackpad". Real fix later = per-game Steam tile with its own layout.
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so
