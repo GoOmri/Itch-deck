@@ -14,6 +14,8 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - UI must follow the "Design pass" rules below: W.button (grey, focus lights up, accent=True only for the page's main action: Install/Play/Update),
   W.tag for labels, 5 theme font sizes, purple only for progress/state, t.dim for readable grey,
   app name = W.APP_NAME ("scritch").
+- Versions (Omri 14 Nov): middle number = milestone (0.6.x = M6), last number = each release
+  inside it. M6 = mouse mode (0.6.0) + Settings polish, error messages, README (0.6.x).
 - Write what you changed in NOTES.md before pushing, so the next chat knows.
 - Real data for mockups: `python run.py --render-mockups DIR --real DATA` renders with Omri's real
   library (covers, pages, screenshots); random game, or SCRITCH_GAME=<title or id>. DATA = unzipped
