@@ -400,7 +400,9 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=Fal
     no outline. accent=True (Play, Update only) = purple; focused it lights up to bright accent."""
     key = key or ("btn", label)
     k = anim(key, 1.0 if focused else 0.0)          # eased focus amount
-    if accent and enabled:
+    if accent == "danger" and enabled:             # Quit / Uninstall: red (Omri)
+        fill, col = mix(t.danger_btn, t.error, k), t.text_c
+    elif accent and enabled:
         fill, col = mix(t.accent_btn, t.accent, k), t.text_c
     elif not enabled:
         fill, col = mix(t.panel, t.panel_hi, k), t.faint
@@ -658,7 +660,9 @@ def modal(t, s, title, body, buttons=None, focus=0):
     for ln in lines:
         y = text(t, s, ln, r.x + pad, y, t.f_body, color=t.dim).bottom
     if buttons:
-        button_row(t, s, r.x + pad, y + t.lg, [(b, None, True, False) for b in buttons], focus)
+        button_row(t, s, r.x + pad, y + t.lg,       # the action is red, Cancel grey
+                   [(b, None, True, "danger" if i == 0 else False) for i, b in enumerate(buttons)],
+                   focus)
     return r
 
 

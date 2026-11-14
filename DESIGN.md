@@ -12,7 +12,8 @@ there first, then use it.
 - **One purple button per page: its main action** (like Steam, PS5, Xbox): Install (or Retry
   install) when not installed, Play when installed, Update / Restart when an update is waiting.
   While downloading there is none: the progress bar is the purple thing, Cancel stays grey.
-- **Red** means *error*, nothing else.
+- **Red** means *error*, or an action that deletes or closes (Quit, Uninstall buttons in
+  their dialogs). Nothing else.
 - **Everything else is neutral.** Background: blue→purple gradient. Surfaces: cool navy greys
   (`panel`, `panel_hi`).
 - **Three text colours only:** `text_c` (content), `dim` (secondary), `faint` (disabled only).
