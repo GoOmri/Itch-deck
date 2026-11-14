@@ -29,6 +29,9 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
 - API key: typed/pasted into Setup field via RustDesk in Desktop Mode (run with --windowed). Never in repo.
 - While a game runs, the app closes its display (pygame.display.quit) and reopens after.
 
+## Token usage log (Omri's Pro plan %, as he reports it — add a line each time)
+- 2026-11-14 00:08 — 72% at start of M0 build (planning + M0 in one chat)
+
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while
   our display is closed (display.quit -> child window up, and child exit -> display reopen).
