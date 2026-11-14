@@ -14,6 +14,7 @@ class Library(Scene):
         self.syncing, self.sync_page = syncing, sync_page   # None | "first" | "bg"
         self.offline_since = offline_since
         self.offline = offline          # True with no cache yet: nothing to show
+        self.activity = None            # "Covers 40/120", "Downloading 45% · Game"… (top bar)
 
     @property
     def shown(self):
@@ -75,8 +76,12 @@ class Library(Scene):
             right = W.offline_mark(t, s, right, cy, self.offline_since)
         rr = W.text(t, s, f"{n} game{'s' if n != 1 else ''}", right, cy, t.f_small,
                     color=t.dim, anchor="midright")
-        if self.syncing == "bg":
-            W.spinner(t, s, (int(rr.x - t.u * 2.5), int(cy)), int(t.u * 1.2), 0.15)
+        act = self.activity or ("Refreshing library" if self.syncing == "bg" else None)
+        if act:                         # background work, hidden when done
+            sep = W.text(t, s, "·", rr.x - t.u * 1.5, cy, t.f_small, color=t.faint, anchor="midright")
+            ar = W.text(t, s, act, sep.x - t.u * 1.5, cy, t.f_small, color=t.dim, anchor="midright",
+                        maxw=int(t.w * 0.38))
+            W.spinner(t, s, (int(ar.x - t.u * 2.5), int(cy)), int(t.u * 1.2), 0.15)
         return int(cy + t.u * 6)
 
     def _center_msg(self, s, y, title, sub, spinner=False, refresh=False):

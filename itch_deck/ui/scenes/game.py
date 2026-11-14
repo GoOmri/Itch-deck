@@ -88,8 +88,6 @@ class Game(Scene):
             return [("B", "Back")]
         # Steam order: extra actions first, then A, with B always last (far right)
         h = [("L1", ""), ("R1", "Prev / next game")]
-        if self.phase or self.g.get("state") in ("downloading", "queued"):
-            h.append(("X", "Hold to cancel"))
         if self.actions():
             h.append(("A", "Select"))
         return h + [("B", "Back")]
@@ -111,7 +109,9 @@ class Game(Scene):
         g = self.g
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
                g.get("cover_file"), self.section, self.focus, self.shot, bool(self.overlay),
-               self.offline, self.phase, getattr(self, "_end", 0))
+               self.offline, self.phase, self.fail_reason, self.install_path,
+               round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
+               getattr(self, "_end", 0))
         if getattr(self, "_page_key", None) != key:   # re-layout only when something changed
             need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)
             canvas = pg.Surface((t.w, need), pg.SRCALPHA)  # transparent: gradient shows through

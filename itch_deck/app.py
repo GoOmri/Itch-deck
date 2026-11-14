@@ -1,4 +1,4 @@
-"""itch-deck: scene switching, key import, library sync. (M2: real library, no installs yet.)"""
+"""itch-deck: scene switching, key import, library sync, installs (M3: Linux builds)."""
 import argparse
 import logging
 import os
@@ -7,18 +7,19 @@ import sys
 import threading
 import time
 
-from . import config, net, paths, theme
+from . import config, net, paths, runner, theme
 from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1,
                     TEXT, BKSP, ENTER, PASTE)
+from .installer import Installer, slug_of
 from .library import Library, short_date
 from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.2.6"
+VERSION = "0.3.0"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
-LATER = "Installing comes in the next update."
+LATER = "Choosing a build comes in a later update."
 
 
 def setup_logging():
@@ -44,6 +45,8 @@ class App:
         self.cfg = config.load()
         key = self.cfg.get("api_key")
         self.lib = Library(ItchStore(key) if key else None)
+        self.inst = Installer(self.lib, lambda: config.install_root(self.cfg))
+        self.on_confirm = None          # what A does on the open confirm dialog (None = Quit)
         self.running = True
         self.scene, self.kind = None, None
         self.toast_until = 0
@@ -61,6 +64,7 @@ class App:
             self.go_library()
             self.lib.queue_covers()
             self.lib.start_sync()
+            self.inst.resume()
         else:
             self.go_setup("waiting")
 
@@ -197,9 +201,14 @@ class App:
     # --- per-scene input -----------------------------------------------
     def handle(self, act):
         sc = self.scene
-        if sc.overlay and sc.overlay[0] == "confirm":     # only Quit uses it in M2
+        if sc.overlay and sc.overlay[0] == "confirm":
             if act == A:
-                self.running = False
+                fn = self.on_confirm if sc.overlay is not QUIT_DLG else None
+                sc.overlay = None
+                if fn:
+                    fn()
+                else:
+                    self.running = False
             elif act == B:
                 sc.overlay = None
             return
@@ -284,10 +293,71 @@ class App:
             self.go_settings()
         elif act == A and sc.section == "actions":
             acts = sc.actions()
-            if acts and acts[sc.focus][2]:
-                self.say(LATER)
+            if acts and acts[min(sc.focus, len(acts) - 1)][2]:
+                self.game_action(sc.g, acts[min(sc.focus, len(acts) - 1)][0])
         elif not isinstance(act, tuple):
             sc.handle(act)
+
+    # --- install / play ------------------------------------------------
+    def confirm(self, title, body, yes, fn):
+        self.on_confirm = fn
+        self.scene.overlay = ("confirm", title, body, [("A", yes), ("B", "Cancel")])
+
+    def game_action(self, g, label):
+        gid = g["id"]
+        if label in ("Install", "Retry install"):
+            if "linux" not in g["platforms"]:
+                self.say("Windows games can be installed in the next update.")
+            elif self.inst.enqueue(g):
+                if self.inst.current and self.inst.current != gid:
+                    self.say("Queued. It starts after the current download.")
+        elif label == "Cancel install":
+            self.confirm("Cancel the install?", f"{g['title']} stops downloading and the partial "
+                         "download is deleted.", "Cancel install", lambda: self.inst.cancel(gid))
+        elif label == "Uninstall":
+            self.confirm(f"Uninstall {g['title']}?", "The game's files are deleted. You can "
+                         "install it again any time.", "Uninstall", lambda: self._uninstall(g))
+        elif label == "Play":
+            self.play(g)
+        else:
+            self.say(LATER)
+
+    def _uninstall(self, g):
+        self.inst.uninstall(g["id"])
+        self.scene.focus = 0
+        self.say(f"{g['title']} was uninstalled.")
+
+    def play(self, g):
+        exe = self.inst.exe_path(g["id"])
+        if not exe or not exe.exists():
+            self.say("The game's files are missing. Uninstall and install it again.", error=True)
+            return
+        pg = self.pg
+        self.scene.toast, self.toast_until = None, 0
+        self._splash(f"Starting {g['title']}…")
+        state = {"closed": False}
+
+        def release():                       # after the overlap: the game has its window up
+            if not state["closed"]:
+                state["closed"] = True
+                pg.display.quit()
+
+        rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump)
+        if state["closed"]:
+            self.open_display()
+            self._splash("Returning…")
+        self.inp.flush()
+        self.go_game(self.lib.by_id(g["id"]) or g)
+        if runner.crashed(rc, secs):
+            self.say(f"{g['title']} closed right after starting. Try Change build.", error=True)
+
+    def _splash(self, msg):
+        """One plain frame while the screen changes hands (less of Steam's UI flickers through)."""
+        from .ui import widgets as W
+        t = self.t
+        self.screen.blit(W.backdrop(t), (0, 0))
+        W.text(t, self.screen, msg, t.cx, t.h / 2, t.f_h2, anchor="center")
+        self.pg.display.flip()
 
     def _h_settings(self, act):
         sc = self.scene
@@ -326,7 +396,19 @@ class App:
         sc.syncing, sc.sync_page = self.lib.syncing, self.lib.page
         sc.offline_since = self.lib.offline_since if self.lib.games else None
         sc.offline = self.lib.offline and not self.lib.games
+        sc.activity = self._activity()
         sc.focus = max(0, min(sc.focus, len(sc.shown) - 1))
+
+    def _activity(self):
+        """Top-bar background work: a running download first, then sync/covers/details."""
+        gid = self.inst.current
+        g = self.lib.by_id(gid) if gid else None
+        if g and g.get("state") == "downloading":
+            more = len(self.inst.queue) - 1
+            what = "Unpacking" if g.get("phase") == "extract" else \
+                f"Downloading {int(g.get('progress', 0) * 100)}%"
+            return f"{what} · {g['title']}" + (f" (+{more})" if more > 0 else "")
+        return self.lib.activity()
 
     def update(self):
         now = time.time()
@@ -354,10 +436,29 @@ class App:
         elif self.kind == "settings":
             self.scene.v["update"] = self.updater.row_value()
         elif self.kind == "game":
-            self.scene.offline = self.lib.offline
-            g = self.lib.by_id(self.scene.g["id"])
-            if g is not None and g is not self.scene.g:   # list replaced by a sync
-                self.scene.g = g
+            sc = self.scene
+            sc.offline = self.lib.offline
+            g = self.lib.by_id(sc.g["id"])
+            if g is not None and g is not sc.g:   # list replaced by a sync
+                sc.g = g
+            g = sc.g
+            st = g.get("state")
+            sc.phase = g.get("phase") if st == "downloading" else None
+            sc.fail_reason = g.get("fail_reason")
+            inst = self.inst.index.get(g["id"])
+            sc.install_path = inst["dir"] if inst else None
+            n = len(sc.actions())
+            sc.focus = max(0, min(sc.focus, n - 1))
+            if sc.overlay and sc.overlay[0] == "confirm" and sc.overlay is not QUIT_DLG and (
+                    (st not in ("queued", "downloading") and sc.overlay[1].startswith("Cancel"))):
+                sc.overlay = None                 # the download finished under the dialog
+        while self.inst.events:
+            kind, gid, msg = self.inst.events.pop(0)
+            on_page = self.kind == "game" and self.scene.g["id"] == gid
+            if kind == "failed" and not on_page:
+                self.say(msg, error=True)
+            elif kind == "done" and not on_page:
+                self.say(msg)
 
     def run(self, max_frames=None, script=None):
         clock = self.pg.time.Clock()
@@ -395,6 +496,20 @@ def selftest(screenshot=None):
     app.go_library()
     steps = [RIGHT, DOWN, X, X, A, DOWN, DOWN, UP, UP, R1, L1, A, START, DOWN, B, B, Y, START, B]
     app.run(max_frames=len(steps) * 2 + 2, script={i * 2: s for i, s in enumerate(steps)})
+    # Play: a fake installed game (a tiny script) -> display released, game runs, display back
+    app = App(windowed=True)
+    app.lib.games = [dict(g) for g in fake.library()]
+    g = next(g for g in app.lib.games if g.get("state") == "installed")
+    d = paths.HOME / "games" / "fake"
+    (d / "files").mkdir(parents=True, exist_ok=True)
+    (d / "files" / "run.sh").write_text("#!/bin/sh\necho hello from the game LD=$LD_LIBRARY_PATH\n")
+    (d / "files" / "run.sh").chmod(0o755)
+    app.inst.index[g["id"]] = {"dir": str(d), "exe": "run.sh"}
+    app.go_game(g)
+    app.run(max_frames=4, script={1: A})
+    out = (paths.LOGS / "games" / f"{slug_of(g)}.log").read_text()
+    assert app.kind == "game" and "hello" in out
+    assert "_MEI" not in out, "game inherited PyInstaller's LD_LIBRARY_PATH"
     if screenshot:
         import pygame
         pygame.init()

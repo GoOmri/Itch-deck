@@ -60,7 +60,8 @@ class Input:
 
     def flush(self):
         self.pg.event.clear()
-        self.stick_dir = self.btn_dir = None
+        self.stick_dir = self.btn_dir = self.page_held = None
+        self.trig = {}
 
     def set_text_mode(self, on):
         self.text_mode = on

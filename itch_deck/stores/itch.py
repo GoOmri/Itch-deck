@@ -53,6 +53,46 @@ def game_from_key(k):
     }
 
 
+def parse_uploads(data):
+    """/games/{id}/uploads -> list of upload dicts (same list/object quirk as owned_keys)."""
+    ups = data.get("uploads") if isinstance(data, dict) else None
+    if isinstance(ups, dict):
+        ups = list(ups.values())
+    out = []
+    for u in ups or []:
+        if not isinstance(u, dict) or "id" not in u:
+            continue
+        tr = set(u.get("traits") or [])
+        out.append({
+            "id": u["id"], "filename": u.get("filename") or u.get("display_name") or f"upload-{u['id']}",
+            "name": u.get("display_name") or u.get("filename") or "",
+            "size": int(u.get("size") or 0), "type": u.get("type") or "default",
+            "storage": u.get("storage") or "hosted",
+            "demo": bool(u.get("demo")) or "demo" in tr,
+            "linux": bool(u.get("p_linux")) or "p_linux" in tr,
+            "windows": bool(u.get("p_windows")) or "p_windows" in tr,
+            "updated": u.get("updated_at") or u.get("created_at") or "",
+        })
+    return out
+
+
+_BAD_ARCH = ("arm", "aarch64", "i386", "i686", "x86_32", "32bit", "32-bit", "linux32")
+
+
+def pick_build(uploads, platform="linux"):
+    """Pitfall #3 rules: skip soundtracks/books/other-OS/external links, prefer full game over
+    demo, 64-bit over 32-bit/ARM, then the newest. Returns (best, other candidates)."""
+    c = [u for u in uploads if u[platform] and u["type"] == "default" and u["storage"] != "external"]
+    if not c:
+        return None, []
+
+    def score(u):
+        n = u["filename"].lower()
+        return (not u["demo"], not any(b in n for b in _BAD_ARCH), u["updated"], u["size"])
+    c.sort(key=score, reverse=True)
+    return c[0], c[1:]
+
+
 class ItchStore(Store):
     name = "itch"
 
@@ -79,3 +119,17 @@ class ItchStore(Store):
                     games.append(g)
         log.info("itch sync: %d games over %d page(s)", len(games), page - 1)
         return games
+
+    def list_builds(self, game):
+        q = f"?download_key_id={game['download_key_id']}" if game.get("download_key_id") else ""
+        ups = parse_uploads(net.get_json(f"{API}/games/{game['id']}/uploads{q}", self.key))
+        log.info("uploads %s: %s", game["id"], [(u["id"], u["filename"], u["type"],
+                                                "L" if u["linux"] else "", "W" if u["windows"] else "")
+                                               for u in ups])
+        return ups
+
+    def download_url(self, game, build):
+        """itch redirects this to the file on its CDN (same URL butler uses). The key goes in an
+        unredirected header so the CDN never sees it."""
+        q = f"?download_key_id={game['download_key_id']}" if game.get("download_key_id") else ""
+        return f"{API}/uploads/{build['id']}/download{q}"

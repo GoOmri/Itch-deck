@@ -5,6 +5,11 @@ from pathlib import Path
 SIZES = [(1280, 800), (1920, 1080)]
 
 
+def _act(scene, text):
+    scene.activity = text
+    return scene
+
+
 def _shots(t, version):
     from . import fake
     from .ui.scenes.game import Game
@@ -42,6 +47,8 @@ def _shots(t, version):
         ("03_library_first_sync", Library(t, lib, syncing="first", sync_page=3)),
         ("04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
         ("05_library_scrolled", Library(t, lib, focus=n - 2)),
+        ("05b_library_downloading", _act(Library(t, lib, focus=1), "Downloading 42% · Quiet Quarry (+1)")),
+        ("05c_library_covers", _act(Library(t, lib, focus=1), "Covers 40/120")),
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
         ("08_library_empty", Library(t, [])),

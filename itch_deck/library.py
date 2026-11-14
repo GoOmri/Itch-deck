@@ -68,6 +68,8 @@ class Library:
         self._seq = itertools.count()
         self._queued = set()
         self._worker = None
+        self.installs, self.live = {}, {}   # set by Installer: install index, in-progress fields
+        self.jobs = {"cover": [0, 0], "page": [0, 0]}   # [done, total] for the top-bar indicator
         self.load_cache()
 
     # --- cache ------------------------------------------------------------------
@@ -91,7 +93,20 @@ class Library:
         for f in paths.COVERS.glob(f"{g['id']}.*") if paths.COVERS.exists() else []:
             g["cover_file"] = str(f)
             break
+        self._apply_install(g)
         return g
+
+    def _apply_install(self, g):
+        inst = self.installs.get(g["id"])
+        if inst and Path(inst["dir"]).exists():
+            g["state"], g["size_mb"] = "installed", inst.get("size", 0) // 1_000_000
+        elif g.get("state") == "installed":
+            g["state"] = None
+        g.update(self.live.get(g["id"], {}))
+
+    def apply_installs(self):
+        for g in self.games:
+            self._apply_install(g)
 
     def save_cache(self):
         keep = ("id", "title", "author", "cover_url", "url", "short_text", "platforms",
@@ -122,10 +137,11 @@ class Library:
             new = []
             for r in raw:
                 g = self._prep(r)
-                for k in ("state", "size_mb", "description", "comments", "comment_count",
+                for k in ("size_mb", "description", "comments", "comment_count",
                           "screens", "shot_files", "details_at"):
                     if k in old.get(g["id"], {}):
                         g[k] = old[g["id"]][k]
+                self._apply_install(g)          # after the copy: install state wins
                 new.append(g)
             new.sort(key=lambda g: g["title"].lower())
             self.games = new
@@ -152,6 +168,7 @@ class Library:
         if (kind, gid) in self._queued:
             return
         self._queued.add((kind, gid))
+        self.jobs[kind][1] += 1
         self._q.put((prio, next(self._seq), kind, gid))
         if not self._worker or not self._worker.is_alive():
             self._worker = threading.Thread(target=self._work, daemon=True, name="jobs")
@@ -176,6 +193,7 @@ class Library:
             self._queued.discard((kind, gid))
             g = self.by_id(gid)
             if not g or (self.offline and prio > 0):
+                self._job_done(kind)
                 continue
             if kind == "page":
                 g["details_loading"] = True
@@ -197,8 +215,27 @@ class Library:
                 log.exception("%s %s failed", kind, gid)
             finally:
                 g.pop("details_loading", None) if kind == "page" else None
+                self._job_done(kind)
             if prio >= 5:
                 time.sleep(1.5)   # background prefetch: go easy on itch.io
+
+    def _job_done(self, kind):
+        j = self.jobs[kind]
+        j[0] += 1
+        if j[0] >= j[1]:            # batch finished: hide the indicator
+            j[0] = j[1] = 0
+
+    def activity(self):
+        """Short top-bar text for background work, or None when idle."""
+        if self.syncing == "bg":
+            return "Refreshing library"
+        done, total = self.jobs["cover"]
+        if total > 1:
+            return f"Covers {done}/{total}"
+        done, total = self.jobs["page"]
+        if total > 1:
+            return f"Game details {done}/{total}"
+        return None
 
     def _fetch_cover(self, g):
         url = g["cover_url"]

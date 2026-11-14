@@ -34,14 +34,27 @@ v0.2.6 (Omri): button labels centred; Settings Update row = info text + purple p
   toggles, hidden from hints); L2/R2 held repeat at FAST_MS (300, 85) = several speeds:
   D-pad 170 ms/step, triggers 3 rows per 85 ms. Game page L1/R1 still prev/next game.
 M2 — DONE 14 Nov (v0.2.6 on Deck, all ✓).
-Next: M3 native install — Omri approved starting it (new chat). Include the loading indicator above.
-  M3 also: visible background-loading indicator in the library top bar, e.g. "Covers 40/120"
-  (and page-details prefetch progress), hidden when done. Omri asked 14 Nov.
+M3 native install — v0.3.0 built 14 Nov, NOT yet tested on Deck. Linux builds only.
+  installer.py: queue (one at a time, data/queue.json, resumed at launch) -> uploads -> pick_build
+  (stores/itch.py: skip non-default/external, full > demo, 64-bit > 32/ARM, newest) -> space check
+  (size × 2.5) -> net.download (Range resume from _downloads/<gid>-<upload>-<file>.part, key in an
+  unredirected header, cancel flag) -> extract to files.new (zip keeps exec bits, tar filter=data,
+  7z only if py7zr, bare AppImage/ELF copied) -> find_exe (ELF header x86_64, name ~ title/slug,
+  shallow; SKIP_EXE list; chmod +x all ELF/scripts) -> files/ + install.json + data/installed.json.
+  Install state lives in lib.live too, so a sync can't drop it. Uninstall: index first, rmtree in bg.
+  runner.py: child env drops PyInstaller's LD_LIBRARY_PATH (selftest asserts no _MEI); game output
+  -> logs/games/<slug>.log. Flicker experiment: our window stays up OVERLAP_S=1 s after the child
+  starts, then display.quit; "Starting…"/"Returning…" splash frames. Crash toast: rc≠0 <15 s or <3 s.
+  Top bar: "Downloading 42% · Game (+N)" / "Refreshing library" / "Covers 40/120" / "Game details
+  12/90" (Library.jobs counters), hidden when idle. Windows-only -> "next update" message.
+  If broken on Deck, check app.log "install <id>:", "uploads <id>:", "play:".
+Next: Deck test M3 (checklist in chat 14 Nov), then M4 (umu + GE-Proton).
 
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
   per-scene _h_<kind>() input. Flags: --windowed, --selftest (fake data, temp dirs), --render-mockups.
-  M0 child-launch test removed; runner.py comes in M3. Install/Change build just toast in M2.
+  Install/Cancel/Play/Uninstall via game_action(); confirm(title, body, yes, fn) dialog.
+  Change build = toast until M5 (picker).
 - config.py (chmod 600, install_root: SD else ~/Games/itch, proton_versions), net.py (urllib +
   certifi; Offline/AuthError), stores/itch.py (owned-keys, quirk, dedupe), stores/itch_page.py
   (HTML -> description/shots/comments, tolerant), library.py (cache, sync thread, job queue:
@@ -102,6 +115,7 @@ Next: M3 native install — Omri approved starting it (new chat). Include the lo
 - 2026-11-14 11:24 — 73% → 76% for M1 mockups (+ logging M0 Deck results) = 3%
 - 2026-11-14 12:01 — 80% → 81% for M2 build = 1%
 - 2026-11-14 15:23 — 82% after M2 fixes v0.2.1–0.2.3 (+ self-update); v0.2.4 feel pass starts here
+- 2026-11-14 16:39 — 83% at start of M3 build
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while
