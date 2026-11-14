@@ -69,7 +69,14 @@ v0.3.2: runner.child_env strips every /_MEI entry (also *_ORIG), updater execve 
   launch options), since Bleed 2 (GL) works.
 Design pass (own session, Omri 14 Nov): one consistent graphic language — e.g. Settings Update
   button is a pill, should match the standard button. Collect items here until then.
-Next: Deck retest v0.3.2 (Figment after fresh launch, hotplug pad, unpack animation), then M4.
+v0.3.2 Deck test 14 Nov: pad hotplug ✓, extracting animation ✓. Figment now gets past Vulkan
+  (Mesa GL threads up), black screen, then SIGSEGV in game code -> Mono abort, exit -6 after 6 s.
+  Not our libs any more. Unknown if it runs at all on SteamOS: test it as its own non-Steam shortcut.
+  Unity's real error is in ~/.config/unity3d/<company>/Figment/Player.log. Ideas for M5 per-game
+  launch options: -force-glcore, -screen-fullscreen 0, -screen-width 1280 -screen-height 800;
+  also try OVERLAP_S=0 (our window still up when Unity picks its resolution?).
+M3 — DONE 14 Nov (Bleed 2 installs, plays, uninstalls from the pad). Figment = known issue -> M5.
+Next: M4 (umu + GE-Proton) in a new chat.
 
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
