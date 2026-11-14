@@ -73,6 +73,7 @@ def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=No
         try:
             cmd = command(exe, size, umu)
             env = child_env()
+            env.setdefault("APPIMAGE_EXTRACT_AND_RUN", "1")   # AppImage left packed: no FUSE needed
             if extra_env:
                 env.update(extra_env)
                 env.pop("PYTHONHOME", None)            # umu-run is a Python zipapp
@@ -110,6 +111,7 @@ def crashed(rc, secs):
 HINTS = (  # (text in the game's log, what to tell the user)
     ("rand_util_win.cc", "This game needs a newer GE-Proton (9 or later). Install it with "
                          "ProtonUp-Qt in Desktop Mode; scritch uses the newest one."),
+    ("libfuse", "This game is an AppImage that couldn't start. Uninstall and install it again."),
 )
 
 

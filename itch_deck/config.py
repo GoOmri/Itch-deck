@@ -76,6 +76,20 @@ def drive_name(path):
     return "SD card" if on_card(path) else "internal storage"
 
 
+def pin_install_root(cfg, installed_dirs=()):
+    """Remember the SD card as the install location the first time we see it (or infer it from
+    games already installed on a card). Without this, a card that's out made installs quietly go
+    to internal storage instead of failing with "SD card missing". True if cfg changed."""
+    if cfg.get("install_root"):
+        return False
+    sd = sd_card()
+    root = (sd / "itch") if sd else next((Path(d).parent for d in installed_dirs if on_card(d)), None)
+    if root is None:
+        return False
+    cfg["install_root"] = str(root)
+    return True
+
+
 def install_root(cfg):
     if cfg.get("install_root"):
         return Path(cfg["install_root"])

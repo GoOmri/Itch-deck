@@ -17,7 +17,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 QUIT_DLG = ("confirm", "Quit SCRiTCH?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Comes in a later update."
@@ -47,6 +47,7 @@ class App:
         key = self.cfg.get("api_key")
         self.lib = Library(ItchStore(key) if key else None)
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
+        self._pin_root()
         self.picker = None              # (gid, builds) behind an open Change build picker
         self._progs = []                # program picker rows (relative exe paths)
         self.next_mount_check = 0
@@ -634,8 +635,15 @@ class App:
             return f"{what} · {g['title']}" + (f" (+{more})" if more > 0 else "")
         return self.lib.activity()
 
+    def _pin_root(self):
+        if not self.cfg.get("install_root") and config.pin_install_root(
+                self.cfg, [i["dir"] for i in self.inst.index.values() if i.get("dir")]):
+            config.save(self.cfg)
+            log.info("install root pinned: %s", self.cfg["install_root"])
+
     def _check_mounts(self):
         """Installed games whose folder appeared or vanished (SD card) get their state again."""
+        self._pin_root()                    # a card inserted later becomes the install location
         for g in self.lib.games:
             info = self.inst.index.get(g["id"])
             if info and g.get("state") in ("installed", "missing") and \

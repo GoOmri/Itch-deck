@@ -475,3 +475,37 @@ def test_pad_kept_by_instance_id():
     o.pg, o.ctl, o.pads = PG, Ctl, {}
     o.rescan(); o.rescan(); o.rescan()
     assert list(o.pads) == [7]
+
+
+def test_pin_install_root(tmp_path, monkeypatch):
+    from itch_deck import config
+    media = tmp_path / "media"
+    monkeypatch.setattr(config, "MEDIA", media)
+    monkeypatch.setattr(config, "sd_card", lambda: None)
+    cfg = {}
+    assert not config.pin_install_root(cfg, [str(tmp_path / "home/Games/itch/x")])  # internal only
+    assert not cfg                                  # no card seen yet: default stays
+    assert config.pin_install_root(cfg, [str(media / "deck/SD/itch/game")])   # card out, games on it
+    assert cfg["install_root"] == str(media / "deck/SD/itch")
+    assert config.card_missing(config.install_root(cfg))       # -> installs say "SD card missing"
+    monkeypatch.setattr(config, "sd_card", lambda: media / "deck/NEW")
+    assert not config.pin_install_root(cfg)         # already pinned: never moves by itself
+    cfg2 = {}
+    assert config.pin_install_root(cfg2) and cfg2["install_root"] == str(media / "deck/NEW/itch")
+
+
+def test_appimage_unpack(tmp_path):
+    img = tmp_path / "game.bin"
+    img.write_bytes(b"\x7fELF\x02\x01\x01\x00AI\x02" + b"\0" * 32)
+    assert installer.is_appimage(img)
+    assert not installer.is_appimage(tmp_path / "nope")
+    # stand-in AppImage: a script that does what --appimage-extract does
+    img.write_text("#!/bin/sh\n[ \"$1\" = --appimage-extract ] || exit 3\n"
+                   "mkdir -p squashfs-root && printf '#!/bin/sh\\n' > squashfs-root/AppRun\n")
+    img.chmod(0o755)
+    assert installer.unpack_appimage(tmp_path, "game.bin") == "squashfs-root/AppRun"
+    assert not img.exists()
+    bad = tmp_path / "bad.bin"
+    bad.write_text("#!/bin/sh\nexit 1\n")
+    bad.chmod(0o755)
+    assert installer.unpack_appimage(tmp_path, "bad.bin") == "bad.bin" and bad.exists()

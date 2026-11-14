@@ -143,6 +143,42 @@ def _elf(path):
     return True, machine == 0x3E
 
 
+def is_appimage(path):
+    """ELF with the AppImage magic ("AI" + type) at offset 8."""
+    try:
+        with open(path, "rb") as f:
+            h = f.read(11)
+    except OSError:
+        return False
+    return h[:4] == b"\x7fELF" and h[8:11] in (b"AI\x01", b"AI\x02")
+
+
+def unpack_appimage(root, exe, timeout=600):
+    """AppImages need libfuse2 to mount themselves, which SteamOS doesn't ship (they exit 127).
+    Unpack it once (--appimage-extract needs no FUSE) and run its AppRun. Returns the new exe
+    (relative to root), or the old one if unpacking fails (the game env then has
+    APPIMAGE_EXTRACT_AND_RUN=1 as a fallback)."""
+    import subprocess
+    from .runner import child_env
+    src = Path(root) / exe
+    out = src.parent / "squashfs-root"
+    shutil.rmtree(out, ignore_errors=True)
+    try:
+        r = subprocess.run([str(src), "--appimage-extract"], cwd=src.parent, env=child_env(),
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=timeout)
+        ok = r.returncode == 0 and (out / "AppRun").exists()
+        err = r.stderr[-300:]
+    except (OSError, subprocess.TimeoutExpired) as e:
+        ok, err = False, e
+    if not ok:
+        log.warning("appimage %s: unpack failed (%s), keeping it as is", exe, err)
+        shutil.rmtree(out, ignore_errors=True)
+        return exe
+    src.unlink()
+    log.info("appimage %s: unpacked", exe)
+    return str((out / "AppRun").relative_to(root))
+
+
 def _script(path):
     try:
         with open(path, "rb") as f:
@@ -454,6 +490,8 @@ class Installer:
                     raise InstallError("The installer finished, but no program to run was found.")
             if not exe:
                 raise InstallError("No program to run was found in the download.")
+            if platform != "windows" and is_appimage(tmp / exe):
+                exe, alts = unpack_appimage(tmp, exe), []
         except (InstallError, proton.ProtonError, net.Cancelled):
             shutil.rmtree(tmp, ignore_errors=True)
             shutil.rmtree(dest / "files.inst", ignore_errors=True)

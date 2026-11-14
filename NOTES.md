@@ -287,6 +287,27 @@ v0.6.0 MOUSE MODE (Omri asked, before M6): itch_deck/mouse.py. While a game runs
   window work; Panzer Marshal playable with right stick + R2.
   Check app.log "mouse mode: on/off (...)". Gallery updated (15, 20, 21, 23, 24).
 
+M5 Deck test (v0.6.0, 14 Nov evening): 1 uninstall + reinstall Panzer Marshal ✓; 2 card out ->
+  SD games missing, Play/Uninstall greyed ✓; 3 ✗ install with card out WORKED, into
+  ~/Games/itch (no install_root in config -> install_root() fell back to internal when no card);
+  4 card back -> playable ✓ ("install <id>: folder back"); 5 no browser games seen (probably none
+  in his library); 6 B -> Settings ✓; 7 design/feel OK for now; 8 Panzer Marshal Linux build
+  (PanzerMarshal_3.2.14_linux_64.bin, bare file) exited 127 after 0 s. Guess: an AppImage, which
+  needs libfuse2 (not on SteamOS) and exits 127 without it. Game log not seen yet.
+v0.6.1 (Omri chose "remember the SD card", 14 Nov): config.pin_install_root saves the SD card
+  (sd_card()/itch, or the root of games already installed on a card) as cfg["install_root"] the
+  first time it's seen: at start and in App._check_mounts (every 2 s). Card out later -> installs
+  fail with "SD card missing". Never moves once set (Settings will change it, M6).
+  AppImages: installer.is_appimage (ELF + "AI\x01/\x02" at offset 8); after find_exe on a Linux
+  build, unpack_appimage runs `<file> --appimage-extract` (no FUSE needed) and the exe becomes
+  squashfs-root/AppRun; on failure it stays packed and runner sets APPIMAGE_EXTRACT_AND_RUN=1 for
+  every game. crash_hint "libfuse" -> "Uninstall and install it again".
+  Deck checklist v0.6.1: 1 Update app. 2 Settings shows the SD card as install location (app.log
+  "install root pinned"). 3 Eject card -> Install any game -> "SD card missing". 4 Card back.
+  5 Panzer Marshal -> Change build -> linux .bin -> Install -> Play (app.log "appimage ...:
+  unpacked"). If 5 fails: send logs/games/panzermarshal.log.
+  Games installed to ~/Games/itch during test 3 (A Good Snowman, Anarcute) stay there and work.
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so
@@ -365,6 +386,7 @@ v0.6.0 MOUSE MODE (Omri asked, before M6): itch_deck/mouse.py. While a game runs
 - 2026-11-14 17:43 — 87% at start of design pass
 - 2026-11-14 18:10 — 88% at start of M4 build
 - 2026-11-14 18:44 — 92% at start of M5 build
+- 2026-11-14 22:07 — v0.6.1 (SD pin + AppImage) after M5 Deck test; % not reported
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while
