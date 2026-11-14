@@ -15,7 +15,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.2.3"
+VERSION = "0.2.4"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Installing comes in the next update."
@@ -52,6 +52,8 @@ class App:
         self.pending_key = None         # key waiting for Retry after "offline"
         self.tried_mtime = None
         self.next_poll = 0
+        from .ui import widgets
+        widgets.LIVE = True                # animate scrolling + spinners (mockups stay still)
         self.updater = Updater(VERSION)
         self.updater.check(quiet=True)     # one GitHub call at launch; Settings shows the result
         self.update_told = False

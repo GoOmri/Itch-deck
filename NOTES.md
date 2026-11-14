@@ -22,6 +22,11 @@ Self-update pulled forward from M6 into v0.2.3 (Omri asked): updater.py checks G
   launch (quiet) + Settings → Update app (A: check / download / restart). Swaps binary in place,
   keeps itch-deck.old; restart = os.execve with PYINSTALLER_RESET_ENVIRONMENT=1. UNTESTED on Deck.
   Rollback by hand: rename itch-deck.old back in Dolphin.
+v0.2.3 Deck test 14 Nov: all ✓ (comments OK on real pages). Spinner was static -> fixed.
+v0.2.4 "feel" pass (Omri asked): hold-to-repeat on D-pad/arrows/stick (300 ms, then 85 ms);
+  smooth eased scrolling (widgets.ease, LIVE flag: app animates, mockups snap) on library grid
+  (scrolls only when focus leaves view) and game page (DOWN steps 0.18 screen in long sections);
+  game page canvas cached by state key (20 ms -> 1.4 ms/frame). First real Update-app test.
 Next: M3 native install (ask Omri before starting).
   M3 also: visible background-loading indicator in the library top bar, e.g. "Covers 40/120"
   (and page-details prefetch progress), hidden when done. Omri asked 14 Nov.
@@ -89,6 +94,7 @@ Next: M3 native install (ask Omri before starting).
 - 2026-11-14 00:08 — 72% at start of M0 build (planning + M0 in one chat)
 - 2026-11-14 11:24 — 73% → 76% for M1 mockups (+ logging M0 Deck results) = 3%
 - 2026-11-14 12:01 — 80% → 81% for M2 build = 1%
+- 2026-11-14 15:23 — 82% after M2 fixes v0.2.1–0.2.3 (+ self-update); v0.2.4 feel pass starts here
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while

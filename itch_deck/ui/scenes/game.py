@@ -61,7 +61,7 @@ class Game(Scene):
         order = ["actions"] + (["shots"] if shots else []) + ["desc"] + \
             (["comments"] if self.g.get("comments") else [])
         if act in (UP, DOWN):
-            off, step = getattr(self, "off", 0), int(self.t.h * 0.35)
+            off, step = getattr(self, "off", 0), int(self.t.h * 0.18)
             if act == DOWN and off < getattr(self, "_max_off", 0):
                 self.off = off + step            # scroll within a long description/comments
                 return
@@ -108,11 +108,19 @@ class Game(Scene):
         """Page is taller than the screen: hero (cover, info, actions), then About
         (screenshots + full description from the itch page). DOWN scrolls into About."""
         t = self.t
-        need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)
-        canvas = pg.Surface((t.w, need), pg.SRCALPHA)  # transparent: gradient shows through
-        self._hero(canvas)
-        about_y = self._top(canvas)
-        desc_y, comments_y = self._about(canvas, about_y)
+        g = self.g
+        key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
+               g.get("cover_file"), self.section, self.focus, self.shot, bool(self.overlay),
+               self.offline, self.phase, getattr(self, "_end", 0))
+        if getattr(self, "_page_key", None) != key:   # re-layout only when something changed
+            need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)
+            canvas = pg.Surface((t.w, need), pg.SRCALPHA)  # transparent: gradient shows through
+            self._hero(canvas)
+            about_y = self._top(canvas)
+            desc_y, comments_y = self._about(canvas, about_y)
+            self._page = (canvas, about_y, desc_y, comments_y)
+            self._page_key = key[:-1] + (getattr(self, "_end", 0),)
+        canvas, about_y, desc_y, comments_y = self._page
         view = t.h - t.hint_h - 2 * t.m          # long sections scroll inside themselves
         self._max_off = {"desc": max(0, comments_y - desc_y - view),
                          "comments": max(0, getattr(self, "_end", 0) - comments_y - view)
@@ -120,7 +128,8 @@ class Game(Scene):
         self.off = min(getattr(self, "off", 0), self._max_off)
         scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m + self.off,
                   "comments": comments_y - t.m + self.off}[self.section]
-        s.blit(canvas, (0, -max(0, scroll)))
+        self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll), speed=14)
+        s.blit(canvas, (0, -int(self._sy[0])))
 
     def _top(self, s):
         t, g = self.t, self.g
@@ -240,6 +249,9 @@ class Game(Scene):
         """Blurred, darkened cover across the top, fading out into the page gradient."""
         t = self.t
         h = int(t.h * 0.75)
+        key = (self.g["id"], self.g.get("cover_file"), t.w, h)
+        if getattr(self, "_hero_key", None) == key:
+            return s.blit(self._hero_img, (0, 0))
         small = pg.transform.smoothscale(W.cover(self.t, self.g, (315, 250)), (24, 14))
         hero = pg.transform.smoothscale(small, (t.w, h))
         dark = pg.Surface((t.w, h), pg.SRCALPHA)
@@ -252,6 +264,7 @@ class Game(Scene):
             a = int(200 * (1 - yy / h) ** 1.4)
             pg.draw.line(mask, (255, 255, 255, a), (0, yy), (t.w, yy))
         out.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+        self._hero_key, self._hero_img = key, out
         s.blit(out, (0, 0))
 
     def _status(self, s, x, y, maxw):

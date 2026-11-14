@@ -6,6 +6,21 @@ import zlib
 import pygame as pg
 
 _cover_cache = {}
+LIVE = False   # True in the running app: animate. False for mockups: draw the end state.
+
+
+def ease(cur, target, speed=16.0):
+    """Frame-rate independent ease-out toward target. Snaps when not LIVE or on first use."""
+    import time
+    now = time.monotonic()
+    if cur is None or not LIVE:
+        return float(target), now
+    val, last = cur
+    k = 1 - math.exp(-speed * min(0.1, now - last))
+    val += (target - val) * k
+    if abs(target - val) < 0.5:
+        val = float(target)
+    return val, now
 
 
 # --- basics -----------------------------------------------------------------
@@ -284,6 +299,9 @@ def ring(t, s, center, r, frac, width=None):
 
 def spinner(t, s, center, r, phase=0.0, width=None):
     width = width or max(3, r // 5)
+    if LIVE:
+        import time
+        phase += time.monotonic() * 1.2
     pg.draw.circle(s, t.panel_hi, center, r, width)
     pts_o, pts_i = [], []
     for i in range(31):

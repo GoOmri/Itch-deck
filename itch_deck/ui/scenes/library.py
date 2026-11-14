@@ -26,7 +26,7 @@ class Library(Scene):
         n, c = len(self.shown), self.t.grid_cols
         if act == X:
             self.filt = "installed" if self.filt == "all" else "all"
-            self.focus = 0
+            self.focus, self._first, self._sy = 0, 0, None
         elif n:
             step = {LEFT: -1, RIGHT: 1, UP: -c, DOWN: c, L2: -3 * c, R2: 3 * c}.get(act, 0)
             if step:
@@ -103,20 +103,25 @@ class Library(Scene):
         area = pg.Rect(0, top, t.w, t.h - t.hint_h - top)
         visible = max(1, int((area.h - pad) // row_h))
         frow = self.focus // cols
-        first = max(0, frow - visible + 1)
+        first = getattr(self, "_first", 0)          # scroll only when focus leaves the view
+        first = min(max(first, frow - visible + 1), frow)
+        self._first = first
+        self._sy = W.ease(getattr(self, "_sy", None), first * row_h)
+        sy = self._sy[0]
+        r0 = int(sy // row_h)
         s.set_clip(area)
-        y0 = top + pad
+        y0 = top + pad - sy
         for i, g in enumerate(self.shown):
             row, col = divmod(i, cols)
-            if row < first or row > first + visible:
+            if row < r0 or row > r0 + visible + 1:
                 continue
-            rect = pg.Rect(int(t.m + col * (tw + t.gap)), int(y0 + (row - first) * row_h),
+            rect = pg.Rect(int(t.m + col * (tw + t.gap)), int(y0 + row * row_h),
                            int(tw), int(th))
             if i != self.focus:
                 W.tile(t, s, g, rect)
         if self.shown:  # focused tile last, so its outline sits on top
             row, col = divmod(self.focus, cols)
-            rect = pg.Rect(int(t.m + col * (tw + t.gap)), int(y0 + (row - first) * row_h),
+            rect = pg.Rect(int(t.m + col * (tw + t.gap)), int(y0 + row * row_h),
                            int(tw), int(th))
             W.tile(t, s, self.shown[self.focus], rect, focused=True)
         s.set_clip(None)

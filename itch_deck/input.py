@@ -8,7 +8,8 @@ TEXT, BKSP, ENTER, PASTE = "TEXT", "BKSP", "ENTER", "PASTE"   # text-entry mode 
 DEADZONE = 16000
 TRIGGER_ON = 20000
 log = logging.getLogger("itch-deck")
-REPEAT_MS = (350, 120)  # first delay, then repeat
+REPEAT_MS = (300, 85)   # hold: first delay, then repeat every 85 ms (stick, D-pad, arrows)
+DIRS = (UP, DOWN, LEFT, RIGHT)
 
 
 class Input:
@@ -23,6 +24,7 @@ class Input:
         self.stick_dir = None
         self.stick_next = 0
         self.text_mode = False
+        self.btn_dir = None        # direction held on a D-pad / arrow key
         self.trig = {}             # (pad, axis) -> pressed
         log.info("SteamVirtualGamepadInfo=%r", os.environ.get("SteamVirtualGamepadInfo"))
         k = pg
@@ -56,7 +58,7 @@ class Input:
 
     def flush(self):
         self.pg.event.clear()
-        self.stick_dir = None
+        self.stick_dir = self.btn_dir = None
 
     def set_text_mode(self, on):
         self.text_mode = on
@@ -97,7 +99,9 @@ class Input:
                 if a:
                     out.append(a)
             elif e.type == pg.KEYDOWN and e.key in self.keymap:
-                out.append(self.keymap[e.key])
+                out.append(self._press(self.keymap[e.key]))
+            elif e.type == pg.KEYUP and self.keymap.get(e.key) == self.btn_dir:
+                self.btn_dir = None
             elif e.type == pg.CONTROLLERAXISMOTION:
                 a = self._trigger(e)
                 if a:
@@ -107,14 +111,23 @@ class Input:
             elif e.type == pg.CONTROLLERDEVICEREMOVED:
                 self.pads.pop(e.instance_id, None)
             elif e.type == pg.CONTROLLERBUTTONDOWN and e.button in self.btnmap:
-                out.append(self.btnmap[e.button])
+                out.append(self._press(self.btnmap[e.button]))
+            elif e.type == pg.CONTROLLERBUTTONUP and self.btnmap.get(e.button) == self.btn_dir:
+                self.btn_dir = None
         out += self._stick()
         return out
 
+    def _press(self, act):
+        """A direction press starts hold-to-repeat (the first step is the press itself)."""
+        if act in DIRS:
+            self.btn_dir = self.stick_dir = act
+            self.stick_next = self.pg.time.get_ticks() + REPEAT_MS[0]
+        return act
+
     def _stick(self):
-        """Left stick as D-pad with key-repeat, from any pad."""
-        d = None
-        for c in self.pads.values():
+        """Held D-pad/arrow, else left stick from any pad, as directions with key-repeat."""
+        d = self.btn_dir
+        for c in ([] if d else self.pads.values()):
             try:
                 y = c.get_axis(self.pg.CONTROLLER_AXIS_LEFTY)
                 x = c.get_axis(self.pg.CONTROLLER_AXIS_LEFTX)
