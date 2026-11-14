@@ -29,6 +29,10 @@ v0.2.4 "feel" pass (Omri asked): hold-to-repeat on D-pad/arrows/stick (300 ms, t
   game page canvas cached by state key (20 ms -> 1.4 ms/frame). First real Update-app test.
 v0.2.4 Deck test: all ✓, in-app update works. Omri: hold scroll ~50% too fast -> v0.2.5 repeat
   85 -> 170 ms (input.REPEAT_MS). Glide speed (W.ease speed 16/14) unchanged.
+v0.2.6 (Omri): button labels centred; Settings Update row = info text + purple pill button on the
+  right (Check/Update/Restart/Retry, rows() value tuple); Library L1/R1 = switch tabs (X still
+  toggles, hidden from hints); L2/R2 held repeat at FAST_MS (300, 85) = several speeds:
+  D-pad 170 ms/step, triggers 3 rows per 85 ms. Game page L1/R1 still prev/next game.
 Next: M3 native install (ask Omri before starting).
   M3 also: visible background-loading indicator in the library top bar, e.g. "Covers 40/120"
   (and page-details prefetch progress), hidden when done. Omri asked 14 Nov.

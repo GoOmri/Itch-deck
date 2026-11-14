@@ -10,6 +10,7 @@ TRIGGER_ON = 20000
 log = logging.getLogger("itch-deck")
 REPEAT_MS = (300, 170)  # hold: first delay, then repeat every 170 ms (stick, D-pad, arrows)
 DIRS = (UP, DOWN, LEFT, RIGHT)
+FAST_MS = (300, 85)     # L2/R2 held: page jumps repeat at the old fast speed
 
 
 class Input:
@@ -25,6 +26,7 @@ class Input:
         self.stick_next = 0
         self.text_mode = False
         self.btn_dir = None        # direction held on a D-pad / arrow key
+        self.page_held, self.page_next = None, 0   # L2/R2 (trigger or PgUp/PgDn) held
         self.trig = {}             # (pad, axis) -> pressed
         log.info("SteamVirtualGamepadInfo=%r", os.environ.get("SteamVirtualGamepadInfo"))
         k = pg
@@ -83,8 +85,11 @@ class Input:
         k, on = (e.instance_id, e.axis), e.value > TRIGGER_ON
         was = self.trig.get(k, False)
         self.trig[k] = on if on or e.value < TRIGGER_ON // 2 else was
+        act = L2 if e.axis == pg.CONTROLLER_AXIS_TRIGGERLEFT else R2
         if on and not was:
-            return L2 if e.axis == pg.CONTROLLER_AXIS_TRIGGERLEFT else R2
+            return self._press(act)
+        if not self.trig[k] and self.page_held == act:
+            self.page_held = None
         return None
 
     def poll(self):
@@ -102,6 +107,8 @@ class Input:
                 out.append(self._press(self.keymap[e.key]))
             elif e.type == pg.KEYUP and self.keymap.get(e.key) == self.btn_dir:
                 self.btn_dir = None
+            elif e.type == pg.KEYUP and self.keymap.get(e.key) == self.page_held:
+                self.page_held = None
             elif e.type == pg.CONTROLLERAXISMOTION:
                 a = self._trigger(e)
                 if a:
@@ -115,10 +122,15 @@ class Input:
             elif e.type == pg.CONTROLLERBUTTONUP and self.btnmap.get(e.button) == self.btn_dir:
                 self.btn_dir = None
         out += self._stick()
+        if self.page_held and self.pg.time.get_ticks() >= self.page_next:
+            self.page_next = self.pg.time.get_ticks() + FAST_MS[1]
+            out.append(self.page_held)
         return out
 
     def _press(self, act):
         """A direction press starts hold-to-repeat (the first step is the press itself)."""
+        if act in (L2, R2):
+            self.page_held, self.page_next = act, self.pg.time.get_ticks() + FAST_MS[0]
         if act in DIRS:
             self.btn_dir = self.stick_dir = act
             self.stick_next = self.pg.time.get_ticks() + REPEAT_MS[0]

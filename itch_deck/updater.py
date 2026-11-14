@@ -40,6 +40,20 @@ class Updater:
             "source": f"v{v} · running from source",
         }[self.state]
 
+    def row_value(self):
+        """Settings row: (info text, purple button label or None). A presses the button."""
+        v, n = self.version, self.new_version
+        return {
+            "idle": (f"v{v}", "Check"),
+            "checking": (f"v{v} · checking…", None),
+            "latest": (f"v{v} · up to date", None),
+            "available": (f"v{n} available", "Update"),
+            "downloading": (f"Downloading v{n} · {int(self.frac * 100)}%", None),
+            "ready": (f"v{n} installed", "Restart"),
+            "error": (f"v{v} · {self.error or 'update failed'}", "Retry"),
+            "source": (f"v{v} · running from source", None),
+        }[self.state]
+
     def busy(self):
         return self.state in ("checking", "downloading")
 

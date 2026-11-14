@@ -265,10 +265,12 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None):
         pg.draw.rect(s, t.accent, rect.inflate(t.outline * 2, t.outline * 2), t.outline,
                      border_radius=t.radius + t.outline)
     col = t.text_c if enabled else t.faint
-    x = rect.x + t.u * 2.5
+    gap = t.u * 1.5
+    w = t.f_btn.size(label)[0] + ((t.f_btn.size(icon)[0] + gap) if icon else 0)
+    x = rect.centerx - w / 2                       # icon + label centred as one group
     if icon:
         x = text(t, s, icon, x, rect.centery, t.f_btn, color=t.accent if enabled else t.faint,
-                 anchor="midleft").right + t.u * 1.5
+                 anchor="midleft").right + gap
     text(t, s, label, x, rect.centery, t.f_btn, color=col, anchor="midleft")
 
 
@@ -436,7 +438,14 @@ def rows(t, s, rect, items, focus, row_h=None):
         if sub:
             text(t, s, sub, r.x + t.u * 2.5, ly + t.f_btn.get_height() * 0.55, t.f_small,
                  color=t.dim, anchor="topleft", maxw=r.w * 0.6)
-        if value == "Recommended":
+        if isinstance(value, tuple):               # (info text, purple action button or None)
+            info, btn = value
+            x = r.right - t.u * 2.5
+            if btn:
+                x = pill(t, s, btn, x, r.centery, fill=t.accent, color=t.on_accent, font=t.f_btn,
+                         anchor="midright").x - t.u * 2
+            text(t, s, info, x, r.centery, t.f_body, color=t.dim, anchor="midright")
+        elif value == "Recommended":
             pill(t, s, value, r.right - t.u * 2.5, r.centery, fill=t.accent, color=t.on_accent,
                  anchor="midright")
         elif value:

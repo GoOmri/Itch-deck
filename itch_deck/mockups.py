@@ -23,7 +23,7 @@ def _shots(t, version):
     settings_vals = {
         "install_label": "SD card", "install_path": "/run/media/deck/SD/itch", "free": "112 GB",
         "proton": "GE-Proton9-20", "prefix_size": "1.2 GB", "last_sync": "today 11:02",
-        "update": f"v{version} · up to date",
+        "update": (f"v{version[:-1]}9 available", "Update"),
     }
     picker = ("picker", "Choose a build",
               "Recommended: native Linux first, then a plain Windows zip.",

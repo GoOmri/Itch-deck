@@ -15,7 +15,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Installing comes in the next update."
@@ -136,7 +136,7 @@ class App:
             "install_path": str(root), "free": free,
             "proton": self.cfg.get("proton") or (protons[0] if protons else "Not found"),
             "prefix_size": "None yet", "last_sync": short_date(self.lib.synced_at),
-            "update": self.updater.label(),
+            "update": self.updater.row_value(),
         }
 
     # --- API key -------------------------------------------------------
@@ -259,6 +259,9 @@ class App:
                 self.say("Refreshing library…")
         elif act == START:
             self.go_settings()
+        elif act in (L1, R1):                     # tabs: All / Installed (store tabs later)
+            sc.handle(X)
+            self.filt = sc.filt
         elif act in (UP, DOWN, LEFT, RIGHT, X) or act in ("L2", "R2"):
             sc.handle(act)
             self.filt = sc.filt
@@ -349,7 +352,7 @@ class App:
                 self.update_told = True
                 self.say(f"Update v{self.updater.new_version} is ready to download in Settings.")
         elif self.kind == "settings":
-            self.scene.v["update"] = self.updater.label()
+            self.scene.v["update"] = self.updater.row_value()
         elif self.kind == "game":
             self.scene.offline = self.lib.offline
             g = self.lib.by_id(self.scene.g["id"])
