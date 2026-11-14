@@ -1,18 +1,19 @@
 """P2 Library (home): store tab, All/Installed filter, cover grid."""
 import pygame as pg
 
-from ...input import UP, DOWN, LEFT, RIGHT, X
+from ...input import UP, DOWN, LEFT, RIGHT, X, L2, R2
 from .. import widgets as W
 from .base import Scene
 
 
 class Library(Scene):
     def __init__(self, t, games, filt="all", focus=0, syncing=None, sync_page=0,
-                 offline_since=None, **kw):
+                 offline_since=None, offline=False, **kw):
         super().__init__(t, **kw)
         self.games, self.filt, self.focus = games, filt, focus
         self.syncing, self.sync_page = syncing, sync_page   # None | "first" | "bg"
         self.offline_since = offline_since
+        self.offline = offline          # True with no cache yet: nothing to show
 
     @property
     def shown(self):
@@ -27,7 +28,7 @@ class Library(Scene):
             self.filt = "installed" if self.filt == "all" else "all"
             self.focus = 0
         elif n:
-            step = {LEFT: -1, RIGHT: 1, UP: -c, DOWN: c}.get(act, 0)
+            step = {LEFT: -1, RIGHT: 1, UP: -c, DOWN: c, L2: -3 * c, R2: 3 * c}.get(act, 0)
             if step:
                 self.focus = max(0, min(n - 1, self.focus + step))
 
@@ -48,6 +49,9 @@ class Library(Scene):
             if self.filt == "installed":
                 return self._center_msg(s, y, "Nothing installed yet.",
                                         "Press X to see all your games.")
+            if self.offline:
+                return self._center_msg(s, y, "Can't reach itch.io.",
+                                        "Check Wi-Fi, then press Y to try again.", refresh=True)
             return self._center_msg(s, y, "No games yet.",
                                     "Games you buy or claim on itch show up here.", refresh=True)
         self._grid(s, y)
@@ -116,8 +120,3 @@ class Library(Scene):
                            int(tw), int(th))
             W.tile(t, s, self.shown[self.focus], rect, focused=True)
         s.set_clip(None)
-
-    def overlay_hints(self):
-        if self.overlay and self.overlay[0] == "confirm":
-            return [("A", "Confirm"), ("B", "Cancel")]
-        return None

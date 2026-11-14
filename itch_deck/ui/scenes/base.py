@@ -22,6 +22,8 @@ class Scene:
             W.toast(self.t, s, self.toast, self.toast_error)
 
     def overlay_hints(self):
+        if self.overlay and self.overlay[0] == "confirm":
+            return self.overlay[3]
         return None
 
     def draw_overlay(self, s):

@@ -38,6 +38,7 @@ def _shots(t, version):
     return [
         ("01_setup_waiting", Setup(t, "waiting")),
         ("02_setup_rejected", Setup(t, "rejected")),
+        ("02b_setup_typing", Setup(t, "waiting", typing=True, typed="Xk3vQ2b7f19aa0c4d6e8")),
         ("03_library_first_sync", Library(t, lib, syncing="first", sync_page=3)),
         ("04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
         ("05_library_scrolled", Library(t, lib, focus=n - 2)),

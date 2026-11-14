@@ -4,13 +4,21 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
 ## Current milestone
 M0 spike — PASSED on Deck 14 Nov (checklist 1–6 all ✓). Focus hand-off to child and back works.
-M1 mockups — BUILT 14 Nov (v0.1.0), awaiting Omri's look approval / change list.
-  Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (21 states × Deck + TV size)
-Next: apply M1 feedback, then M2 real library (ask Omri before starting).
+M1 mockups — APPROVED 14 Nov. Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ
+M2 real library — BUILT 14 Nov (v0.2.0), awaiting Deck test (checklist in chat / below).
+  itch.io is blocked from Claude's workspace: API + page parsing tested only with fixtures.
+  First things to check on Deck if broken: app.log lines "itch sync:", "page <id>:", "pad added:".
+Next: M3 native install (ask Omri before starting).
 
 ## Code map
-- app.py: M0 loop still runs at launch (scenes not wired in yet — M2). Flags: --windowed,
-  --selftest, --render-mockups DIR.
+- app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
+  per-scene _h_<kind>() input. Flags: --windowed, --selftest (fake data, temp dirs), --render-mockups.
+  M0 child-launch test removed; runner.py comes in M3. Install/Change build just toast in M2.
+- config.py (chmod 600, install_root: SD else ~/Games/itch, proton_versions), net.py (urllib +
+  certifi; Offline/AuthError), stores/itch.py (owned-keys, quirk, dedupe), stores/itch_page.py
+  (HTML -> description/shots/comments, tolerant), library.py (cache, sync thread, job queue:
+  covers prio 1, opened page prio 0, prefetch prio 5; page cache 7 days; shots -> 1280px jpg).
+- paths.use_root(dir) redirects everything (tests/selftest). tests/test_itch.py runs in CI.
 - theme.py: all colours/sizes/fonts/timings. Inter bundled in assets/fonts (OFL).
   Grid: 4 cols at 1280×800, 5 at 1920×1080 (from width).
 - ui/widgets.py: cover placeholder, tile (+badges), button, pill, ring, spinner, progress,
@@ -41,8 +49,14 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
   shapes with the label knocked out in dark ink (glyph_c / glyph_ink). A B X Y = circle, L1 R1 L2 R2 =
   small rounded square, ☰ (hint key MENU) = white pill. Footer: actions RIGHT-aligned, labels white
   BOLD UPPERCASE (f_hint); order = extra actions first, then A, B always last. Bumpers are L1/R1.
-- Open: glyph labels Auto/Xbox/PlayStation — log pad names + SteamVirtualGamepadInfo on Deck in M2,
-  plus a Settings override.
+- Open: glyph labels Auto/Xbox/PlayStation — M2 logs pad names/GUIDs + SteamVirtualGamepadInfo;
+  read them from the Deck log, then add a Settings override.
+- M2 input: L1/R1 (prev/next game), L2/R2 (triggers, page up/down), Back mapped. Keyboard in
+  --windowed: arrows, Enter=A, Esc=B, x/y, m=Start, q/e=L1/R1, PgUp/PgDn=L2/R2.
+- Key entry: Warpinator file is auto-picked up (polled every 2 s on Setup); "Type key" field takes
+  Steam+X keyboard text or Ctrl+V (RustDesk). Bad key -> Setup "rejected"; no net -> Retry.
+- Comments: shown only if parsed (forum games / parse miss -> section hidden). Dev = flag text
+  "Developer" or owner class — UNVERIFIED against live itch markup.
 - DECIDED (Omri: important for choosing games): full description + screenshots on the game page.
   Not in itch's API -> read the game's public itch page (url from owned-keys), parse description
   (HTML -> paragraphs, v1 text only) + screenshot URLs, cache text + downscaled shots (offline OK).
@@ -58,6 +72,7 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
 ## Token usage log (Omri's Pro plan %, as he reports it — add a line each time)
 - 2026-11-14 00:08 — 72% at start of M0 build (planning + M0 in one chat)
 - 2026-11-14 11:24 — 73% → 76% for M1 mockups (+ logging M0 Deck results) = 3%
+- 2026-11-14 12:01 — 80% at start of M2 (end % to be logged next chat)
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while
@@ -66,5 +81,4 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
   on return, draw a "Returning…" frame first. Try in M3 with a real game.
 - App start: Steam logo, then 2 flickers before the window. Likely onefile unpack + SDL fullscreen
   mode switch. Ideas: set_mode(desktop size, NOFRAME) instead of FULLSCREEN; --onedir build.
-- M0 input only maps A/B/X/Y/Start/D-pad/left stick. LB/RB, LT/RT, Back/Select not mapped yet
-  (needed per controller map) — add in the M2/M3 input pass.
+- Screenshots are centre-cropped to 16:9 (strip + viewer); viewer should letterbox instead. Small.

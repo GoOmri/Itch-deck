@@ -6,7 +6,8 @@ from .. import widgets as W
 from .base import Scene
 
 PLATFORM = {"linux": "Linux", "windows": "Windows", "html": "Browser",
-            "mac": "macOS only", "soundtrack": "Soundtrack"}
+            "mac": "macOS only", "android": "Android only", "soundtrack": "Soundtrack",
+            "book": "Book", "other": "No download"}
 
 
 def _mb(mb):
@@ -128,7 +129,7 @@ class Game(Scene):
             y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.u * 80)) + t.u * 1.5
 
         px = x
-        plat = [p for p in ("linux", "windows", "html", "mac", "soundtrack") if p in g["platforms"]]
+        plat = [p for p in PLATFORM if p in g["platforms"]]
         for p in plat:
             px = W.pill(t, s, PLATFORM[p], px, y, fill=t.panel_hi).right + t.u
         if g["size_mb"]:

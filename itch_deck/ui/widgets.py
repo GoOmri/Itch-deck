@@ -90,8 +90,34 @@ def _hue(seed, n):
     return ((zlib.crc32(f"{seed}:{n}".encode()) % 1000) / 1000.0)
 
 
+def _from_file(path, size):
+    """Image file scaled to cover `size` (centre-cropped). None if missing/unreadable."""
+    key = ("file", path, size)
+    if key in _cover_cache:
+        return _cover_cache[key]
+    try:
+        img = pg.image.load(path)
+        rgb = pg.Surface(img.get_size(), 0, 32)   # palette GIF/PNG -> 32-bit for smoothscale
+        rgb.blit(img, (0, 0))
+        w, h = rgb.get_size()
+        k = max(size[0] / w, size[1] / h)
+        big = pg.transform.smoothscale(rgb, (max(size[0], round(w * k)), max(size[1], round(h * k))))
+        out = pg.Surface(size)
+        out.blit(big, ((size[0] - big.get_width()) // 2, (size[1] - big.get_height()) // 2))
+    except Exception:  # noqa: BLE001  - broken download: fall back to placeholder
+        out = None
+    if len(_cover_cache) > 600:
+        _cover_cache.clear()
+    _cover_cache[key] = out
+    return out
+
+
 def cover(t, game, size):
-    """Cover image for a game. Real covers come later (M2); now a generated placeholder."""
+    """Cover image: the cached itch cover if downloaded, else a generated placeholder."""
+    if game.get("cover_file"):
+        img = _from_file(game["cover_file"], size)
+        if img:
+            return img
     key = (game["id"], size)
     if key in _cover_cache:
         return _cover_cache[key]
@@ -127,7 +153,12 @@ def cover(t, game, size):
 
 
 def screenshot(t, game, i, size):
-    """Placeholder screenshot (16:9). Real ones come from the itch page in M2."""
+    """Screenshot i (cached from the itch page), else a 16:9 placeholder."""
+    files = game.get("shot_files") or []
+    if i < len(files):
+        img = _from_file(files[i], size)
+        if img:
+            return img
     key = ("shot", game["id"], i, size)
     if key in _cover_cache:
         return _cover_cache[key]
