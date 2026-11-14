@@ -9,7 +9,7 @@ _cover_cache = {}
 LIVE = False   # True in the running app: animate. False for mockups: draw the end state.
 
 
-APP_NAME = "scritch"          # shown name; binary, data folders and repo keep itch-deck for now
+APP_NAME = "SCRiTCH"          # shown name; binary, data folders and repo keep itch-deck for now
 
 
 def spring(x, back=None):
@@ -485,8 +485,17 @@ def tag(t, s, label, x, y, kind="neutral", anchor="topleft", icon_name=None):
 
 
 def wordmark(t, s, x, y, anchor="topleft"):
-    """App name: bold white text, no pill (pills read as buttons)."""
-    return text(t, s, APP_NAME, x, y, t.font("Bold", t.u * 3.2), color=t.text_c, anchor=anchor)
+    """The logo: SCRiTCH in bold, letters purple, the lowercase i white. No pill.
+    Drawn letter by letter (advance = width of the text so far, so kerning stays right)."""
+    f = t.font("Bold", t.u * 3.2)
+    if anchor in ("baseleft", "baseright"):
+        anchor, y = ("topleft" if anchor == "baseleft" else "topright"), y - f.get_ascent()
+    box = pg.Rect(0, 0, f.size(APP_NAME)[0], f.get_height())
+    setattr(box, anchor, (int(x), int(y)))
+    for i, ch in enumerate(APP_NAME):
+        col = t.text_c if ch == "i" else t.accent
+        s.blit(f.render(ch, True, col), (box.x + f.size(APP_NAME[:i])[0], box.y))
+    return box
 
 
 def pill(t, s, label, x, y, fill=None, color=None, font=None, anchor="topleft"):

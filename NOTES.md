@@ -209,7 +209,7 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   everything via W.ease (time-based tween, MOTION_MS 240). Focus = sliding plate (W.plate /
   button_row / rows key=...), tab underline slides, pages slide+fade (App._transition,
   theme.page_ms 260, direction by depth). Busy bar bounces (BUSY_SWEEP_S 0.75) with stretch.
-  Omri 14 Nov: wordmark WHITE (not purple); scrolling = no overshoot (ease back=0).
+  Omri 14 Nov: name = "SCRiTCH" (W.APP_NAME); logo letters purple, the i white; scrolling = no overshoot (ease back=0).
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 
 v0.5.1 (14 Nov): design round 2 released — motion v2 (spring curve, sliding focus plate + tab

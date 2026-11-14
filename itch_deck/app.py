@@ -18,7 +18,7 @@ from .updater import Updater
 
 log = logging.getLogger("itch-deck")
 VERSION = "0.5.2"
-QUIT_DLG = ("confirm", "Quit scritch?", "Downloads in progress pause and resume next time.",
+QUIT_DLG = ("confirm", "Quit SCRiTCH?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Comes in a later update."
 
