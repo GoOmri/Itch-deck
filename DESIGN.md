@@ -82,6 +82,8 @@ Full-width content (grid, screenshot strip) uses the margins.
 - "…" means *in progress*.
 - No exit codes or jargon on screen; details go in the log.
 - Errors say what happened and what to do next.
+- Only text the player needs: no explanations of how things work ("installer runs silently",
+  "used for Windows games"). If it isn't needed to decide or act, it goes.
 
 ---
 

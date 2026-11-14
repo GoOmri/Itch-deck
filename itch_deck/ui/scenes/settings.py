@@ -14,13 +14,14 @@ class Settings(Scene):
     def items(self):
         v = self.v
         return [
-            ("Install location", v["install_label"], f"{v['install_path']} · {v['free']} free · new installs only"),
-            ("Proton version", v["proton"], "Used for Windows games"),
-            ("Saves of uninstalled games", v["prefix_size"], "Kept so reinstalling keeps your progress · A to delete"),
+            # sub-lines only where the info is needed (Omri): where games go, when last synced
+            ("Install location", v["install_label"], f"{v['install_path']} · {v['free']} free"),
+            ("Proton version", v["proton"], ""),
+            ("Saves of uninstalled games", v["prefix_size"], ""),
             ("Refresh library", "", f"Last synced {v['last_sync']}"),
-            ("Update app", v["update"], "Downloads the newest version from GitHub. Old one kept as backup."),
-            ("Pointer speed", v.get("pointer", "Normal"), "Mouse mode: how fast the right stick moves the pointer"),
-            ("Re-import API key", "", "Reads ~/Downloads/itch_key.txt again"),
+            ("Update app", v["update"], ""),
+            ("Pointer speed", v.get("pointer", "Normal"), ""),
+            ("Re-import API key", "", ""),
         ]
 
     def handle(self, act):
@@ -39,6 +40,6 @@ class Settings(Scene):
         y = W.text(t, s, "Settings", x, y, t.f_h1).bottom + t.md
         row_h = int(min(t.u * 8.5, (t.h - t.hint_h - y - t.xl) / len(self.items()) - t.u // 2))
         W.rows(t, s, pg.Rect(x, y, w, 0), self.items(), self.focus, row_h, key="settings")
-        line = f"{W.APP_NAME} v{self.version}   ·   Log: {self.log_path}"
+        line = f"{W.APP_NAME} v{self.version}"         # the log path lives in NOTES, not on screen
         W.text_named(t, s, line, x, t.h - t.hint_h - t.md - t.f_small.get_height(), t.f_small,
                      color=t.dim, maxw=w)
