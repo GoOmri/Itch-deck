@@ -15,6 +15,10 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
   W.tag for labels, 5 theme font sizes, purple only for progress/state, t.dim for readable grey,
   app name = W.APP_NAME ("scritch").
 - Write what you changed in NOTES.md before pushing, so the next chat knows.
+- Real data for mockups: `python run.py --render-mockups DIR --real DATA` renders with Omri's real
+  library (covers, pages, screenshots); random game, or SCRITCH_GAME=<title or id>. DATA = unzipped
+  copy of the Deck's ~/.local/share/itch-deck/{library.json,covers,pages,shots} — ask Omri to attach
+  it (Archive.zip). NEVER commit it: the repo is public, the art is the developers', the list is his.
 - After ANY UI change: re-render mockups (`python run.py --render-mockups DIR`) and publish them as
   `after/` to the gallery artifact https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (Omri expects it current).
 - Ask Omri before big changes.
