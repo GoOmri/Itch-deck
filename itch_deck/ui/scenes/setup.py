@@ -14,9 +14,10 @@ STATUS = {
 
 
 class Setup(Scene):
-    def __init__(self, t, status="waiting", focus=0, typing=False, typed="", **kw):
+    def __init__(self, t, status="waiting", focus=0, typing=False, typed="", back=False, **kw):
         super().__init__(t, **kw)
         self.status, self.focus = status, focus
+        self.back = back           # opened from Settings (a key already works): B goes back
         self.typing, self.typed = typing, typed
 
     def press_key(self):
@@ -35,7 +36,7 @@ class Setup(Scene):
     def hints(self):
         if self.typing:
             return [("A", "Use this key"), ("B", "Cancel")]
-        return [("A", "Select"), ("B", "Quit")]
+        return [("A", "Select"), ("B", "Back" if self.back else "Quit")]
 
     def draw_page(self, s):
         t = self.t

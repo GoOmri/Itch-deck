@@ -17,7 +17,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 QUIT_DLG = ("confirm", "Quit scritch?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Comes in a later update."
@@ -106,9 +106,9 @@ class App:
         self.kind, self.scene = kind, scene
         self.toast_until = 0
 
-    def go_setup(self, status):
+    def go_setup(self, status, back=False):
         from .ui.scenes.setup import Setup
-        self._set("setup", Setup(self.t, status))
+        self._set("setup", Setup(self.t, status, back=back))
         self.inp.set_text_mode(False)
 
     def go_library(self):
@@ -262,7 +262,12 @@ class App:
             else:
                 self.try_import()
         elif act == B:
-            sc.overlay = QUIT_DLG
+            if sc.back:                    # came from Settings: the old key still works
+                prev = getattr(self, "settings_back", "library")
+                self.go_settings()
+                self.settings_back = prev  # Settings' own B still returns where it came from
+            else:                          # first run / rejected key: nothing to go back to
+                sc.overlay = QUIT_DLG
         else:
             sc.handle(act)
 
@@ -547,7 +552,7 @@ class App:
                 elif not u.busy():
                     u.check()
             elif label == "Re-import API key":
-                self.go_setup("waiting")
+                self.go_setup("waiting", back=True)
                 self.try_import(auto=True)
             else:
                 self.say("Comes in a later update.")
@@ -687,6 +692,15 @@ def selftest(screenshot=None):
     app.go_library()
     steps = [RIGHT, DOWN, X, X, A, DOWN, DOWN, UP, UP, R1, L1, A, START, DOWN, B, B, Y, START, B]
     app.run(max_frames=len(steps) * 2 + 2, script={i * 2: s for i, s in enumerate(steps)})
+    # Settings -> Re-import API key -> B returns to Settings (not a quit dialog)
+    app = App(windowed=True)
+    app.lib.games = [dict(g) for g in fake.library()]
+    app.go_library()
+    app.go_settings()
+    app.scene.focus = next(i for i, r in enumerate(app.scene.items()) if r[0] == "Re-import API key")
+    app.run(max_frames=6, script={1: A, 3: B})
+    assert app.kind == "settings" and not app.scene.overlay and app.settings_back == "library", \
+        (app.kind, app.scene.overlay)
     # Play: a fake installed game (a tiny script) -> display released, game runs, display back
     app = App(windowed=True)
     app.lib.games = [dict(g) for g in fake.library()]

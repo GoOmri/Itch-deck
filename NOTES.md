@@ -214,6 +214,9 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
 v0.5.1 (14 Nov): design round 2 released — motion v2 (spring curve, sliding focus plate + tab
   underline, page slide+fade), one purple main action per page, Update button purple when waiting.
 
+v0.5.2 (Omri): B = Back on every screen except Library. Setup opened from Settings (Re-import
+  API key) has back=True: B -> Settings, hint "Back". First run / rejected key: B still = Quit dialog.
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so
