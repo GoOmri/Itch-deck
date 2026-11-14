@@ -225,7 +225,7 @@ v0.5.2 (Omri): B = Back on every screen except Library. Setup opened from Settin
   price" step. Downloading it creates NO download key, so it never shows in /profile/owned-keys,
   and scritch only syncs owned keys. Same for every itch game with payments switched off.
 - Children of Solarus (first Inno pick) is gone from itch.
-- Proposed fix (NOT built, ask Omri): also sync the user's itch COLLECTIONS (the "Add To
+- BUILT v0.5.3 (Omri said go): ItchStore.sync also syncs COLLECTIONS. Was: also sync the user's itch COLLECTIONS (the "Add To
   Collection" button on any game page). itch API: GET /profile/collections, then
   /collections/{id}/collection-games (paginated). Merge into the library, dedupe by game id; no
   download_key_id needed: stores/itch.py already calls /games/{id}/uploads without one for free
@@ -234,6 +234,15 @@ v0.5.2 (Omri): B = Back on every screen except Library. Setup opened from Settin
 - Hyperbole's Windows upload is a bare "Hyperbole_setup_0.9.12 BETA.exe" (294 MB, no zip) ->
   the bare-setup.exe path of M5. Mac zip is skipped. Good installer test once collections sync.
 - Omri 14 Nov: work on notes freely, but NO app release until he says.
+
+v0.5.3: collections sync. After owned keys: GET /profile/collections, then per collection
+  /collections/{id}/collection-games?page=N (also accepts the older {"games": [...]} shape), until
+  an empty page. Owned wins on duplicates (keeps its key); games with min_price > 0 that you don't
+  own are skipped (can't download); added games get source="collection", no download_key_id.
+  Any collections error (403, offline, odd JSON) is logged and the owned list is still used.
+  UNVERIFIED against live itch (blocked here). Deck: app.log "itch sync: collections [...] -> N
+  free games added, M paid skipped". Panzer Marshal is in Omri's "cats" collection = test game.
+  Not handled: Inno split installers (setup.exe + setup-1.bin as separate uploads, e.g. Stranger More).
 
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's

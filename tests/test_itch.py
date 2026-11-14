@@ -32,6 +32,8 @@ def test_sync_pages_and_dedupe(monkeypatch):
     seen = []
 
     def fake(url, key=None, timeout=20):
+        if "collection" in url:
+            return {"collections": {}}
         n = int(url.rsplit("=", 1)[1])
         seen.append(n)
         return {"owned_keys": pages.get(n, [])}
@@ -39,6 +41,44 @@ def test_sync_pages_and_dedupe(monkeypatch):
     games = itch.ItchStore("k").sync()
     assert [g["id"] for g in games] == ["1", "2", "3"]
     assert seen == [1, 2, 3, 4]
+
+
+def test_sync_adds_free_collection_games(monkeypatch):
+    def g(i, **kw):
+        return dict(_key(i, **kw)["game"])
+    resp = {
+        "/profile/owned-keys?page=1": {"owned_keys": [_key(1)]},
+        "/profile/owned-keys?page=2": {"owned_keys": []},
+        "/profile/collections": {"collections": [{"id": 7, "title": "cats"}, {"id": 8, "title": "x"}]},
+        # owned game again (keeps its key), a free game, a paid one, then the bare-game shape
+        "/collections/7/collection-games?page=1": {"collection_games": [
+            {"game": g(1)}, {"game": g(5, title="Panzer Marshal", p_windows=True)},
+            {"game": g(6, min_price=499)}]},
+        "/collections/7/collection-games?page=2": {"collection_games": {}},
+        "/collections/8/collection-games?page=1": {"games": [g(9, title="Hyperbole")]},
+        "/collections/8/collection-games?page=2": {"games": []},
+    }
+    asked = []
+
+    def fake(url, key=None, timeout=20):
+        path = url.replace(itch.API, "")
+        asked.append(path)
+        return resp[path]
+    monkeypatch.setattr(net, "get_json", fake)
+    games = {x["id"]: x for x in itch.ItchStore("k").sync()}
+    assert sorted(games) == ["1", "5", "9"]
+    assert games["1"]["download_key_id"] == 1001 and "source" not in games["1"]
+    assert games["5"]["download_key_id"] is None and games["5"]["source"] == "collection"
+    assert "windows" in games["5"]["platforms"] and games["9"]["title"] == "Hyperbole"
+    # a broken collections endpoint never loses the owned games
+    resp["/profile/collections"] = None
+
+    def boom(url, key=None, timeout=20):
+        if "collections" in url:
+            raise net.AuthError("403")
+        return resp[url.replace(itch.API, "")]
+    monkeypatch.setattr(net, "get_json", boom)
+    assert [x["id"] for x in itch.ItchStore("k").sync()] == ["1"]
 
 
 PAGE = """<html><body>

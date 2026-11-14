@@ -1,4 +1,5 @@
-"""itch.io API: owned keys (with pagination and the list/object quirk)."""
+"""itch.io API: owned keys (with pagination and the list/object quirk) + games in the user's
+collections (free / no-price games never get a download key, so they only show up there)."""
 import logging
 
 from .. import net
@@ -35,6 +36,26 @@ def platforms_of(g):
     if not p:
         p.add("other")
     return p
+
+
+def _listish(data, field):
+    """data[field] as a list (itch sends {} or an object instead of [] in places)."""
+    v = data.get(field) if isinstance(data, dict) else None
+    if isinstance(v, dict):
+        v = list(v.values())
+    return [x for x in (v or []) if isinstance(x, dict)]
+
+
+def parse_collections(data):
+    return [c for c in _listish(data, "collections") if "id" in c]
+
+
+def parse_collection_games(data):
+    """/collections/{id}/collection-games -> game dicts ({"game": {...}} rows, or bare games
+    from the older /games shape)."""
+    rows = _listish(data, "collection_games") or _listish(data, "games")
+    return [r["game"] if isinstance(r.get("game"), dict) else r for r in rows
+            if isinstance(r.get("game"), dict) or "id" in r]
 
 
 def game_from_key(k):
@@ -118,7 +139,37 @@ class ItchStore(Store):
                     seen.add(g["id"])
                     games.append(g)
         log.info("itch sync: %d games over %d page(s)", len(games), page - 1)
+        try:
+            self._collections(games, seen)
+        except (net.AuthError, net.Offline) as e:          # owned games still count
+            log.warning("itch sync: collections skipped (%s)", e)
+        except Exception:  # noqa: BLE001
+            log.exception("itch sync: collections failed")
         return games
+
+    def _collections(self, games, seen):
+        """Free games from the user's collections, added after owned ones (owned wins: it has a
+        key). Paid games you don't own are left out, since they can't be downloaded."""
+        cols = parse_collections(net.get_json(f"{API}/profile/collections", self.key))
+        added = paid = 0
+        for c in cols:
+            for page in range(1, MAX_PAGES + 1):
+                rows = parse_collection_games(net.get_json(
+                    f"{API}/collections/{c['id']}/collection-games?page={page}", self.key))
+                if not rows:
+                    break
+                for g in rows:
+                    gid = str(g.get("id"))
+                    if gid in seen or not g.get("id"):
+                        continue
+                    if (g.get("min_price") or 0) > 0:
+                        paid += 1
+                        continue
+                    seen.add(gid)
+                    games.append(dict(game_from_key({"game": g}), source="collection"))
+                    added += 1
+        log.info("itch sync: collections %s -> %d free games added, %d paid skipped",
+                 [c.get("title") for c in cols], added, paid)
 
     def list_builds(self, game):
         q = f"?download_key_id={game['download_key_id']}" if game.get("download_key_id") else ""
