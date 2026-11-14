@@ -48,8 +48,11 @@ Next: apply M1 feedback, then M2 real library (ask Omri before starting).
   (HTML -> paragraphs, v1 text only) + screenshot URLs, cache text + downscaled shots (offline OK).
   Fetch lazily on page open + low-priority background prefetch. Fragile if itch changes HTML:
   fall back to short_text, log the parse failure. Build in M2.
+- DECIDED: comments from the public page too (same fetch + cache as description). Newest first, max
+  ~10, author + date + text (3 lines max), reply count, developer comments get a purple bar + tag.
+  Games that use a community forum instead of comments: show nothing (or a count) — check in M2.
 - Game page layout: hero (34% cover, info, actions in ONE ROW, L/R moves) then DOWN -> screenshots
-  strip (A = full-screen viewer, L/R browse) -> DOWN -> "About this game" description.
+  strip (A = full-screen viewer, L/R browse) -> DOWN -> "About this game" -> DOWN -> Comments.
 
 ## Token usage log (Omri's Pro plan %, as he reports it — add a line each time)
 - 2026-11-14 00:08 — 72% at start of M0 build (planning + M0 in one chat)

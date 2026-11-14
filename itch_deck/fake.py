@@ -43,6 +43,8 @@ def library():
         g["short_text"] = _TAGLINES.get(title, "")
         g["screens"] = 0 if "html" in g["platforms"] else 3 + i % 4
         g["description"] = _description(title, g["short_text"])
+        g["comments"] = _COMMENTS if i % 3 else []
+        g["comment_count"] = 24 if i % 3 else 0
         if state == "downloading":
             g.update(progress=0.42, speed_mbs=11.8, eta_s=111)
         out.append(g)
@@ -77,3 +79,19 @@ def _description(title, tagline):
         "Features: full controller support · autosave · three save slots · original soundtrack.",
         "Controls: left stick to move, A to interact, B to cancel, Start for the menu.",
     ]
+
+
+_COMMENTS = [
+    {"author": "mossy_toad", "when": "2 days ago", "replies": 1,
+     "text": "Runs great on the Steam Deck with Proton. The controls feel a bit floaty at first "
+             "but you get used to them after the first area."},
+    {"author": "Pebblesoft", "when": "3 days ago", "dev": True,
+     "text": "Thanks everyone for playing! Update 1.2 fixes the save bug in chapter 2 and adds "
+             "full controller support in the menus."},
+    {"author": "nightowl_plays", "when": "1 week ago",
+     "text": "Lovely little game, took me about two and a half hours. The ending made me smile. "
+             "Would love a longer sequel some day, maybe with more puzzles in the caves, and more "
+             "of the music from the second area because it was honestly the best part of the game."},
+    {"author": "kestrel", "when": "2 weeks ago", "replies": 3,
+     "text": "Is there a way to remap the jump button? Couldn't find it in the options."},
+]

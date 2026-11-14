@@ -55,6 +55,7 @@ def _shots(t, version):
         ("11c_game_description", game("Quiet Quarry", section="desc")),
         ("11d_game_screenshot_view", with_overlay(game("Quiet Quarry", section="shots", shot=1),
                                                   ("viewer",))),
+        ("11e_game_comments", game("Quiet Quarry", section="comments")),
         ("13_game_installing", game("Ninefold Tower", phase="installing")),
         ("14_game_preparing_proton", game("Orbit Bakery", phase="proton")),
         ("15_game_installed", game("Moss & Rivets",

@@ -57,7 +57,8 @@ class Game(Scene):
             elif act == B:
                 self.overlay = None
             return
-        order = ["actions"] + (["shots"] if shots else []) + ["desc"]
+        order = ["actions"] + (["shots"] if shots else []) + ["desc"] + \
+            (["comments"] if self.g.get("comments") else [])
         if act in (UP, DOWN):
             i = order.index(self.section) + (1 if act == DOWN else -1)
             self.section = order[max(0, min(len(order) - 1, i))]
@@ -73,7 +74,7 @@ class Game(Scene):
     def hints(self):
         if self.section == "shots":
             return [("A", "View full screen"), ("B", "Back")]
-        if self.section == "desc":
+        if self.section in ("desc", "comments"):
             return [("B", "Back")]
         # Steam order: extra actions first, then A, with B always last (far right)
         h = [("L1", ""), ("R1", "Prev / next game")]
@@ -100,8 +101,9 @@ class Game(Scene):
         canvas = pg.Surface((t.w, int(t.h * 2.6)), pg.SRCALPHA)  # transparent: gradient shows through
         self._hero(canvas)
         about_y = self._top(canvas)
-        desc_y = self._about(canvas, about_y)
-        scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m}[self.section]
+        desc_y, comments_y = self._about(canvas, about_y)
+        scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m,
+                  "comments": comments_y - t.m}[self.section]
         s.blit(canvas, (0, -max(0, scroll)))
 
     def _top(self, s):
@@ -180,10 +182,43 @@ class Game(Scene):
             w = min(t.w - 2 * t.m, t.u * 125)
             for para in paras:
                 y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=(205, 205, 205)) + t.f_body.get_linesize() * 0.6
-            W.text(t, s, "From the game's itch.io page", t.m, y + t.u, t.f_small, color=t.faint)
+            y = W.text(t, s, "From the game's itch.io page", t.m, y + t.u, t.f_small, color=t.faint).bottom
         elif not n:
-            W.text(t, s, "More details load the next time you're online.", t.m, y, t.f_small, color=t.faint)
-        return desc_y
+            y = W.text(t, s, "More details load the next time you're online.", t.m, y, t.f_small,
+                        color=t.faint).bottom
+        comments_y = y + t.u * 5
+        self._comments(s, comments_y)
+        return desc_y, comments_y
+
+    def _comments(self, s, y):
+        """Newest comments from the itch page (cached with it). Long ones cut to 3 lines."""
+        t, g = self.t, self.g
+        cs = g.get("comments")
+        if cs is None:
+            return y
+        total = g.get("comment_count", len(cs))
+        y = W.text(t, s, f"Comments  ·  {total}", t.m, y, t.f_h2).bottom + t.u * 2
+        if not cs:
+            return W.text(t, s, "No comments yet.", t.m, y, t.f_body, color=t.dim).bottom
+        w = min(t.w - 2 * t.m, t.u * 125)
+        for c in cs:
+            r = W.text(t, s, c["author"], t.m + t.u * 2.5, y, t.f_btn)
+            wx = r.right + t.u * 1.5
+            if c.get("dev"):
+                wx = W.pill(t, s, "Developer", wx, r.centery, fill=t.accent, color=t.on_accent,
+                            anchor="midleft").right + t.u * 1.5
+            W.text(t, s, c["when"], wx, r.centery, t.f_small, color=t.faint, anchor="midleft")
+            yy = W.wrap(t, s, c["text"], t.m + t.u * 2.5, r.bottom + t.u * 0.4, t.f_body,
+                        w - t.u * 2.5, color=(205, 205, 205), max_lines=3)
+            if c.get("replies"):
+                yy = W.text(t, s, f"{c['replies']} repl{'y' if c['replies'] == 1 else 'ies'}",
+                            t.m + t.u * 2.5, yy + t.u * 0.4, t.f_small, color=t.dim).bottom
+            pg.draw.line(s, t.accent if c.get("dev") else t.line, (t.m, y), (t.m, yy), max(2, t.u // 4))
+            y = yy + t.u * 2.5
+        if total > len(cs):
+            y = W.text(t, s, f"Showing the newest {len(cs)} of {total}", t.m, y, t.f_small,
+                       color=t.faint).bottom
+        return y
 
     def _hero(self, s):
         """Blurred, darkened cover across the top, fading out into the page gradient."""

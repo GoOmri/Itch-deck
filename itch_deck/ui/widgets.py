@@ -18,18 +18,24 @@ def fit(font, txt, maxw):
     return txt.rstrip() + "…"
 
 
-def wrap(t, s, txt, x, y, font, maxw, color=None):
-    """Draw word-wrapped text; returns the bottom y."""
-    line = ""
+def wrap(t, s, txt, x, y, font, maxw, color=None, max_lines=None):
+    """Draw word-wrapped text; returns the bottom y. max_lines cuts with an ellipsis."""
+    lines, line = [], ""
     for word in txt.split():
         trial = f"{line} {word}".strip()
         if font.size(trial)[0] > maxw and line:
-            y = text(t, s, line, x, y, font, color).bottom
+            lines.append(line)
             line = word
         else:
             line = trial
     if line:
-        y = text(t, s, line, x, y, font, color).bottom
+        lines.append(line)
+    if max_lines and len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] = fit(font, lines[-1] + " …", maxw) if font.size(lines[-1] + " …")[0] > maxw \
+            else lines[-1] + " …"
+    for ln in lines:
+        y = text(t, s, ln, x, y, font, color).bottom
     return y
 
 
