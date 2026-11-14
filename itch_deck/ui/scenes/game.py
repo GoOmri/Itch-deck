@@ -43,7 +43,8 @@ class Game(Scene):
         if not self.playable:
             return []
         if st == "installed":
-            return [("Play", "play", True), ("Uninstall", None, True), ("Change build", None, True)]
+            return [("Play", "play", True), ("Uninstall", None, True), ("Change build", None, True),
+                    ("Controls", None, True)]
         if st == "missing":            # SD card out: keep it, nothing to run or delete
             if self.g.get("missing") == "card":
                 return [("Play", "play", False), ("Uninstall", None, False)]
@@ -123,6 +124,7 @@ class Game(Scene):
         t = self.t
         g = self.g
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
+               g.get("controls_label"),
                g.get("cover_file"), self.section, self.focus, self.shot, bool(self.overlay),
                self.offline, self.phase, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
@@ -177,6 +179,8 @@ class Game(Scene):
         if g.get("state") == "installed":
             px = tags[-1].right + t.xs if tags else x
             tags.append(W.tag(t, s, "Installed", px, y, kind="accent", icon_name="check"))
+            tags.append(W.tag(t, s, g.get("controls_label") or "Pad controls · auto",
+                              tags[-1].right + t.xs, y))
         if tags:
             y = tags[-1].bottom + t.md
 

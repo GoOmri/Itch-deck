@@ -19,6 +19,7 @@ class Settings(Scene):
             ("Saves of uninstalled games", v["prefix_size"], "Kept so reinstalling keeps your progress · A to delete"),
             ("Refresh library", "", f"Last synced {v['last_sync']}"),
             ("Update app", v["update"], "Downloads the newest version from GitHub. Old one kept as backup."),
+            ("Pointer speed", v.get("pointer", "Normal"), "Mouse mode: how fast the right stick moves the pointer"),
             ("Re-import API key", "", "Reads ~/Downloads/itch_key.txt again"),
         ]
 

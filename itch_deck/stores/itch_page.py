@@ -136,6 +136,15 @@ def _paragraphs(parts):
     return out
 
 
+def parse_inputs(html):
+    """The "Inputs" row of the More information table, e.g. ["Mouse", "Touchscreen"]."""
+    m = re.search(r"<td[^>]*>\s*Inputs\s*</td>\s*<td[^>]*>(.*?)</td>", html, re.S | re.I)
+    if not m:
+        return []
+    text = re.sub(r"<[^>]+>", "", m.group(1))
+    return [x.strip() for x in text.replace("&amp;", "&").split(",") if x.strip()]
+
+
 def parse(html):
     """-> {"description": [paragraphs], "shots": [urls], "comments": [...], "has_more": bool}"""
     p = _Parser()
@@ -157,5 +166,6 @@ def parse(html):
             seen.add(u)
             shots.append(u)
     return {"description": _paragraphs(p.desc_parts), "shots": shots, "comments": comments,
+            "inputs": parse_inputs(html),
             "comment_count": len(p.posts), "has_more": p.more_link or len(p.posts) > MAX_COMMENTS,
             "saw_comments_markup": bool(re.search(r'class="(?:[^"]* )?community_post[ "]', html))}

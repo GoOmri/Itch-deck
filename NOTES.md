@@ -267,6 +267,23 @@ v0.5.4 Deck 14 Nov: Omri installed GE-Proton11-12 (Settings picked it) -> Panzer
   Steam Input layout is plain Gamepad (pitfall #5). Workarounds: Deck touchscreen; tile layout
   "Gamepad with Mouse Trackpad". Real fix later = per-game Steam tile with its own layout.
 
+v0.6.0 MOUSE MODE (Omri asked, before M6): itch_deck/mouse.py. While a game runs with effective
+  controls "mouse", MouseMode reads the pads WITHOUT a window (ctypes SDL_GameControllerUpdate on
+  the SDL2 lib pygame loaded, found in /proc/self/maps) at 125 Hz and writes to a virtual
+  "scritch mouse" made via /dev/uinput (stdlib fcntl/struct, UI_DEV_SETUP API).
+  Map: right stick -> pointer (deadzone .15, curve ^2, slow/normal/fast = 700/1200/1900 px/s at
+  full tilt, Settings -> Pointer speed), R2/A left click, L2/X right click, left stick -> wheel,
+  D-pad -> arrows, B/Start -> Esc. Biggest stick across pads wins (Deck pad + Steam Virtual
+  Gamepad both open), buttons OR'ed. Started in play()'s release() after display.quit, stopped
+  after the game exits (all keys released). Any failure = log "mouse mode: off (reason)" + toast
+  "Mouse mode isn't available: ..." after the game; the game always starts.
+  Per game: game page "Controls" button cycles Auto -> Pad -> Mouse (cfg["controls"][gid]); tag
+  next to Installed shows "Mouse controls · auto". Auto = mouse when the itch page's Inputs row
+  lists Mouse/Touchscreen and no gamepad/controller/joystick (itch_page.parse_inputs; page cache
+  now stores "inputs"; older cached pages count as stale and refetch on open).
+  UNVERIFIED on Deck: /dev/uinput permission (SteamOS uaccess?) and pad reads with no window.
+  Check app.log "mouse mode: on/off (...)". Gallery updated (15, 20, 21, 23, 24).
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so

@@ -8,7 +8,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, net, paths, proton, runner, theme
+from . import config, mouse, net, paths, proton, runner, theme
 from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1,
                     TEXT, BKSP, ENTER, PASTE)
 from .installer import Installer, slug_of
@@ -17,7 +17,7 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.5.4"
+VERSION = "0.6.0"
 QUIT_DLG = ("confirm", "Quit SCRiTCH?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Comes in a later update."
@@ -156,6 +156,7 @@ class App:
             "proton": self.cfg.get("proton") or (protons[0] if protons else "Not found"),
             "prefix_size": "None yet", "last_sync": short_date(self.lib.synced_at),
             "update": self.updater.row_value(),
+            "pointer": self.cfg.get("pointer_speed", "normal").capitalize(),
         }
 
     # --- API key -------------------------------------------------------
@@ -345,6 +346,8 @@ class App:
             self.play(g)
         elif label == "Change build":
             self.change_build(g)
+        elif label.startswith("Controls"):
+            self.cycle_controls(g)
         else:
             self.say(LATER)
 
@@ -448,6 +451,36 @@ class App:
         self.scene.focus = 0
         self.say(f"{g['title']} was uninstalled.")
 
+    # --- controls (mouse mode) ---------------------------------------------------
+    CONTROLS = ("auto", "gamepad", "mouse")
+
+    def controls_of(self, g):
+        """(setting, effective): setting auto|gamepad|mouse; auto follows itch's Inputs."""
+        setting = (self.cfg.get("controls") or {}).get(g["id"], "auto")
+        eff = mouse.auto_mode(g.get("inputs")) if setting == "auto" else setting
+        return setting, eff
+
+    def controls_label(self, g):
+        setting, eff = self.controls_of(g)
+        name = {"gamepad": "Pad", "mouse": "Mouse"}[eff]
+        return f"{name} controls" + (" · auto" if setting == "auto" else "")
+
+    def cycle_controls(self, g):
+        setting, _ = self.controls_of(g)
+        nxt = self.CONTROLS[(self.CONTROLS.index(setting) + 1) % 3]
+        ctl = dict(self.cfg.get("controls") or {})
+        if nxt == "auto":
+            ctl.pop(g["id"], None)
+        else:
+            ctl[g["id"]] = nxt
+        self.cfg["controls"] = ctl
+        config.save(self.cfg)
+        _, eff = self.controls_of(g)
+        log.info("controls %s: %s (%s)", g["id"], nxt, eff)
+        self.say({"mouse": "Right stick moves the mouse, R2 clicks while this game runs.",
+                  "gamepad": "The game gets the controller as a gamepad."}[eff] +
+                 (" (Auto: from the game's itch page)" if nxt == "auto" else ""))
+
     def play(self, g):
         exe = self.inst.exe_path(g["id"])
         if not exe or not exe.exists():
@@ -477,19 +510,28 @@ class App:
         self.scene.toast, self.toast_until = None, 0
         self._splash(f"Starting {g['title']}…", sub)
         state = {"closed": False}
+        mm = None
+        if self.controls_of(g)[1] == "mouse":
+            mm = mouse.MouseMode(pg, self.inp.pads, self.cfg.get("pointer_speed", "normal"))
 
         def release():                       # after the overlap: the game has its window up
             if not state["closed"]:
                 state["closed"] = True
                 pg.display.quit()
+                if mm:                       # our window is gone: the mapper owns SDL now
+                    mm.start()
 
         rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump,
                               size=self.screen.get_size(), umu=umu, extra_env=env, hold=hold)
+        if mm:
+            mm.stop()
         if state["closed"]:
             self.open_display()
             self._splash("Returning…")
         self.inp.flush()
         self.go_game(self.lib.by_id(g["id"]) or g)
+        if mm and mm.error and not runner.crashed(rc, secs):
+            self.say(f"Mouse mode isn't available: {mm.error}.", error=True)
         if runner.crashed(rc, secs):
             hint = runner.crash_hint(slug_of(g))
             log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
@@ -550,6 +592,12 @@ class App:
                     self.say("Updates only work in the released app.")
                 elif not u.busy():
                     u.check()
+            elif label == "Pointer speed":
+                order = ("slow", "normal", "fast")
+                cur = self.cfg.get("pointer_speed", "normal")
+                self.cfg["pointer_speed"] = order[(order.index(cur) + 1) % 3] if cur in order else "normal"
+                config.save(self.cfg)
+                sc.v["pointer"] = self.cfg["pointer_speed"].capitalize()
             elif label == "Re-import API key":
                 self.go_setup("waiting", back=True)
                 self.try_import(auto=True)
@@ -629,6 +677,7 @@ class App:
             if g is not None and g is not sc.g:   # list replaced by a sync
                 sc.g = g
             g = sc.g
+            g["controls_label"] = self.controls_label(g)
             st = g.get("state")
             sc.phase = g.get("phase") if st == "downloading" else None
             sc.fail_reason = g.get("fail_reason")
