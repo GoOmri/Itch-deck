@@ -15,6 +15,7 @@ def _mb(mb):
 
 
 # the page's one purple button (DESIGN rule 1); Cancel never — the progress bar is the purple thing
+SHOT_GROW = 1.12   # focused screenshot grows more than tiles: it's what you're looking at
 MAIN_ACTIONS = ("Install", "Retry install", "Play")
 
 class Game(Scene):
@@ -167,18 +168,18 @@ class Game(Scene):
         y = W.text(t, s, f"itch  ·  {self.pos[0]} of {self.pos[1]}", x, y, t.f_small,
                    color=t.dim).bottom
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
-        y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim).bottom + t.sm
+        info = f"by {g['author']}" + (f"  ·  {_mb(g['size_mb'])}" if g["size_mb"] else "")
+        r = W.text(t, s, info, x, y, t.f_body, color=t.dim)      # one info line, no loose tags
+        if g.get("state") == "installed":                         # state = purple (rule 1)
+            ih = int(t.f_body.get_height() * 0.42)
+            cx = r.right + t.md
+            W.text(t, s, "·", r.right + t.sm * 0.6, y, t.f_body, color=t.dim)
+            cx += W.icon_draw(s, "check", (cx + ih * 0.45, r.centery), ih, t.accent) + t.xs
+            W.text(t, s, "Installed", cx, y, t.f_body, color=t.accent)
+        y = r.bottom + t.sm
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
-            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w)) + t.sm
-
-        tags = []
-        if g["size_mb"]:
-            tags.append(W.tag(t, s, _mb(g["size_mb"]), x, y))
-        if g.get("state") == "installed":
-            px = tags[-1].right + t.xs if tags else x
-            tags.append(W.tag(t, s, "Installed", px, y, kind="accent", icon_name="check"))
-        if tags:
-            y = tags[-1].bottom + t.md
+            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w))
+        y += t.md
 
         y = self._status(s, x, y, maxw)
         if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
@@ -197,25 +198,33 @@ class Game(Scene):
         n = g.get("screens", 0)
         if n:
             y = W.text(t, s, "Screenshots", t.m, y, t.f_h2).bottom + t.sm
-            th = int(t.u * 17)
-            tw = int(th * 16 / 9)
-            fits = max(1, int((t.w - 2 * t.m + t.gap) // (tw + t.gap)))
-            first = max(0, min(self.shot - fits + 1, n - fits)) if self.section == "shots" else 0
-            for k, i in enumerate(range(first, min(n, first + fits))):
-                r = pg.Rect(t.m + k * (tw + t.gap), y, tw, th)
+            th = int(t.u * 19)                       # same height, each at its own shape
+            ws = [int(th * W.shot_aspect(g, i)) for i in range(n)]
+            avail = t.w - 2 * t.m
+            first = 0
+            if self.section == "shots":              # scroll so the focused one fits
+                while sum(ws[first:self.shot + 1]) + t.gap * (self.shot - first) > avail:
+                    first += 1
+            pad = int(th * (SHOT_GROW - 1) / 2)      # room for the focused one to grow
+            y += pad
+            xx, last = t.m, None
+            for i in range(first, n):
+                if xx + ws[i] > t.m + avail:
+                    break
+                r = pg.Rect(xx, y, ws[i], th)
+                last, xx = (i, r), xx + ws[i] + t.gap
                 foc = self.section == "shots" and i == self.shot and not self.overlay
                 k = W.anim(("shot", g["id"], i), 1.0 if foc else 0.0)
-                grow = (t.focus_scale - 1) * k
+                grow = (SHOT_GROW - 1) * k
                 if grow:
-                    r = r.inflate(tw * grow, th * grow)
+                    r = r.inflate(r.w * grow, th * grow)
                 s.blit(W.rounded(W.screenshot(t, g, i, r.size), t.radius), r)
                 if k > 0.5:
                     W.focus_ring(t, s, r)
-            if first + fits < n:  # more to the right: count on the last visible shot
-                last = pg.Rect(t.m + (fits - 1) * (tw + t.gap), y, tw, th)
-                W.tag(t, s, f"+{n - first - fits} more", last.right - t.xs, last.bottom - t.xs,
-                      kind="dark", anchor="bottomright")
-            y += th + t.lg
+            if last and last[0] < n - 1:  # more to the right: count on the last visible shot
+                W.tag(t, s, f"+{n - 1 - last[0]} more", last[1].right - t.xs,
+                      last[1].bottom - t.xs, kind="dark", anchor="bottomright")
+            y += th + pad + t.lg
         desc_y = y
         paras = g.get("description") or []
         if paras:
@@ -262,22 +271,27 @@ class Game(Scene):
         return y
 
     def _hero(self, s):
-        """Blurred, darkened cover across the top, fading out into the page gradient."""
-        t = self.t
-        h = int(t.h * 0.75)
-        key = (self.g["id"], self.g.get("cover_file"), t.w, h)
+        """Big art across the top: the first screenshot (sharp, darkened), or the blurred cover
+        when there are none; fades out into the page gradient."""
+        t, g = self.t, self.g
+        h = int(t.h * 0.8)
+        shot = bool(g.get("screens"))
+        key = (g["id"], g.get("cover_file"), tuple(g.get("shot_files") or ()), shot, t.w, h)
         if getattr(self, "_hero_key", None) == key:
             return s.blit(self._hero_img, (0, 0))
-        small = pg.transform.smoothscale(W.cover(self.t, self.g, (315, 250)), (24, 14))
-        hero = pg.transform.smoothscale(small, (t.w, h))
+        if shot:
+            hero = W.screenshot(t, g, 0, (t.w, h)).copy()
+        else:
+            small = pg.transform.smoothscale(W.cover(self.t, g, (315, 250)), (24, 14))
+            hero = pg.transform.smoothscale(small, (t.w, h))
         dark = pg.Surface((t.w, h), pg.SRCALPHA)
-        dark.fill((0, 0, 0, 150))
+        dark.fill((0, 0, 0, 140 if shot else 150))      # keeps white text readable
         hero.blit(dark, (0, 0))
         out = pg.Surface((t.w, h), pg.SRCALPHA)
         out.blit(hero, (0, 0))
         mask = pg.Surface((t.w, h), pg.SRCALPHA)
         for yy in range(h):
-            a = int(200 * (1 - yy / h) ** 1.4)
+            a = int((255 if shot else 200) * (1 - yy / h) ** (1.1 if shot else 1.4))
             pg.draw.line(mask, (255, 255, 255, a), (0, yy), (t.w, yy))
         out.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
         self._hero_key, self._hero_img = key, out

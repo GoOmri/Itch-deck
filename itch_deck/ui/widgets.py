@@ -255,6 +255,26 @@ def cover(t, game, size):
     return out
 
 
+_ASPECT = {}
+
+
+def shot_aspect(game, i):
+    """Width/height of screenshot i: from the cached file, else the game's known shapes, else 16:9."""
+    files = game.get("shot_files") or []
+    if i < len(files):
+        a = _ASPECT.get(files[i])
+        if a is None:
+            try:
+                w, h = pg.image.load(files[i]).get_size()
+                a = max(0.5, min(2.4, w / h))
+            except Exception:  # noqa: BLE001
+                a = 16 / 9
+            _ASPECT[files[i]] = a
+        return a
+    shapes = game.get("shot_aspects") or [16 / 9]
+    return shapes[i % len(shapes)]
+
+
 def screenshot(t, game, i, size, contain=False):
     """Screenshot i (cached from the itch page), else a 16:9 placeholder.
     contain=True (full-screen viewer): whole image, letterboxed — never cropped."""
@@ -277,10 +297,11 @@ def screenshot(t, game, i, size, contain=False):
     gy = 120 + (zlib.crc32(f"{game['id']}{i}g".encode()) % 30)
     pts = [(0, gy)] + [(x, gy - (zlib.crc32(f"{game['id']}{i}{x}".encode()) % 28)) for x in range(20, w, 40)] + [(w, gy), (w, h), (0, h)]
     pg.draw.polygon(base, [max(0, c - 25) for c in bot], pts)
-    px = 40 + (zlib.crc32(f"{game['id']}{i}p".encode()) % 220)
-    pg.draw.rect(base, (245, 240, 230), (px, gy - 34, 14, 22), border_radius=3)
-    pg.draw.rect(base, (0, 0, 0), (8, 8, 70, 10), border_radius=3)
-    pg.draw.rect(base, (230, 230, 230), (10, 10, 40, 6), border_radius=2)
+    if size[0] < 800:                    # small placeholder: a "player" + HUD; hero-size: scenery only
+        px = 40 + (zlib.crc32(f"{game['id']}{i}p".encode()) % 220)
+        pg.draw.rect(base, (245, 240, 230), (px, gy - 34, 14, 22), border_radius=3)
+        pg.draw.rect(base, (0, 0, 0), (8, 8, 70, 10), border_radius=3)
+        pg.draw.rect(base, (230, 230, 230), (10, 10, 40, 6), border_radius=2)
     out = pg.transform.smoothscale(base, size)
     _cover_cache[key] = out
     return out

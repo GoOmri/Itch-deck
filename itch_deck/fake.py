@@ -42,6 +42,7 @@ def library():
              "platforms": set(plats.split()), "size_mb": mb, "state": state}
         g["short_text"] = _TAGLINES.get(title, "")
         g["screens"] = 0 if "html" in g["platforms"] else 3 + i % 4
+        g["shot_aspects"] = [16 / 9, 4 / 3, 16 / 10, 16 / 9][i % 4:] + [16 / 9, 4 / 3, 16 / 10][:i % 4]
         g["description"] = _description(title, g["short_text"])
         g["comments"] = _COMMENTS if i % 3 else []
         g["comment_count"] = 24 if i % 3 else 0
