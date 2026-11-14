@@ -217,6 +217,21 @@ v0.5.1 (14 Nov): design round 2 released — motion v2 (spring curve, sliding fo
 v0.5.2 (Omri): B = Back on every screen except Library. Setup opened from Settings (Re-import
   API key) has back=True: B -> Settings, hint "Back". First run / rejected key: B still = Quit dialog.
 
+## Found 14 Nov: free games with no price aren't in the library
+- Hyperbole (nilsdesle, Inno test game) has plain Download buttons, no "Download Now / name your
+  price" step. Downloading it creates NO download key, so it never shows in /profile/owned-keys,
+  and scritch only syncs owned keys. Same for every itch game with payments switched off.
+- Children of Solarus (first Inno pick) is gone from itch.
+- Proposed fix (NOT built, ask Omri): also sync the user's itch COLLECTIONS (the "Add To
+  Collection" button on any game page). itch API: GET /profile/collections, then
+  /collections/{id}/collection-games (paginated). Merge into the library, dedupe by game id; no
+  download_key_id needed: stores/itch.py already calls /games/{id}/uploads without one for free
+  games. Small change (sync + dedupe + a fixture test). Verify the endpoints with the real key on
+  the Deck log first, since itch is blocked from the workspace.
+- Hyperbole's Windows upload is a bare "Hyperbole_setup_0.9.12 BETA.exe" (294 MB, no zip) ->
+  the bare-setup.exe path of M5. Mac zip is skipped. Good installer test once collections sync.
+- Omri 14 Nov: work on notes freely, but NO app release until he says.
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so
