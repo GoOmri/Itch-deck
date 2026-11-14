@@ -15,6 +15,8 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
   W.tag for labels, 5 theme font sizes, purple only for progress/state, t.dim for readable grey,
   app name = W.APP_NAME ("scritch").
 - Write what you changed in NOTES.md before pushing, so the next chat knows.
+- After ANY UI change: re-render mockups (`python run.py --render-mockups DIR`) and publish them as
+  `after/` to the gallery artifact https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (Omri expects it current).
 - Ask Omri before big changes.
 
 ## Current milestone
