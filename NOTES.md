@@ -283,7 +283,8 @@ v0.6.0 MOUSE MODE (Omri asked, before M6): itch_deck/mouse.py. While a game runs
   next to Installed shows "Mouse controls · auto". Auto = mouse when the itch page's Inputs row
   lists Mouse/Touchscreen and no gamepad/controller/joystick (itch_page.parse_inputs; page cache
   now stores "inputs"; older cached pages count as stale and refetch on open).
-  UNVERIFIED on Deck: /dev/uinput permission (SteamOS uaccess?) and pad reads with no window.
+  v0.6.0 Deck 14 Nov: WORKS (Omri). /dev/uinput is writable on SteamOS and pad reads with no
+  window work; Panzer Marshal playable with right stick + R2.
   Check app.log "mouse mode: on/off (...)". Gallery updated (15, 20, 21, 23, 24).
 
 ## Future (optional) milestones
