@@ -23,6 +23,7 @@ class Theme:
     error = (235, 77, 77)     # red is only for errors
     error_bg = (52, 32, 34)
     error_soft = (255, 150, 150)  # text on error_bg (Failed tag)
+    danger_btn = (150, 44, 52)    # Quit / Uninstall button, not focused (focused = error)
     focus_fill = (88, 86, 124)    # focused button / row: lit up, no colour
     focus_line = (225, 225, 238)  # thin light edge on focused pictures (tiles, screenshots)
     tag_bg = (44, 46, 68)         # neutral tag fill (platform, size)

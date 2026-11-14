@@ -42,9 +42,13 @@ def library():
              "platforms": set(plats.split()), "size_mb": mb, "state": state}
         g["short_text"] = _TAGLINES.get(title, "")
         g["screens"] = 0 if "html" in g["platforms"] else 3 + i % 4
+        g["shot_aspects"] = [16 / 9, 4 / 3, 16 / 10, 16 / 9][i % 4:] + [16 / 9, 4 / 3, 16 / 10][:i % 4]
         g["description"] = _description(title, g["short_text"])
         g["comments"] = _COMMENTS if i % 3 else []
         g["comment_count"] = 24 if i % 3 else 0
+        g["added"] = f"2026-{1 + i % 11:02d}-{1 + (i * 7) % 27:02d}"
+        if i % 4 == 1 or state == "installed":
+            g["played"] = f"2026-11-{1 + (i * 5) % 14:02d}T20:00:00"
         if state == "downloading":
             g.update(progress=0.42, speed_mbs=11.8, eta_s=111)
         if state == "missing":

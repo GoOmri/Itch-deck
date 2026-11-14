@@ -71,6 +71,7 @@ def game_from_key(k):
         "platforms": sorted(platforms_of(g)),
         "download_key_id": k.get("id"),
         "classification": g.get("classification"),
+        "added": k.get("created_at") or "",          # when it joined the library (Sort: Recently added)
     }
 
 

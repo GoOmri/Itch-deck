@@ -255,6 +255,26 @@ def cover(t, game, size):
     return out
 
 
+_ASPECT = {}
+
+
+def shot_aspect(game, i):
+    """Width/height of screenshot i: from the cached file, else the game's known shapes, else 16:9."""
+    files = game.get("shot_files") or []
+    if i < len(files):
+        a = _ASPECT.get(files[i])
+        if a is None:
+            try:
+                w, h = pg.image.load(files[i]).get_size()
+                a = max(0.5, min(2.4, w / h))
+            except Exception:  # noqa: BLE001
+                a = 16 / 9
+            _ASPECT[files[i]] = a
+        return a
+    shapes = game.get("shot_aspects") or [16 / 9]
+    return shapes[i % len(shapes)]
+
+
 def screenshot(t, game, i, size, contain=False):
     """Screenshot i (cached from the itch page), else a 16:9 placeholder.
     contain=True (full-screen viewer): whole image, letterboxed — never cropped."""
@@ -277,10 +297,11 @@ def screenshot(t, game, i, size, contain=False):
     gy = 120 + (zlib.crc32(f"{game['id']}{i}g".encode()) % 30)
     pts = [(0, gy)] + [(x, gy - (zlib.crc32(f"{game['id']}{i}{x}".encode()) % 28)) for x in range(20, w, 40)] + [(w, gy), (w, h), (0, h)]
     pg.draw.polygon(base, [max(0, c - 25) for c in bot], pts)
-    px = 40 + (zlib.crc32(f"{game['id']}{i}p".encode()) % 220)
-    pg.draw.rect(base, (245, 240, 230), (px, gy - 34, 14, 22), border_radius=3)
-    pg.draw.rect(base, (0, 0, 0), (8, 8, 70, 10), border_radius=3)
-    pg.draw.rect(base, (230, 230, 230), (10, 10, 40, 6), border_radius=2)
+    if size[0] < 800:                    # small placeholder: a "player" + HUD; hero-size: scenery only
+        px = 40 + (zlib.crc32(f"{game['id']}{i}p".encode()) % 220)
+        pg.draw.rect(base, (245, 240, 230), (px, gy - 34, 14, 22), border_radius=3)
+        pg.draw.rect(base, (0, 0, 0), (8, 8, 70, 10), border_radius=3)
+        pg.draw.rect(base, (230, 230, 230), (10, 10, 40, 6), border_radius=2)
     out = pg.transform.smoothscale(base, size)
     _cover_cache[key] = out
     return out
@@ -359,6 +380,22 @@ def icon_draw(s, name, center, size, color):
         pg.draw.polygon(s, color, pts)
         pg.draw.aalines(s, color, True, pts)
         return int(a * 2)
+    if name == "gear":                   # 8 teeth + hole, supersampled for smooth edges
+        k = 4
+        d = int(h * k)
+        big = pg.Surface((d, d), pg.SRCALPHA)
+        c, r1, r2 = d / 2, d * 0.5, d * 0.36
+        pts = []
+        for i in range(8):
+            a = i * math.pi / 4
+            for da, rr in ((-0.30, r2), (-0.18, r1), (0.18, r1), (0.30, r2)):
+                pts.append((c + rr * math.cos(a + da), c + rr * math.sin(a + da)))
+        pg.draw.polygon(big, color, pts)
+        pg.draw.circle(big, color, (c, c), r2)
+        pg.draw.circle(big, (0, 0, 0, 0), (c, c), d * 0.15)
+        img = pg.transform.smoothscale(big, (int(h), int(h)))
+        s.blit(img, img.get_rect(center=(int(cx), int(cy))))
+        return int(h)
     if name == "check":
         w = max(2, round(h * 0.2))
         pts = [(cx - h * 0.42, cy + h * 0.02), (cx - h * 0.12, cy + h * 0.32),
@@ -379,19 +416,16 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=Fal
     no outline. accent=True (Play, Update only) = purple; focused it lights up to bright accent."""
     key = key or ("btn", label)
     k = anim(key, 1.0 if focused else 0.0)          # eased focus amount
-    if accent and enabled:
+    if accent == "danger" and enabled:             # Quit / Uninstall: red (Omri)
+        fill, col = mix(t.danger_btn, t.error, k), t.text_c
+    elif accent and enabled:
         fill, col = mix(t.accent_btn, t.accent, k), t.text_c
     elif not enabled:
         fill, col = mix(t.panel, t.panel_hi, k), t.faint
     else:
         fill, col = mix(t.panel_hi, t.focus_fill, k), mix(t.dim, t.text_c, k)
     panel(t, s, rect, fill)
-    gap, ih = t.sm, int(t.f_btn.get_height() * 0.5)
-    w = t.f_btn.size(label)[0] + ((int(ih * 0.9) + gap) if icon else 0)
-    x = rect.centerx - w / 2                       # icon + label centred as one group
-    if icon:
-        x += icon_draw(s, icon, (x + ih * 0.45, rect.centery), ih, col) + gap
-    text(t, s, label, x, rect.centery, t.f_btn, color=col, anchor="midleft")
+    _btn_label(t, s, rect, label, icon, col)
 
 
 def button_row(t, s, x, y, items, focus, key=None):
@@ -407,6 +441,9 @@ def button_row(t, s, x, y, items, focus, key=None):
 
 
 def _btn_label(t, s, rect, label, icon, col):
+    if icon == "gear":                             # icon-only button
+        icon_draw(s, "gear", rect.center, int(rect.h * 0.46), col)
+        return
     gap, ih = t.sm, int(t.f_btn.get_height() * 0.5)
     w = t.f_btn.size(label)[0] + ((int(ih * 0.9) + gap) if icon else 0)
     x = rect.centerx - w / 2                       # icon + label centred as one group
@@ -416,7 +453,9 @@ def _btn_label(t, s, rect, label, icon, col):
 
 
 def button_w(t, label, icon=None):
-    """Natural width of a button (label + padding), at least btn_min."""
+    """Natural width of a button (label + padding), at least btn_min. ⚙ = square."""
+    if icon == "gear":
+        return t.btn_h
     w = t.f_btn.size(label)[0] + (t.f_btn.get_height() * 0.5 + t.sm if icon else 0)
     return int(max(t.u * 18, w + t.md * 2))
 
@@ -622,12 +661,13 @@ def offline_mark(t, s, right, cy, since):
 
 
 # --- overlays ---------------------------------------------------------------
-def modal(t, s, title, body):
-    """Yes/no dialog: title + body only. Its actions are in the footer (DESIGN rule 6)."""
+def modal(t, s, title, body, buttons=None, focus=0):
+    """Yes/no dialog with its buttons inside (Omri): [action, "Cancel"], focus lights one."""
     shade(t, s)
     lines = body if isinstance(body, list) else [body]
     pad = t.lg
     h = pad * 2 + t.f_h2.get_linesize() + t.sm + len(lines) * t.f_body.get_linesize()
+    h += (t.lg + t.btn_h) if buttons else 0
     need = max([t.f_h2.size(title)[0]] + [t.f_body.size(ln)[0] for ln in lines]) + pad * 2
     r = pg.Rect(0, 0, min(t.w - 2 * t.m, max(t.read_w * 0.8, need)), h)
     r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
@@ -635,6 +675,31 @@ def modal(t, s, title, body):
     y = text_named(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom + t.sm
     for ln in lines:
         y = text(t, s, ln, r.x + pad, y, t.f_body, color=t.dim).bottom
+    if buttons:
+        button_row(t, s, r.x + pad, y + t.lg,       # the action is red, Cancel grey
+                   [(b, None, True, "danger" if i == 0 else False) for i, b in enumerate(buttons)],
+                   focus)
+    return r
+
+
+def menu(t, s, title, sub, items, focus):
+    """THE small list dialog: build picker, game Options (☰), Sort & filter (X).
+    items: [(label, value, sub)] like W.rows. Actions are in the footer."""
+    shade(t, s)
+    w = min(t.w - 2 * t.m, t.read_w)
+    row_h = int(t.u * (8.5 if any(i[2] for i in items) else 7))
+    pad = t.lg
+    head = t.f_h2.get_linesize() + (t.f_small.get_linesize() if sub else 0) + t.md
+    h = pad * 2 + head + len(items) * (row_h + t.u // 2)
+    r = pg.Rect(0, 0, w, h)
+    r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
+    panel(t, s, r)
+    ty = text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom
+    if sub:
+        text(t, s, sub, r.x + pad, ty, t.f_small, color=t.dim)
+    # rows sit inset by (pad - row padding) so their text lines up with the title
+    rows(t, s, pg.Rect(r.x + pad - t.md, r.y + pad + head, r.w - 2 * (pad - t.md), 0),
+         items, focus, row_h, key=("menu", title))
     return r
 
 
@@ -660,7 +725,7 @@ def toast(t, s, msg, error=False):
 
 def notice(t, s, x, y, w, title, body=None, kind="error"):
     """Status box. kind="error": red bar + error_bg (red only for errors);
-    kind="busy": neutral panel + spinner (e.g. waiting for a file). Returns its rect."""
+    kind="info": neutral panel (SD card missing, queued…); kind="busy": neutral + spinner."""
     lh = t.f_btn.get_linesize() + (t.f_small.get_linesize() if body else 0)
     vpad = t.md if body else t.sm                 # one-liners stay slim
     r = pg.Rect(int(x), int(y), int(w), int(lh + vpad * 2))
@@ -669,9 +734,11 @@ def notice(t, s, x, y, w, title, body=None, kind="error"):
         pg.draw.rect(s, t.error, (r.x, r.y, max(3, t.u // 2), r.h),
                      border_top_left_radius=t.radius, border_bottom_left_radius=t.radius)
         tx = r.x + t.md
-    else:
+    elif kind == "busy":
         spinner(t, s, (r.x + t.md + t.u, r.centery), int(t.u * 1.2), 0.1)
         tx = r.x + t.md + t.u * 2 + t.sm
+    else:
+        tx = r.x + t.md
     ty = r.y + vpad
     text(t, s, title, tx, ty, t.f_btn if body else t.f_body, maxw=r.right - tx - t.md)
     if body:

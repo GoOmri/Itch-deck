@@ -4,7 +4,7 @@ from pathlib import Path
 
 SIZES = [(1280, 800), (1920, 1080)]
 REAL = None   # --real DIR: (real library list, picked real game) instead of fake data
-STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase")
+STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase", "played", "added")
 
 
 def load_real(root, pick=None):
@@ -69,6 +69,12 @@ def _shots(t, version):
     def game(title, **kw):
         if REAL:                         # the picked real game, in this fake game's state
             g = dict(REAL[1])
+            fp = by[title]["platforms"]
+            if not fp & {"linux", "windows"}:          # browser / not playable: a real one like it
+                want = (lambda x: x["platforms"] & {"html", "linux", "windows"} == {"html"}) \
+                    if "html" in fp else \
+                       (lambda x: not x["platforms"] & {"linux", "windows", "html"})
+                g = dict(next((x for x in REAL[0] if want(x)), g))
             g.update({k: by[title][k] for k in STATE_KEYS if k in by[title]})
             g["size_mb"] = g.get("size_mb") or by[title]["size_mb"]
             return Game(t, g, pos=(idx[title] + 1, n), **kw)
@@ -105,6 +111,10 @@ def _shots(t, version):
         ("05d_library_update", _note(_act(Library(t, lib, focus=1), "Covers 40/120"),
                                      "Update v0.3.4 available · Settings")),
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
+        ("06b_library_recent", Library(t, lib, filt="recent", focus=0)),
+        ("06c_library_sort_filter", with_overlay(Library(t, lib, focus=0, sort="added"), (
+            "menu", "Sort & filter", "", [("Sort", "Recently added", ""), ("Show", "Everything", "")],
+            0))),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
         ("08_library_empty", Library(t, [])),
         ("09_library_quit", with_overlay(Library(t, lib, focus=0), quit_dlg)),
@@ -123,6 +133,9 @@ def _shots(t, version):
         ("14_game_preparing_proton", game("Orbit Bakery", phase="proton")),
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
+        ("15b_game_options", with_overlay(game("Moss & Rivets"), (
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "", "")], 0))),
         ("16_game_failed", game("Grave Gardener",
                                 fail_reason="No runnable file found in the download (Windows build).")),
         ("17_game_browser", game("Frog Parliament")),

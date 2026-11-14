@@ -1,4 +1,4 @@
-"""P2 Library (home): store tab, All/Installed filter, cover grid."""
+"""P2 Library (home): All / Installed / Recent tabs, Sort & filter menu (X), cover grid."""
 import pygame as pg
 
 from ...input import UP, DOWN, LEFT, RIGHT, X, L2, R2
@@ -6,11 +6,33 @@ from .. import widgets as W
 from .base import Scene
 
 
+TABS = (("all", "All"), ("installed", "Installed"), ("recent", "Recent"))
+SORTS = (("az", "A–Z"), ("added", "Recently added"))
+SHOWS = (("all", "Everything"), ("playable", "Playable here"))
+
+
+def playable(g):
+    return bool(g["platforms"] & {"linux", "windows"})
+
+
+def visible(games, filt="all", sort="az", show="all"):
+    """The games a tab shows, in order (the app uses it too, for L1/R1 on the game page)."""
+    gs = [g for g in games if playable(g)] if show == "playable" else list(games)
+    if filt == "installed":
+        gs = [g for g in gs if g.get("state") in ("installed", "missing")]
+    if filt == "recent":                                    # newest play first
+        return sorted((g for g in gs if g.get("played")), key=lambda g: g["played"], reverse=True)
+    if sort == "added":
+        gs.sort(key=lambda g: g.get("added") or "", reverse=True)
+    return gs
+
+
 class Library(Scene):
     def __init__(self, t, games, filt="all", focus=0, syncing=None, sync_page=0,
-                 offline_since=None, offline=False, **kw):
+                 offline_since=None, offline=False, sort="az", show="all", **kw):
         super().__init__(t, **kw)
         self.games, self.filt, self.focus = games, filt, focus
+        self.sort, self.show = sort, show                   # X menu (saved in config by the app)
         self.syncing, self.sync_page = syncing, sync_page   # None | "first" | "bg"
         self.offline_since = offline_since
         self.offline = offline          # True with no cache yet: nothing to show
@@ -19,16 +41,37 @@ class Library(Scene):
 
     @property
     def shown(self):
-        if self.filt == "installed":
-            return [g for g in self.games if g.get("state") in ("installed", "missing")]
-        return self.games
+        return visible(self.games, self.filt, self.sort, self.show)
+
+    def menu_items(self):
+        """X: Sort & filter. Rows show their current value; A switches to the next value."""
+        return [("Sort", dict(SORTS)[self.sort], ""), ("Show", dict(SHOWS)[self.show], "")]
+
+    def menu_next(self, label):
+        if label == "Sort":
+            keys = [k for k, _ in SORTS]
+            self.sort = keys[(keys.index(self.sort) + 1) % len(keys)]
+        else:
+            keys = [k for k, _ in SHOWS]
+            self.show = keys[(keys.index(self.show) + 1) % len(keys)]
+        self.focus, self._first, self._sy = 0, 0, None
+        self.overlay = ("menu", "Sort & filter", "", self.menu_items(), self.overlay[4])
+
+    def next_tab(self, step):
+        keys = [k for k, _ in TABS]
+        self.filt = keys[(keys.index(self.filt) + step) % len(keys)]
+        self.focus, self._first, self._sy = 0, 0, None
 
     # --- input ---------------------------------------------------------
     def handle(self, act):
         n, c = len(self.shown), self.t.grid_cols
+        if self.overlay and self.overlay[0] == "menu":
+            kind, title, sub, items, f = self.overlay
+            if act in (UP, DOWN):
+                self.overlay = (kind, title, sub, items, (f + (1 if act == DOWN else -1)) % len(items))
+            return
         if act == X:
-            self.filt = "installed" if self.filt == "all" else "all"
-            self.focus, self._first, self._sy = 0, 0, None
+            self.overlay = ("menu", "Sort & filter", "", self.menu_items(), 0)
         elif n:
             step = {LEFT: -1, RIGHT: 1, UP: -c, DOWN: c, L2: -3 * c, R2: 3 * c}.get(act, 0)
             if step:
@@ -38,15 +81,26 @@ class Library(Scene):
     def hints(self):
         if self.syncing == "first":
             return [("B", "Quit")]
-        return [("MENU", "Settings"), ("Y", "Refresh"), ("L1", ""), ("R1", "Tabs"), ("A", "Open"),
-                ("B", "All games" if self.filt == "installed" else "Quit")]
+        return [("MENU", "Settings"), ("X", "Sort & filter"), ("L1", ""), ("R1", "Tabs"),
+                ("A", "Open"), ("B", "All games" if self.filt != "all" else "Quit")]
+
+    def overlay_hints(self):
+        if self.overlay and self.overlay[0] == "menu":
+            return [("A", "Change"), ("B", "Close")]
+        return super().overlay_hints()
+
+    def draw_overlay(self, s):
+        if self.overlay[0] == "menu":
+            return W.menu(self.t, s, *self.overlay[1:])
+        return super().draw_overlay(s)
 
     def draw_page(self, s):
         t = self.t
         y = self._top_bar(s)
         key = ("tabswipe", id(self))
         if getattr(self, "_tab_filt", self.filt) != self.filt:      # tab changed: swipe in
-            self._tab_dir = 1 if self.filt == "installed" else -1   # Installed is to the right
+            keys = [k for k, _ in TABS]                             # tab to the right: from right
+            self._tab_dir = 1 if keys.index(self.filt) > keys.index(self._tab_filt) else -1
             W._ANIM.pop(key, None)                                  # restart from 0
         self._tab_filt = self.filt
         k = W.anim(key, 1.0, start=0.0 if key not in W._ANIM and hasattr(self, "_tab_dir")
@@ -67,7 +121,10 @@ class Library(Scene):
         if not self.shown:
             if self.filt == "installed":
                 return self._center_msg(s, y, "Nothing installed yet.",
-                                        "Press X to see all your games.")
+                                        "Install a game from All and it shows up here.")
+            if self.filt == "recent":
+                return self._center_msg(s, y, "Nothing played yet.",
+                                        "Games you play show up here, newest first.")
             if self.offline:
                 return self._center_msg(s, y, "Can't reach itch.io.",
                                         "Check Wi-Fi, then press Y to try again.", refresh=True)
@@ -80,7 +137,7 @@ class Library(Scene):
         base = int(t.m + t.xs)              # everything in the top bar sits on this baseline
         r = W.wordmark(t, s, t.m, base, anchor="baseleft")
         x = r.right + t.lg
-        for key, label in (("all", "All"), ("installed", "Installed")):
+        for key, label in TABS:
             on = self.filt == key
             lr = W.text(t, s, label, x, base, t.f_btn, color=t.text_c if on else t.dim,
                         anchor="baseleft")

@@ -12,7 +12,8 @@ there first, then use it.
 - **One purple button per page: its main action** (like Steam, PS5, Xbox): Install (or Retry
   install) when not installed, Play when installed, Update / Restart when an update is waiting.
   While downloading there is none: the progress bar is the purple thing, Cancel stays grey.
-- **Red** means *error*, nothing else.
+- **Red** means *error*, or an action that deletes or closes (Quit, Uninstall buttons in
+  their dialogs). Nothing else.
 - **Everything else is neutral.** Background: blue→purple gradient. Surfaces: cool navy greys
   (`panel`, `panel_hi`).
 - **Three text colours only:** `text_c` (content), `dim` (secondary), `faint` (disabled only).
@@ -45,9 +46,21 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 | Ask yes / no | `W.modal` (body only — actions live in the footer) |
 | Show which buttons do what | `W.hint_bar` |
 
-## 6. Actions live in the footer, once
-Every pad action appears exactly once, in the footer: right-aligned, B always last. Dialogs
-and empty states don't repeat them in their body.
+## 5b. Where things go (Omri, 14 Nov)
+- **Game page:** ONE main button (Play / Install / Retry install; Cancel while downloading)
+  + a square **⚙ Options** button next to it. Everything else (Uninstall, Change build,
+  Controls) is in that menu; ☰ opens it too. ☰ on a game page = its Options, never Settings.
+- **Library:** tabs All · Installed · Recent (L1/R1). **X = Sort & filter** (Sort: A–Z /
+  Recently added; Show: Everything / Playable here), remembered in config.
+- **Settings:** grouped (Library · Storage · Games · App) under LABEL-style headings; the list
+  scrolls instead of squeezing rows. Settings is reached from the Library's ☰.
+- All small lists (Options, Sort & filter, build picker) are the same `W.menu`.
+
+## 6. Actions: footer, and buttons in dialogs
+Every pad action is in the footer: right-aligned, B always last. Empty states don't repeat
+them. Yes/no dialogs (Quit, Uninstall) DO show their buttons inside: [action, Cancel], the
+action focused first, ◀ ▶ to switch (Omri). Messages about a game go in ONE box under its
+buttons (`W.notice`: red for errors, neutral otherwise).
 
 ## 7. Space = 5 steps
 XS 1u · S 2u · M 3u · L 5u · XL 8u, plus the page margin (6u).
