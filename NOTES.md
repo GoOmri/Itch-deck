@@ -3,7 +3,8 @@
 Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
 ## Current milestone
-M4 built (v0.4.0) — waiting for the Deck test (checklist under M4 below).
+M4 built (v0.4.0) — waiting for the Deck test (checklist under M4 below). v0.4.1 = M4 + design
+  pass; build picker shows "Installed" as an accent tag like "Recommended" (W.rows).
 M0 spike — PASSED on Deck 14 Nov (checklist 1–6 all ✓). Focus hand-off to child and back works.
 M1 mockups — APPROVED 14 Nov. Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ
 M2 real library — v0.2.0 Deck test 14 Nov: 1,2,4,6,7 ✓. Count 129 = matches (itch shows 133 incl.

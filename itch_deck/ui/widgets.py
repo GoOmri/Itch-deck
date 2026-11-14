@@ -541,7 +541,7 @@ def rows(t, s, rect, items, focus, row_h=None):
                 button(t, s, br, btn)
                 x = br.x - t.u * 2
             text(t, s, info, x, r.centery, t.f_body, color=t.dim, anchor="midright")
-        elif value == "Recommended":
+        elif value in ("Recommended", "Installed"):     # state tags (build picker)
             tag(t, s, value, r.right - t.u * 2.5, r.centery, kind="accent", anchor="midright")
         elif value:
             text(t, s, value, r.right - t.u * 2.5, r.centery, t.f_body, color=t.dim, anchor="midright")
