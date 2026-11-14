@@ -179,7 +179,7 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   - Name shown = "scritch" (W.APP_NAME: wordmark, window title, quit dialog, Settings footer).
     Binary / data folders / repo / updater ASSET still itch-deck (renaming needs a data move).
   - PURPLE = "happening / yours" ONLY: progress, rings, spinners, ✓ badge, Installed/Recommended/
-    Developer tags, tab underline, wordmark — and the Play button (only coloured button;
+    Developer tags, tab underline — and the Play button (only coloured button;
     accent_btn, focused = accent). Never focus. Omri rejected purple-fill focus, white-fill focus
     and purple outline on buttons.
   - FOCUS = light: buttons/rows/fields grey panel_hi + dim text -> focus_fill + white text.
@@ -209,6 +209,7 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   everything via W.ease (time-based tween, MOTION_MS 240). Focus = sliding plate (W.plate /
   button_row / rows key=...), tab underline slides, pages slide+fade (App._transition,
   theme.page_ms 260, direction by depth). Busy bar bounces (BUSY_SWEEP_S 0.75) with stretch.
+  Omri 14 Nov: wordmark WHITE (not purple); scrolling = no overshoot (ease back=0).
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 
 v0.5.1 (14 Nov): design round 2 released — motion v2 (spring curve, sliding focus plate + tab

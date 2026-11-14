@@ -157,7 +157,7 @@ class Game(Scene):
         self.off = min(getattr(self, "off", 0), self._max_off)
         scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m + self.off,
                   "comments": comments_y - t.m + self.off}[self.section]
-        self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll))
+        self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll), back=0)   # scroll: no bounce
         s.blit(canvas, (0, -int(self._sy[0])))
         if self._live_bar:                       # indeterminate bar: cheap per-frame overlay
             W.progress(t, s, self._live_bar.move(0, -int(self._sy[0])), None, phase=0.35)

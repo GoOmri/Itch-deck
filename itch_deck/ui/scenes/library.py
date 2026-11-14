@@ -116,7 +116,7 @@ class Library(Scene):
         first = getattr(self, "_first", 0)          # scroll only when focus leaves the view
         first = min(max(first, frow - visible + 1), frow)
         self._first = first
-        self._sy = W.ease(getattr(self, "_sy", None), first * row_h)
+        self._sy = W.ease(getattr(self, "_sy", None), first * row_h, back=0)   # scroll: no bounce
         sy = self._sy[0]
         r0 = int(sy // row_h)
         s.set_clip(area)

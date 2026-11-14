@@ -6,7 +6,8 @@ there first, then use it.
 
 ## 1. Colour = meaning
 - **Purple** means *happening or yours*: progress, rings, spinners, the ✓ badge, Installed /
-  Recommended / Developer tags, the selected tab, the name. Never focus, never decoration.
+  Recommended / Developer tags, the selected tab. Never focus, never decoration.
+- The name (scritch) is white.
 - **One purple button per page: its main action** (like Steam, PS5, Xbox): Install (or Retry
   install) when not installed, Play when installed, Update / Restart when an update is waiting.
   While downloading there is none: the progress bar is the purple thing, Cancel stays grey.
@@ -63,7 +64,8 @@ Full-width content (grid, screenshot strip) uses the margins.
 
 ## 9. Motion = one curve, one tempo
 - Every move uses `W.spring` (slow start, quick middle, small overshoot, settle) over
-  `MOTION_MS` (240 ms): focus, tiles, scrolling, toasts, underline. Never a different curve.
+  `MOTION_MS` (240 ms): focus, tiles, toasts, underline. Never a different curve.
+- Scrolling is the one exception: same curve and tempo, but no overshoot (`back=0`, Omri).
 - Focus is ONE plate per group (button row, list) that slides to the focused item
   (`W.button_row`, `W.rows`); the All/Installed underline slides the same way.
 - Pages slide in and fade (`page_ms` 260): from the right going deeper (Library → game →

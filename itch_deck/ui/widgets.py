@@ -12,17 +12,17 @@ LIVE = False   # True in the running app: animate. False for mockups: draw the e
 APP_NAME = "scritch"          # shown name; binary, data folders and repo keep itch-deck for now
 
 
-def spring(x):
+def spring(x, back=None):
     """THE motion curve (DESIGN rule 9): slow start, quick middle, small overshoot, settle.
     An ease-in-out-back with a mild back (SPRING_BACK)."""
     x = max(0.0, min(1.0, x))
-    c = SPRING_BACK * 1.525
+    c = (SPRING_BACK if back is None else back) * 1.525
     if x < 0.5:
         return (2 * x) ** 2 * ((c + 1) * 2 * x - c) / 2
     return ((2 * x - 2) ** 2 * ((c + 1) * (2 * x - 2) + c) + 2) / 2
 
 
-def ease(cur, target, ms=None):
+def ease(cur, target, ms=None, back=None):
     """Time-based tween toward target on the spring curve; retargets smoothly mid-flight.
     State tuple: (value, from, to, start_time) — callers keep it and read [0].
     Snaps when not LIVE or on first use (mockups show the end state)."""
@@ -35,7 +35,7 @@ def ease(cur, target, ms=None):
     if target != to:                       # new destination: start from where we are now
         frm, to, t0 = val, target, now
     k = (now - t0) * 1000 / (ms or MOTION_MS)
-    val = to if k >= 1 else frm + (to - frm) * spring(k)
+    val = to if k >= 1 else frm + (to - frm) * spring(k, back)
     return (val, frm, to, t0)
 
 
@@ -485,8 +485,8 @@ def tag(t, s, label, x, y, kind="neutral", anchor="topleft", icon_name=None):
 
 
 def wordmark(t, s, x, y, anchor="topleft"):
-    """App name: bold purple text, no pill (pills read as buttons)."""
-    return text(t, s, APP_NAME, x, y, t.font("Bold", t.u * 3.2), color=t.accent, anchor=anchor)
+    """App name: bold white text, no pill (pills read as buttons)."""
+    return text(t, s, APP_NAME, x, y, t.font("Bold", t.u * 3.2), color=t.text_c, anchor=anchor)
 
 
 def pill(t, s, label, x, y, fill=None, color=None, font=None, anchor="topleft"):
