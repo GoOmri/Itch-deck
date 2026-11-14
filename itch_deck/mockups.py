@@ -4,7 +4,7 @@ from pathlib import Path
 
 SIZES = [(1280, 800), (1920, 1080)]
 REAL = None   # --real DIR: (real library list, picked real game) instead of fake data
-STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase")
+STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase", "played", "added")
 
 
 def load_real(root, pick=None):
@@ -105,6 +105,10 @@ def _shots(t, version):
         ("05d_library_update", _note(_act(Library(t, lib, focus=1), "Covers 40/120"),
                                      "Update v0.3.4 available · Settings")),
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
+        ("06b_library_recent", Library(t, lib, filt="recent", focus=0)),
+        ("06c_library_sort_filter", with_overlay(Library(t, lib, focus=0, sort="added"), (
+            "menu", "Sort & filter", "", [("Sort", "Recently added", ""), ("Show", "Everything", "")],
+            0))),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
         ("08_library_empty", Library(t, [])),
         ("09_library_quit", with_overlay(Library(t, lib, focus=0), quit_dlg)),
@@ -123,6 +127,8 @@ def _shots(t, version):
         ("14_game_preparing_proton", game("Orbit Bakery", phase="proton")),
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
+        ("15b_game_options", with_overlay(game("Moss & Rivets"), (
+            "menu", "Options", "", [("Uninstall", "", ""), ("Controls", "", "")], 0))),
         ("16_game_failed", game("Grave Gardener",
                                 fail_reason="No runnable file found in the download (Windows build).")),
         ("17_game_browser", game("Frog Parliament")),

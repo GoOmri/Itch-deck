@@ -45,6 +45,16 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
 | Ask yes / no | `W.modal` (body only — actions live in the footer) |
 | Show which buttons do what | `W.hint_bar` |
 
+## 5b. Where things go (Omri, 14 Nov)
+- **Game page:** only the actions you came for, on the page (Play or Install, Change build;
+  Cancel while downloading; Retry install after a failure). Everything else for that game
+  (Uninstall, Controls) is in **☰ Options**. ☰ on a game page = its Options, never Settings.
+- **Library:** tabs All · Installed · Recent (L1/R1). **X = Sort & filter** (Sort: A–Z /
+  Recently added; Show: Everything / Playable here), remembered in config.
+- **Settings:** grouped (Library · Storage · Games · App) under LABEL-style headings; the list
+  scrolls instead of squeezing rows. Settings is reached from the Library's ☰.
+- All small lists (Options, Sort & filter, build picker) are the same `W.menu`.
+
 ## 6. Actions live in the footer, once
 Every pad action appears exactly once, in the footer: right-aligned, B always last. Dialogs
 and empty states don't repeat them in their body.

@@ -638,6 +638,27 @@ def modal(t, s, title, body):
     return r
 
 
+def menu(t, s, title, sub, items, focus):
+    """THE small list dialog: build picker, game Options (☰), Sort & filter (X).
+    items: [(label, value, sub)] like W.rows. Actions are in the footer."""
+    shade(t, s)
+    w = min(t.w - 2 * t.m, t.read_w)
+    row_h = int(t.u * (8.5 if any(i[2] for i in items) else 7))
+    pad = t.lg
+    head = t.f_h2.get_linesize() + (t.f_small.get_linesize() if sub else 0) + t.md
+    h = pad * 2 + head + len(items) * (row_h + t.u // 2)
+    r = pg.Rect(0, 0, w, h)
+    r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
+    panel(t, s, r)
+    ty = text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom
+    if sub:
+        text(t, s, sub, r.x + pad, ty, t.f_small, color=t.dim)
+    # rows sit inset by (pad - row padding) so their text lines up with the title
+    rows(t, s, pg.Rect(r.x + pad - t.md, r.y + pad + head, r.w - 2 * (pad - t.md), 0),
+         items, focus, row_h, key=("menu", title))
+    return r
+
+
 def toast(t, s, msg, error=False):
     k = anim(("toast", msg), 1.0, start=0.0)       # slides up + fades in once
     img = t.f_body.render(msg, True, t.text_c)
