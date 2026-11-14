@@ -9,6 +9,8 @@ M2 real library — BUILT 14 Nov (v0.2.0), awaiting Deck test (checklist in chat
   itch.io is blocked from Claude's workspace: API + page parsing tested only with fixtures.
   First things to check on Deck if broken: app.log lines "itch sync:", "page <id>:", "pad added:".
 Next: M3 native install (ask Omri before starting).
+  M3 also: visible background-loading indicator in the library top bar, e.g. "Covers 40/120"
+  (and page-details prefetch progress), hidden when done. Omri asked 14 Nov.
 
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
