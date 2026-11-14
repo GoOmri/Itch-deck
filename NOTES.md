@@ -67,8 +67,6 @@ v0.3.2: runner.child_env strips every /_MEI entry (also *_ORIG), updater execve 
   re-renders per frame while extracting. Installed tab: B -> All (hint "All games").
   If Figment still crashes after a FRESH launch from the tile: try Unity "-force-glcore" (M5 per-game
   launch options), since Bleed 2 (GL) works.
-Design pass (own session, Omri 14 Nov): one consistent graphic language — e.g. Settings Update
-  button is a pill, should match the standard button. Collect items here until then.
 v0.3.2 Deck test 14 Nov: pad hotplug ✓, extracting animation ✓. Figment now gets past Vulkan
   (Mesa GL threads up), black screen, then SIGSEGV in game code -> Mono abort, exit -6 after 6 s.
   Not our libs any more. Unknown if it runs at all on SteamOS: test it as its own non-Steam shortcut.
@@ -77,6 +75,20 @@ v0.3.2 Deck test 14 Nov: pad hotplug ✓, extracting animation ✓. Figment now 
   also try OVERLAP_S=0 (our window still up when Unity picks its resolution?).
 M3 — DONE 14 Nov (Bleed 2 installs, plays, uninstalls from the pad). Figment = known issue -> M5.
 Next: M4 (umu + GE-Proton) in a new chat.
+Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit of v0.3.2 renders:
+  1. Buttons: 3 looks (focused = panel + purple outline; unfocused = bare text, e.g. Change build /
+     Uninstall; Settings Update = small filled purple pill). -> ONE button component, states
+     normal / focused / disabled (+ maybe primary). Update row uses it.
+  2. Pills overloaded: "itch" tab, Installed, Recommended, Update button, platform tags, Failed,
+     "+1 more". -> tags (info, not pressable) look clearly different from buttons.
+  3. Type scale: too many small sizes (top-bar status, "itch · 22 of 30", "Screenshots", picker
+     details, install path). -> fixed scale of 4–5 sizes in theme, readable on TV.
+  4. Focus: tiles/buttons/rows each slightly different. -> one focus style, one radius.
+  5. Tile download ring sits on a heavy black disc. -> lighter badge.
+  6. Section labels: "Screenshots" tiny grey vs "About this game" h2. -> same style.
+  7. (older) Screenshots centre-cropped to 16:9; viewer should letterbox.
+  Plan: shared parts first (theme tokens + widgets), then every page; render before/after
+  sheets; update the M1 gallery artifact. Ask Omri before starting (medium change).
 
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
