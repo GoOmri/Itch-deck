@@ -4,7 +4,21 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
 ## Current milestone
 M0 spike — PASSED on Deck 14 Nov (checklist 1–6 all ✓). Focus hand-off to child and back works.
-Next: M1 mockups (PNG renders, no Deck time). Ask Omri before starting.
+M1 mockups — BUILT 14 Nov (v0.1.0), awaiting Omri's look approval / change list.
+  Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (21 states × Deck + TV size)
+Next: apply M1 feedback, then M2 real library (ask Omri before starting).
+
+## Code map
+- app.py: M0 loop still runs at launch (scenes not wired in yet — M2). Flags: --windowed,
+  --selftest, --render-mockups DIR.
+- theme.py: all colours/sizes/fonts/timings. Inter bundled in assets/fonts (OFL).
+  Grid: 4 cols at 1280×800, 5 at 1920×1080 (from width).
+- ui/widgets.py: cover placeholder, tile (+badges), button, pill, ring, spinner, progress,
+  modal, toast, banner, rows, hint bar, wrap.
+- ui/scenes/: base (overlay + toast + hint bar), setup, library, game (+picker), settings.
+  Each has draw(s) and handle(act) for focus moves; scene switching comes in M2.
+- fake.py: 30 invented games + upload list for mockups/tests. mockups.py: the shot list.
+- CI: --add-data itch_deck/assets; renders mockups (crash test) and uploads them as artifact.
 
 ## Decisions
 - pygame-ce, PyInstaller onefile, built on GitHub Actions ubuntu-22.04; tag v* = Release.

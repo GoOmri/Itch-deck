@@ -10,7 +10,7 @@ from . import paths, theme
 from .input import Input, A, B, UP, DOWN, START
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.0.1"
+VERSION = "0.1.0"
 
 
 def setup_logging():
@@ -154,9 +154,16 @@ def main(argv=None):
     p.add_argument("--child", action="store_true", help="internal: dummy test game")
     p.add_argument("--selftest", action="store_true", help="headless smoke test")
     p.add_argument("--screenshot", help="with --selftest: save last frame as PNG")
+    p.add_argument("--render-mockups", metavar="DIR", help="save every page/state as PNGs to DIR")
     a = p.parse_args(argv)
     setup_logging()
     log.info("start v%s args=%s", VERSION, argv or sys.argv[1:])
+
+    if a.render_mockups:
+        from .mockups import render
+        files = render(a.render_mockups, VERSION)
+        print(f"{len(files)} mockups -> {a.render_mockups}")
+        return 0
 
     if a.selftest:
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")

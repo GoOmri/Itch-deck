@@ -1,0 +1,86 @@
+"""--render-mockups: every page and state as PNGs, using fake data. No display needed."""
+import os
+from pathlib import Path
+
+SIZES = [(1280, 800), (1920, 1080)]
+
+
+def _shots(t, version):
+    from . import fake
+    from .ui.scenes.game import Game
+    from .ui.scenes.library import Library
+    from .ui.scenes.settings import Settings
+    from .ui.scenes.setup import Setup
+
+    lib = fake.library()
+    by = {g["title"]: g for g in lib}
+    idx = {g["title"]: i for i, g in enumerate(lib)}
+    n = len(lib)
+
+    def game(title, **kw):
+        return Game(t, by[title], pos=(idx[title] + 1, n), **kw)
+
+    settings_vals = {
+        "install_label": "SD card", "install_path": "/run/media/deck/SD/itch", "free": "112 GB",
+        "proton": "GE-Proton9-20", "prefix_size": "1.2 GB", "last_sync": "today 11:02",
+        "update": f"v{version} · up to date",
+    }
+    picker = ("picker", "Choose a build", "This game has several downloads. Your choice is remembered.",
+              [(a, c, b) for a, b, c in fake.uploads()], 1)
+    quit_dlg = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
+                [("A", "Quit"), ("B", "Cancel")])
+
+    def with_overlay(scene, ov):
+        scene.overlay = ov
+        return scene
+
+    return [
+        ("01_setup_waiting", Setup(t, "waiting")),
+        ("02_setup_rejected", Setup(t, "rejected")),
+        ("03_library_first_sync", Library(t, lib, syncing="first", sync_page=3)),
+        ("04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
+        ("05_library_scrolled", Library(t, lib, focus=n - 2)),
+        ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
+        ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
+        ("08_library_empty", Library(t, [])),
+        ("09_library_quit", with_overlay(Library(t, lib, focus=0), quit_dlg)),
+        ("10_library_toast", Library(t, lib, focus=idx["Grave Gardener"],
+                                     toast="Grave Gardener exited with code 1 — see log",
+                                     toast_error=True)),
+        ("11_game_not_installed", game("Quiet Quarry")),
+        ("12_game_downloading", game("Hollow Lighthouse")),
+        ("13_game_installing", game("Ninefold Tower", phase="installing")),
+        ("14_game_preparing_proton", game("Orbit Bakery", phase="proton")),
+        ("15_game_installed", game("Moss & Rivets",
+                                   install_path="/run/media/deck/SD/itch/moss-and-rivets")),
+        ("16_game_failed", game("Grave Gardener",
+                                fail_reason="No runnable file found in the download (Windows build).")),
+        ("17_game_browser", game("Frog Parliament")),
+        ("18_game_not_playable", game("Velvet Static")),
+        ("19_game_picker", with_overlay(game("Quiet Quarry"), picker)),
+        ("20_game_confirm_uninstall", with_overlay(game("Starfall Ferry"), (
+            "confirm", "Uninstall Starfall Ferry?", ["Frees 412 MB.", "Your saves are kept."],
+            [("A", "Uninstall"), ("B", "Cancel")]))),
+        ("21_settings", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log")),
+    ]
+
+
+def render(outdir, version):
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    import pygame as pg
+    from .theme import Theme
+    pg.init()
+    out = Path(outdir)
+    out.mkdir(parents=True, exist_ok=True)
+    files = []
+    for size in SIZES:
+        t = Theme(pg, size)
+        for name, scene in _shots(t, version):
+            s = pg.Surface(size)
+            scene.draw(s)
+            f = out / f"{size[0]}x{size[1]}_{name}.png"
+            pg.image.save(s, str(f))
+            files.append(f)
+    pg.quit()
+    return files

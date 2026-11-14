@@ -1,13 +1,31 @@
-"""All colours, sizes and fonts. Restyle here; layout scales from window height."""
+"""All colours, sizes, fonts and timings. Restyle here; layout scales from window size."""
+from pathlib import Path
+
+FONTS = Path(__file__).parent / "assets" / "fonts"
 
 
 class Theme:
+    # colours
     bg = (18, 18, 18)
     panel = (34, 34, 34)
+    panel_hi = (48, 48, 48)
+    line = (60, 60, 60)
     text_c = (240, 240, 240)
     dim = (150, 150, 150)
-    accent = (250, 92, 92)   # itch-ish red
+    faint = (100, 100, 100)
+    accent = (250, 92, 92)   # itch-ish red, the one accent colour
+    on_accent = (20, 20, 20)
+    shade_a = 170             # modal backdrop alpha
+    dimmed_a = 150            # overlay alpha on unplayable tiles
     child_bg = (120, 20, 30)
+    # pad glyph colours (Xbox layout, which is what Steam Input presents)
+    glyph = {"A": (98, 180, 76), "B": (220, 72, 62), "X": (60, 130, 220), "Y": (232, 188, 52)}
+    # motion / timing
+    focus_scale = 1.06
+    focus_ms = 120            # ease-out
+    toast_s = 4.0
+    # grid
+    cover_ratio = 250 / 315   # itch cover h / w
 
     def __init__(self, pg, size):
         self.pg = pg
@@ -15,12 +33,29 @@ class Theme:
         self.cx = self.w / 2
         self.u = max(8, round(self.h / 90))          # base unit (~9 px at 800p, 12 at 1080p)
         self.m = self.u * 6                           # outer margin
+        self.gap = self.u * 3                         # grid gap
+        self.radius = self.u
+        self.outline = 3
         self.btn_h = self.u * 7
         self.btn_w = self.u * 50
-        f = pg.font.Font
-        self.f_title = f(None, self.u * 5)
-        self.f_body = f(None, self.u * 3)
-        self.f_btn = f(None, self.u * 4)
+        self.hint_h = self.u * 8
+        self.top_h = self.u * 11
+        self.grid_cols = max(3, min(6, int((self.w - 2 * self.m + self.gap) // (self.u * 26 + self.gap))))
+        self._fonts = {}
+        f = self.font
+        self.f_title = f("SemiBold", self.u * 4.4)
+        self.f_h1 = f("Bold", self.u * 5.2)
+        self.f_h2 = f("SemiBold", self.u * 3.2)
+        self.f_body = f("Regular", self.u * 2.7)
+        self.f_small = f("Medium", self.u * 2.2)
+        self.f_btn = f("SemiBold", self.u * 3)
+        self.f_glyph = f("Bold", self.u * 2.1)
+
+    def font(self, weight, size):
+        key = (weight, int(size))
+        if key not in self._fonts:
+            self._fonts[key] = self.pg.font.Font(str(FONTS / f"Inter-{weight}.otf"), int(size))
+        return self._fonts[key]
 
     def text(self, s, txt, x, y, font, color=None, center=False):
         img = font.render(txt, True, color or self.text_c)

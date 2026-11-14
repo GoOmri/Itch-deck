@@ -18,9 +18,13 @@ jobs:
       - run: pip install -r requirements.txt pyinstaller
       - name: Refuse to ship secrets
         run: "! git ls-files | grep -iE '(config\\.json|itch_key|\\.key$)'"
-      - run: pyinstaller --onefile --name itch-deck run.py
+      - run: pyinstaller --onefile --name itch-deck --add-data itch_deck/assets:itch_deck/assets run.py
       - name: Smoke test
         run: ./dist/itch-deck --selftest
+      - name: Render mockups (draws every page/state; also a crash test)
+        run: ./dist/itch-deck --render-mockups mockups
+      - uses: actions/upload-artifact@v4
+        with: { name: mockups, path: mockups }
       - uses: actions/upload-artifact@v4
         with: { name: itch-deck, path: dist/itch-deck }
       # Release on every main push, tagged with VERSION from app.py (bump it to publish a new one)
