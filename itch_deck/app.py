@@ -12,9 +12,10 @@ from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1,
                     TEXT, BKSP, ENTER, PASTE)
 from .library import Library, short_date
 from .stores.itch import ItchStore
+from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
 LATER = "Installing comes in the next update."
@@ -51,6 +52,9 @@ class App:
         self.pending_key = None         # key waiting for Retry after "offline"
         self.tried_mtime = None
         self.next_poll = 0
+        self.updater = Updater(VERSION)
+        self.updater.check(quiet=True)     # one GitHub call at launch; Settings shows the result
+        self.update_told = False
         if key:
             self.go_library()
             self.lib.queue_covers()
@@ -130,7 +134,7 @@ class App:
             "install_path": str(root), "free": free,
             "proton": self.cfg.get("proton") or (protons[0] if protons else "Not found"),
             "prefix_size": "None yet", "last_sync": short_date(self.lib.synced_at),
-            "update": f"v{VERSION}",
+            "update": self.updater.label(),
         }
 
     # --- API key -------------------------------------------------------
@@ -292,6 +296,16 @@ class App:
             label = sc.items()[sc.focus][0]
             if label == "Refresh library":
                 self.say("Refreshing library…" if self.lib.start_sync() else "Already refreshing…")
+            elif label == "Update app":
+                u = self.updater
+                if u.state == "available":
+                    u.download()
+                elif u.state == "ready":
+                    u.restart(self.pg)
+                elif u.state == "source":
+                    self.say("Updates only work in the released app.")
+                elif not u.busy():
+                    u.check()
             elif label == "Re-import API key":
                 self.go_setup("waiting")
                 self.try_import(auto=True)
@@ -329,6 +343,11 @@ class App:
             if self.lib.sync_error and not self.lib.syncing:
                 self.say("Couldn't refresh the library. Details are in the log.", error=True)
                 self.lib.sync_error = None
+            if self.updater.state == "available" and not self.update_told and not self.scene.toast:
+                self.update_told = True
+                self.say(f"Update v{self.updater.new_version} is ready to download in Settings.")
+        elif self.kind == "settings":
+            self.scene.v["update"] = self.updater.label()
         elif self.kind == "game":
             self.scene.offline = self.lib.offline
             g = self.lib.by_id(self.scene.g["id"])

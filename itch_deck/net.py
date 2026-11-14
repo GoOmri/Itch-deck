@@ -61,3 +61,27 @@ def get_json(url, key=None, timeout=20):
             raise AuthError(msg)
         raise Offline(msg)
     return data
+
+
+def download(url, dest, progress=None, timeout=30):
+    """Stream url to dest (via dest.part). progress(frac) is called as it goes."""
+    global _CTX
+    _CTX = _CTX or _ctx()
+    part = dest.with_name(dest.name + ".part")
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as r, open(part, "wb") as f:
+            total, done = int(r.headers.get("Content-Length") or 0), 0
+            while True:
+                chunk = r.read(256 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+                done += len(chunk)
+                if progress and total:
+                    progress(done / total)
+    except urllib.error.HTTPError as e:
+        raise Offline(f"HTTP {e.code}") from None
+    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, ssl.SSLError) as e:
+        raise Offline(type(e).__name__) from None
+    part.replace(dest)

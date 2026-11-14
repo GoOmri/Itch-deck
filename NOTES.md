@@ -18,6 +18,10 @@ M2 real library — v0.2.0 Deck test 14 Nov: 1,2,4,6,7 ✓. Count 129 = matches 
   for glyph auto-detect).
   itch.io is blocked from Claude's workspace: API + page parsing tested only with fixtures.
   First things to check on Deck if broken: app.log lines "itch sync:", "page <id>:", "pad added:".
+Self-update pulled forward from M6 into v0.2.3 (Omri asked): updater.py checks GitHub latest at
+  launch (quiet) + Settings → Update app (A: check / download / restart). Swaps binary in place,
+  keeps itch-deck.old; restart = os.execve with PYINSTALLER_RESET_ENVIRONMENT=1. UNTESTED on Deck.
+  Rollback by hand: rename itch-deck.old back in Dolphin.
 Next: M3 native install (ask Omri before starting).
   M3 also: visible background-loading indicator in the library top bar, e.g. "Covers 40/120"
   (and page-details prefetch progress), hidden when done. Omri asked 14 Nov.

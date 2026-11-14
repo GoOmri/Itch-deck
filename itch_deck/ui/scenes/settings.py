@@ -18,7 +18,7 @@ class Settings(Scene):
             ("Proton version", v["proton"], "Used for Windows games"),
             ("Saves of uninstalled games", v["prefix_size"], "Kept so reinstalling keeps your progress · A to delete"),
             ("Refresh library", "", f"Last synced {v['last_sync']}"),
-            ("Update app", v["update"], ""),
+            ("Update app", v["update"], "Downloads the newest version from GitHub. Old one kept as backup."),
             ("Re-import API key", "", "Reads ~/Downloads/itch_key.txt again"),
         ]
 
