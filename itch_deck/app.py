@@ -1,4 +1,4 @@
-"""itch-deck: scene switching, key import, library sync, installs (M3: Linux builds)."""
+"""itch-deck: scene switching, key import, library sync, installs (Linux + Windows via Proton)."""
 import argparse
 import logging
 import os
@@ -6,8 +6,9 @@ import shutil
 import sys
 import threading
 import time
+from pathlib import Path
 
-from . import config, net, paths, runner, theme
+from . import config, net, paths, proton, runner, theme
 from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1,
                     TEXT, BKSP, ENTER, PASTE)
 from .installer import Installer, slug_of
@@ -16,10 +17,10 @@ from .stores.itch import ItchStore
 from .updater import Updater
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.3.4"
+VERSION = "0.4.0"
 QUIT_DLG = ("confirm", "Quit itch-deck?", "Downloads in progress pause and resume next time.",
             [("A", "Quit"), ("B", "Cancel")])
-LATER = "Choosing a build comes in a later update."
+LATER = "Comes in a later update."
 
 
 def setup_logging():
@@ -45,7 +46,8 @@ class App:
         self.cfg = config.load()
         key = self.cfg.get("api_key")
         self.lib = Library(ItchStore(key) if key else None)
-        self.inst = Installer(self.lib, lambda: config.install_root(self.cfg))
+        self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
+        self.picker = None              # (gid, builds) behind an open Change build picker
         self.on_confirm = None          # what A does on the open confirm dialog (None = Quit)
         self.running = True
         self.scene, self.kind = None, None
@@ -282,7 +284,10 @@ class App:
 
     def _h_game(self, act):
         sc = self.scene
-        if sc.overlay:                    # screenshot viewer
+        if sc.overlay and sc.overlay[0] == "picker" and act == A:
+            self._pick(sc)
+            return
+        if sc.overlay:                    # screenshot viewer / build picker
             sc.handle(act)
             return
         if act == B:
@@ -309,9 +314,7 @@ class App:
     def game_action(self, g, label):
         gid = g["id"]
         if label in ("Install", "Retry install"):
-            if "linux" not in g["platforms"]:
-                self.say("Windows games can be installed in the next update.")
-            elif self.inst.enqueue(g):
+            if self.inst.enqueue(g):
                 if self.inst.current and self.inst.current != gid:
                     self.say("Queued. It starts after the current download.")
         elif label == "Cancel":
@@ -322,8 +325,72 @@ class App:
                          "install it again any time.", "Uninstall", lambda: self._uninstall(g))
         elif label == "Play":
             self.play(g)
+        elif label == "Change build":
+            self.change_build(g)
         else:
             self.say(LATER)
+
+    # --- Change build (picker) ------------------------------------------
+    def change_build(self, g):
+        if self.lib.offline or not self.lib.store:
+            self.say("Changing the build needs internet.", error=True)
+            return
+        gid, self.picker = g["id"], None
+        self.scene.overlay = ("picker", "Choose a build", "Loading builds…", [], 0)
+
+        def work():
+            try:
+                builds = self.lib.store.list_builds(g)
+            except Exception as e:  # noqa: BLE001
+                log.info("change build %s: %s", gid, e)
+                builds = None
+            self.picker = (gid, builds)
+        threading.Thread(target=work, daemon=True, name="builds").start()
+
+    def _picker_ready(self, sc):
+        """Fill the open picker once the upload list is in: recommended first, then the rest."""
+        from .stores.itch import pick_build
+        gid, builds = self.picker
+        self.picker = (gid, builds, True)
+        if builds is None:
+            sc.overlay = None
+            self.say("Couldn't load the builds. Try again when you're online.", error=True)
+            return
+        lin, lin_o = pick_build(builds, "linux")
+        win, win_o = pick_build(builds, "windows")
+        order = [b for b in [lin] + lin_o + [win] + win_o if b]
+        order = [b for i, b in enumerate(order) if b not in order[:i]]
+        if not order:
+            sc.overlay = None
+            self.say("This game has no other Linux or Windows builds.")
+            return
+        cur = (self.inst.index.get(gid) or {}).get("upload_id")
+        items = []
+        for b in order:
+            kind = "Linux" if b["linux"] else "Windows"
+            sub = f"{kind} · {b['size'] // 1_000_000} MB" + (f" · {b['updated'][:10]}" if b["updated"] else "")
+            if b["demo"]:
+                sub += " · demo"
+            val = "Installed" if b["id"] == cur else ("Recommended" if b is order[0] else "")
+            items.append((b["filename"], val, sub))
+        self.picker = (gid, order, True)
+        sub = "A installs it. Saves of Windows builds are kept separately." if cur else \
+            "A installs it. Linux builds are recommended when there is one."
+        sc.overlay = ("picker", "Choose a build", sub, items, 0)
+
+    def _pick(self, sc):
+        if not self.picker or len(self.picker) < 3 or not sc.overlay[3]:
+            return
+        gid, order, _ = self.picker
+        b = order[sc.overlay[4]]
+        sc.overlay, self.picker = None, None
+        if (self.inst.index.get(gid) or {}).get("upload_id") == b["id"]:
+            self.say("That build is already installed.")
+            return
+        g = self.lib.by_id(gid) or sc.g
+        self.inst.enqueue(g, upload_id=b["id"])
+        sc.focus = 0
+        self.say(f"Installing {b['filename']}…")
 
     def _uninstall(self, g):
         self.inst.uninstall(g["id"])
@@ -335,9 +402,29 @@ class App:
         if not exe or not exe.exists():
             self.say("The game's files are missing. Uninstall and install it again.", error=True)
             return
+        info = self.inst.index[g["id"]]
+        umu = env = hold = None
+        sub = None
+        if info.get("platform") == "windows":
+            umu, pdir = proton.umu_path(), proton.proton_dir(self.cfg)
+            if not pdir:
+                self.say("GE-Proton isn't installed. Add it with ProtonUp-Qt in Desktop Mode.",
+                         error=True)
+                return
+            if not umu:
+                self.say("umu-launcher is missing. Uninstall and install the game again.",
+                         error=True)
+                return
+            prefix = info.get("prefix") or proton.prefix_dir(Path(info["dir"]).parent,
+                                                              Path(info["dir"]).name)
+            env = proton.env(pdir, prefix)
+            if proton.first_run(prefix):
+                sub = "Preparing Proton… first run only, about 30 s"
+                hold = lambda: proton.first_run(prefix)   # noqa: E731
+            log.info("play: %s via %s, prefix %s", g["id"], pdir.name, prefix)
         pg = self.pg
         self.scene.toast, self.toast_until = None, 0
-        self._splash(f"Starting {g['title']}…")
+        self._splash(f"Starting {g['title']}…", sub)
         state = {"closed": False}
 
         def release():                       # after the overlap: the game has its window up
@@ -346,7 +433,7 @@ class App:
                 pg.display.quit()
 
         rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump,
-                              size=self.screen.get_size())
+                              size=self.screen.get_size(), umu=umu, extra_env=env, hold=hold)
         if state["closed"]:
             self.open_display()
             self._splash("Returning…")
@@ -356,12 +443,15 @@ class App:
             self.say(f"{g['title']} closed right after starting. Details are in its log.",
                      error=True)
 
-    def _splash(self, msg):
+    def _splash(self, msg, sub=None):
         """One plain frame while the screen changes hands (less of Steam's UI flickers through)."""
         from .ui import widgets as W
         t = self.t
         self.screen.blit(W.backdrop(t), (0, 0))
         W.text(t, self.screen, msg, t.cx, t.h / 2, t.f_h2, anchor="center")
+        if sub:
+            W.text(t, self.screen, sub, t.cx, t.h / 2 + t.u * 6, t.f_body, color=t.dim,
+                   anchor="center")
         self.pg.display.flip()
 
     def _h_settings(self, act):
@@ -417,8 +507,8 @@ class App:
         g = self.lib.by_id(gid) if gid else None
         if g and g.get("state") == "downloading":
             more = len(self.inst.queue) - 1
-            what = "Unpacking" if g.get("phase") == "extract" else \
-                f"Downloading {int(g.get('progress', 0) * 100)}%"
+            what = {"extract": "Unpacking", "umu": "Getting umu-launcher"}.get(
+                g.get("phase"), f"Downloading {int(g.get('progress', 0) * 100)}%")
             return f"{what} · {g['title']}" + (f" (+{more})" if more > 0 else "")
         return self.lib.activity()
 
@@ -458,6 +548,9 @@ class App:
             sc.install_path = inst["dir"] if inst else None
             n = len(sc.actions())
             sc.focus = max(0, min(sc.focus, n - 1))
+            if self.picker and len(self.picker) == 2 and sc.overlay and sc.overlay[0] == "picker":
+                if self.picker[0] == g["id"]:
+                    self._picker_ready(sc)
             if sc.overlay and sc.overlay[0] == "confirm" and sc.overlay is not QUIT_DLG and (
                     (st not in ("queued", "downloading") and sc.overlay[1].startswith("Cancel"))):
                 sc.overlay = None                 # the download finished under the dialog
@@ -468,6 +561,8 @@ class App:
                 self.say(msg, error=True)
             elif kind == "done" and not on_page:
                 self.say(msg)
+            elif kind == "error":                 # e.g. Change build failed, old build kept
+                self.say(msg, error=True)
 
     def run(self, max_frames=None, script=None):
         clock = self.pg.time.Clock()

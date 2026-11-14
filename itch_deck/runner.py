@@ -1,5 +1,5 @@
 """Run an installed game as a child process and hand the screen to it (gamescope focus).
-M3: native Linux games. M4 adds umu-run + GE-Proton for Windows builds."""
+Native Linux games, or Windows builds through umu-run + GE-Proton (proton.py)."""
 import logging
 import os
 import subprocess
@@ -10,6 +10,7 @@ from . import paths
 
 log = logging.getLogger("itch-deck")
 OVERLAP_S = 1.0          # keep our window up while the game maps its own (less Steam UI flicker)
+HOLD_MAX_S = 300         # longest we keep "Preparing Proton…" up (first umu run downloads its runtime)
 CRASH_S = 15             # a non-zero exit sooner than this = "closed right after starting"
 _proc = None             # the running game, so a quit signal can stop it too
 
@@ -46,22 +47,23 @@ def is_unity(exe):
     return (exe.parent / f"{exe.stem}_Data").is_dir() or (exe.parent / "UnityPlayer.so").exists()
 
 
-def command(exe, size=None):
-    """Scripts on a card without the exec bit (exFAT) still start through sh. Unity games get
+def command(exe, size=None, umu=None):
+    """Windows .exe -> umu-run <exe>. Scripts on a card without the exec bit (exFAT) still start through sh. Unity games get
     the screen size explicitly: under gamescope some ask for 1x1 and crash (Figment, Unity 2018)."""
     if not os.access(exe, os.X_OK) and exe.suffix.lower() == ".sh":
         return ["/bin/sh", str(exe)]
-    cmd = [str(exe)]
+    cmd = [str(umu), str(exe)] if umu and exe.suffix.lower() == ".exe" else [str(exe)]
     if size and is_unity(exe):
         cmd += ["-screen-fullscreen", "1", "-screen-width", str(size[0]),
                 "-screen-height", str(size[1])]
     return cmd
 
 
-def run(exe, slug, on_started=None, pump=None, size=None):
-    global _proc
+def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=None, hold=None):
     """Start exe, call on_started() after OVERLAP_S (or sooner if it already exited), wait.
-    pump() keeps our window alive during the overlap. Returns (returncode, seconds)."""
+    pump() keeps our window alive during the overlap; hold() -> True keeps it up longer (Proton
+    still building the prefix). Returns (returncode, seconds)."""
+    global _proc
     logs = paths.LOGS / "games"
     logs.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
@@ -69,10 +71,16 @@ def run(exe, slug, on_started=None, pump=None, size=None):
         out.write(f"# {exe}\n# started {time.ctime(t0)}\n")
         out.flush()
         try:
-            cmd = command(exe, size)
+            cmd = command(exe, size, umu)
+            env = child_env()
+            if extra_env:
+                env.update(extra_env)
+                env.pop("PYTHONHOME", None)            # umu-run is a Python zipapp
+                env.pop("PYTHONPATH", None)
+                out.write("".join(f"# {k}={v}\n" for k, v in extra_env.items()))
             out.write(f"# {' '.join(cmd)}\n")
             out.flush()
-            proc = subprocess.Popen(cmd, cwd=exe.parent, env=child_env(), stdout=out,
+            proc = subprocess.Popen(cmd, cwd=exe.parent, env=env, stdout=out,
                                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
         except OSError as e:
             log.warning("play: could not start %s: %s", exe, e)
@@ -80,7 +88,8 @@ def run(exe, slug, on_started=None, pump=None, size=None):
             return None, 0.0
         _proc = proc
         log.info("play: started %s (pid %d)", exe, proc.pid)
-        while proc.poll() is None and time.time() - t0 < OVERLAP_S:
+        while proc.poll() is None and (time.time() - t0 < OVERLAP_S or
+                                       hold and time.time() - t0 < HOLD_MAX_S and hold()):
             if pump:
                 pump()
             time.sleep(0.03)

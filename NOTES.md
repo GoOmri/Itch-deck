@@ -3,6 +3,7 @@
 Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
 ## Current milestone
+M4 built (v0.4.0) — waiting for the Deck test (checklist under M4 below).
 M0 spike — PASSED on Deck 14 Nov (checklist 1–6 all ✓). Focus hand-off to child and back works.
 M1 mockups — APPROVED 14 Nov. Gallery: https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ
 M2 real library — v0.2.0 Deck test 14 Nov: 1,2,4,6,7 ✓. Count 129 = matches (itch shows 133 incl.
@@ -86,7 +87,29 @@ v0.3.4 (Omri): top bar shows app update state in accent colour (available / Upda
   installed · restart), update toast removed; platform pills removed from game page; extract bar
   segment drawn live over the cached page (no full re-render) + extract yields GIL per 256 KB.
 M3 — DONE 14 Nov (Bleed 2 installs, plays, uninstalls from the pad). Figment = known issue -> M5.
-Next: M4 (umu + GE-Proton) in a new chat.
+M4 Windows via umu + GE-Proton — v0.4.0 built 14 Nov, NOT yet tested on Deck.
+  proton.py: umu_path (our zipapp at DATA/umu/umu-run, else PATH), fetch_umu (GitHub latest
+  release asset *-zipapp.tar -> umu-run; install phase "umu" = "Getting umu-launcher…"),
+  proton_dir (Settings choice, else newest GE-Proton in compatibilitytools.d; needs a "proton"
+  file), env = WINEPREFIX <root>/_prefixes/<game dir name>, PROTONPATH, GAMEID=umu-default
+  (NOT umu-<itch id>: umu-<number> = a Steam app id in umu's fix db). is_installer = Inno/NSIS/
+  InstallShield bytes -> "installer, later update" (M5).
+  installer: _choose = Change build choice (data/builds.json, kept for reinstalls) else Linux
+  else Windows; Windows needs GE-Proton BEFORE download; find_exe(platform="windows") = .exe named
+  like the game, shallow, big (SKIP_WIN: setup/redist/dotnet/…); bare .exe allowed for Windows.
+  install.json gets platform + prefix. Change build on an installed game = reinstall over it;
+  cancel/fail keeps the old build (toast "Couldn't change the build: …", kind "error").
+  runner: .exe -> [umu-run, exe] (+Unity screen args), env written at the top of the game log;
+  first run (no system.reg in prefix) keeps our "Starting… / Preparing Proton…" splash up until
+  the prefix exists (max 300 s), then hands over the screen.
+  Change build = picker (O1): uploads fetched in a thread ("Loading builds…"), Recommended first,
+  current one tagged "Installed", A installs. Needs internet.
+  Deck checklist v0.4.0: 1 Update app -> 0.4.0. 2 Figment -> Change build -> figment-windows-32.zip
+  installs (first time "Getting umu-launcher…"). 3 Play: "Preparing Proton…" splash (very first
+  umu run also downloads the Steam Linux Runtime, can take minutes), game runs with pad. 4 Quit
+  game -> back on game page. 5 Steam -> Exit game while it runs: does wine linger? 6 Uninstall +
+  reinstall Windows build: saves still there (_prefixes kept). 7 Change build back to Linux.
+  If broken: app.log "install <id>:", "umu:", "play:"; logs/games/<slug>.log (env + umu output).
 Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit of v0.3.2 renders:
   1. Buttons: 3 looks (focused = panel + purple outline; unfocused = bare text, e.g. Change build /
      Uninstall; Settings Update = small filled purple pill). -> ONE button component, states
@@ -106,7 +129,8 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
   per-scene _h_<kind>() input. Flags: --windowed, --selftest (fake data, temp dirs), --render-mockups.
   Install/Cancel/Play/Uninstall via game_action(); confirm(title, body, yes, fn) dialog.
-  Change build = toast until M5 (picker).
+  Change build = build picker (M4); exe picker + silent installers still M5.
+- proton.py: umu-run download/lookup, GE-Proton dir, per-game prefix + env (M4).
 - config.py (chmod 600, install_root: SD else ~/Games/itch, proton_versions), net.py (urllib +
   certifi; Offline/AuthError), stores/itch.py (owned-keys, quirk, dedupe), stores/itch_page.py
   (HTML -> description/shots/comments, tolerant), library.py (cache, sync thread, job queue:
@@ -168,6 +192,7 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
 - 2026-11-14 12:01 — 80% → 81% for M2 build = 1%
 - 2026-11-14 15:23 — 82% after M2 fixes v0.2.1–0.2.3 (+ self-update); v0.2.4 feel pass starts here
 - 2026-11-14 16:39 — 83% at start of M3 build
+- 2026-11-14 18:10 — 88% at start of M4 build
 
 ## Known issues (cosmetic, Omri: "not that bad")
 - Launching a child: Steam UI ("Steam menu" / "Back" hint bar) flickers twice. Cause: the gap while

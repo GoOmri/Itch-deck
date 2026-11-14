@@ -51,6 +51,14 @@ class Game(Scene):
 
     def handle(self, act):
         n, shots = len(self.actions()), self.g.get("screens", 0)
+        if self.overlay and self.overlay[0] == "picker":   # A (choose) is handled by the app
+            kind, title, sub, items, focus = self.overlay
+            if act in (UP, DOWN) and items:
+                focus = max(0, min(len(items) - 1, focus + (1 if act == DOWN else -1)))
+                self.overlay = (kind, title, sub, items, focus)
+            elif act == B:
+                self.overlay = None
+            return
         if self.overlay and self.overlay[0] == "viewer":
             if act in (LEFT, RIGHT):
                 self.shot = (self.shot + (1 if act == RIGHT else -1)) % shots
@@ -309,6 +317,7 @@ class Game(Scene):
                 "installing": ("Installing…", "The game's installer is running silently. "
                                               "No progress % for installers."),
                 "proton": ("Preparing Proton…", "First run only — about 30 s"),
+                "umu": ("Getting umu-launcher…", "One-time download for Windows games"),
             }[self.phase]
             W.text(t, s, label, x, y, t.f_btn)
             W.progress(t, s, bar, 0)          # track only; draw_page animates the segment live
