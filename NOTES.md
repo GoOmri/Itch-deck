@@ -27,6 +27,8 @@ v0.2.4 "feel" pass (Omri asked): hold-to-repeat on D-pad/arrows/stick (300 ms, t
   smooth eased scrolling (widgets.ease, LIVE flag: app animates, mockups snap) on library grid
   (scrolls only when focus leaves view) and game page (DOWN steps 0.18 screen in long sections);
   game page canvas cached by state key (20 ms -> 1.4 ms/frame). First real Update-app test.
+v0.2.4 Deck test: all ✓, in-app update works. Omri: hold scroll ~50% too fast -> v0.2.5 repeat
+  85 -> 170 ms (input.REPEAT_MS). Glide speed (W.ease speed 16/14) unchanged.
 Next: M3 native install (ask Omri before starting).
   M3 also: visible background-loading indicator in the library top bar, e.g. "Covers 40/120"
   (and page-details prefetch progress), hidden when done. Omri asked 14 Nov.

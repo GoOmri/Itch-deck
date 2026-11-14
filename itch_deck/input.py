@@ -8,7 +8,7 @@ TEXT, BKSP, ENTER, PASTE = "TEXT", "BKSP", "ENTER", "PASTE"   # text-entry mode 
 DEADZONE = 16000
 TRIGGER_ON = 20000
 log = logging.getLogger("itch-deck")
-REPEAT_MS = (300, 85)   # hold: first delay, then repeat every 85 ms (stick, D-pad, arrows)
+REPEAT_MS = (300, 170)  # hold: first delay, then repeat every 170 ms (stick, D-pad, arrows)
 DIRS = (UP, DOWN, LEFT, RIGHT)
 
 
