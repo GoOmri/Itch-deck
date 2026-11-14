@@ -6,6 +6,7 @@ class Scene:
     def __init__(self, t, toast=None, toast_error=False):
         self.t = t
         self.overlay = None        # ("confirm", title, body, hints) | ("picker", ...) | None
+        self.confirm_focus = 0     # confirm dialog: 0 = its action, 1 = Cancel
         self.toast, self.toast_error = toast, toast_error
 
     # subclasses implement
@@ -23,11 +24,11 @@ class Scene:
 
     def overlay_hints(self):
         if self.overlay and self.overlay[0] == "confirm":
-            return self.overlay[3]
+            return [("A", "Select"), ("B", "Cancel")]
         return None
 
     def draw_overlay(self, s):
         kind, *args = self.overlay
         if kind == "confirm":
-            title, body, _hints = args          # hints are drawn by the footer
-            W.modal(self.t, s, title, body)
+            title, body, hints = args
+            W.modal(self.t, s, title, body, [hints[0][1], "Cancel"], self.confirm_focus)

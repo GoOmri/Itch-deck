@@ -12,13 +12,12 @@ class Settings(Scene):
         self.v, self.version, self.log_path, self.focus = values, version, log_path, focus
 
     def groups(self):
-        """Settings in 4 short groups (Omri). Sub-lines only where the info is needed."""
+        """Settings in 4 short groups (Omri). Only one sub-line: when the library last synced."""
         v = self.v
         return [
             ("Library", [("Refresh library", "", f"Last synced {v['last_sync']}"),
                          ("Re-import API key", "", "")]),
-            ("Storage", [("Install location", v["install_label"],
-                          f"{v['install_path']} · {v['free']} free"),
+            ("Storage", [("Install location", v["install_label"], ""),  # SD card / Internal storage
                          ("Saves of uninstalled games", v["prefix_size"], "")]),
             ("Games", [("Proton version", v["proton"], ""),
                        ("Pointer speed", v.get("pointer", "Normal"), "")]),

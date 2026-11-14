@@ -55,9 +55,11 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
   scrolls instead of squeezing rows. Settings is reached from the Library's ☰.
 - All small lists (Options, Sort & filter, build picker) are the same `W.menu`.
 
-## 6. Actions live in the footer, once
-Every pad action appears exactly once, in the footer: right-aligned, B always last. Dialogs
-and empty states don't repeat them in their body.
+## 6. Actions: footer, and buttons in dialogs
+Every pad action is in the footer: right-aligned, B always last. Empty states don't repeat
+them. Yes/no dialogs (Quit, Uninstall) DO show their buttons inside: [action, Cancel], the
+action focused first, ◀ ▶ to switch (Omri). Messages about a game go in ONE box under its
+buttons (`W.notice`: red for errors, neutral otherwise).
 
 ## 7. Space = 5 steps
 XS 1u · S 2u · M 3u · L 5u · XL 8u, plus the page margin (6u).

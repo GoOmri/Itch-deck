@@ -69,6 +69,12 @@ def _shots(t, version):
     def game(title, **kw):
         if REAL:                         # the picked real game, in this fake game's state
             g = dict(REAL[1])
+            fp = by[title]["platforms"]
+            if not fp & {"linux", "windows"}:          # browser / not playable: a real one like it
+                want = (lambda x: x["platforms"] & {"html", "linux", "windows"} == {"html"}) \
+                    if "html" in fp else \
+                       (lambda x: not x["platforms"] & {"linux", "windows", "html"})
+                g = dict(next((x for x in REAL[0] if want(x)), g))
             g.update({k: by[title][k] for k in STATE_KEYS if k in by[title]})
             g["size_mb"] = g.get("size_mb") or by[title]["size_mb"]
             return Game(t, g, pos=(idx[title] + 1, n), **kw)

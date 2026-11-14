@@ -15,6 +15,7 @@ def _mb(mb):
 
 
 # the page's one purple button (DESIGN rule 1); Cancel never — the progress bar is the purple thing
+SHOT_GROW = 1.12   # focused screenshot grows more than tiles: it's what you're looking at
 MAIN_ACTIONS = ("Install", "Retry install", "Play")
 
 class Game(Scene):
@@ -125,7 +126,7 @@ class Game(Scene):
             return [("A", "Select"), ("B", "Close")]
         if self.overlay[0] == "viewer":
             return [("◀", ""), ("▶", "Previous / next"), ("B", "Close")]
-        return [("A", "Uninstall"), ("B", "Cancel")]
+        return super().overlay_hints()           # confirm dialog: same footer everywhere
 
     # --- drawing -------------------------------------------------------
     def draw_page(self, s):
@@ -144,7 +145,6 @@ class Game(Scene):
             self._live_bar = None
             need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)
             canvas = pg.Surface((t.w, need), pg.SRCALPHA)  # transparent: gradient shows through
-            self._hero(canvas)
             about_y = self._top(canvas)
             desc_y, comments_y = self._about(canvas, about_y)
             self._page = (canvas, about_y, desc_y, comments_y)
@@ -158,6 +158,7 @@ class Game(Scene):
         scroll = {"actions": 0, "shots": about_y - t.m, "desc": desc_y - t.m + self.off,
                   "comments": comments_y - t.m + self.off}[self.section]
         self._sy = W.ease(getattr(self, "_sy", None), max(0, scroll), back=0)   # scroll: no bounce
+        self._hero(s)                            # static: stays put while the page scrolls
         s.blit(canvas, (0, -int(self._sy[0])))
         if self._live_bar:                       # indeterminate bar: cheap per-frame overlay
             W.progress(t, s, self._live_bar.move(0, -int(self._sy[0])), None, phase=0.35)
@@ -175,34 +176,44 @@ class Game(Scene):
 
         x = cover_r.right + t.lg
         maxw = t.w - t.m - x
-        y = cover_r.y - W.cap_gap(t.f_small)    # capitals of the first line = cover top edge
-        y = W.text(t, s, f"itch  ·  {self.pos[0]} of {self.pos[1]}", x, y, t.f_small,
-                   color=t.dim).bottom
+        y = cover_r.y - W.cap_gap(t.f_h1)       # capitals of the title = cover top edge
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
-        y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim).bottom + t.sm
+        parts = ([f"by {g['author']}"] if g.get("author") else []) + \
+                ([_mb(g["size_mb"])] if g["size_mb"] else [])
+        info = "  ·  ".join(parts) or " "                         # no author: skip the "by"
+        r = W.text(t, s, info, x, y, t.f_body, color=t.dim)      # one info line, no loose tags
+        if g.get("state") == "installed":                         # state = purple (rule 1)
+            ih = int(t.f_body.get_height() * 0.42)
+            cx = r.right + t.md
+            W.text(t, s, "·", r.right + t.sm * 0.6, y, t.f_body, color=t.dim)
+            cx += W.icon_draw(s, "check", (cx + ih * 0.45, r.centery), ih, t.accent) + t.xs
+            cx = W.text(t, s, "Installed", cx, y, t.f_body, color=t.accent).right
+            ctl = g.get("controls_label") or ""
+            if ctl and "auto" not in ctl.lower():                 # only when not the default
+                W.text(t, s, f"  ·  {ctl}", cx, y, t.f_body, color=t.dim)
+        y = r.bottom + t.sm
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
-            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w)) + t.sm
+            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w))
+        y += t.md
 
-        tags = []
-        if g["size_mb"]:
-            tags.append(W.tag(t, s, _mb(g["size_mb"]), x, y))
-        if g.get("state") == "installed":
-            px = tags[-1].right + t.xs if tags else x
-            tags.append(W.tag(t, s, "Installed", px, y, kind="accent", icon_name="check"))
-            tags.append(W.tag(t, s, g.get("controls_label") or "Pad controls · auto",
-                              tags[-1].right + t.xs, y))
-        if tags:
-            y = tags[-1].bottom + t.md
-
-        y = self._status(s, x, y, maxw)
         if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
             y = max(y, cover_r.bottom - t.btn_h)
-        acts = self.actions()                    # one row; LEFT/RIGHT slides the plate
+        acts = self.actions()                    # one row; LEFT/RIGHT moves focus
         on = self.section == "actions" and not self.overlay
-        W.button_row(t, s, x, y, [(lb, ic, en, lb in MAIN_ACTIONS) for lb, ic, en in acts],
-                     self.focus if on and acts else None, key=("plate", "game"))
+        rects = W.button_row(t, s, x, y, [(lb, ic, en, lb in MAIN_ACTIONS) for lb, ic, en in acts],
+                             self.focus if on and acts else None)
+        if self.phase and self.playable and rects:      # progress sits next to Cancel
+            px = rects[-1].right + t.lg
+            self._progress_inline(s, px, y, min(x + maxw - px, t.read_w))
         if acts:
             y += t.btn_h + t.sm
+        msg = self.message()
+        if msg:                                  # the one place for messages: under the buttons
+            if not acts:                         # no buttons (not playable): box takes their place
+                y = max(y, cover_r.bottom - t.btn_h - t.sm)
+            kind, title, line = msg
+            y = W.notice(t, s, x, y + (t.xs if acts else 0), min(maxw, t.read_w), title, line,
+                         kind=kind).bottom + t.sm
         return max(cover_r.bottom, y) + t.lg
 
     def _about(self, s, y):
@@ -211,25 +222,33 @@ class Game(Scene):
         n = g.get("screens", 0)
         if n:
             y = W.text(t, s, "Screenshots", t.m, y, t.f_h2).bottom + t.sm
-            th = int(t.u * 17)
-            tw = int(th * 16 / 9)
-            fits = max(1, int((t.w - 2 * t.m + t.gap) // (tw + t.gap)))
-            first = max(0, min(self.shot - fits + 1, n - fits)) if self.section == "shots" else 0
-            for k, i in enumerate(range(first, min(n, first + fits))):
-                r = pg.Rect(t.m + k * (tw + t.gap), y, tw, th)
+            th = int(t.u * 19)                       # same height, each at its own shape
+            ws = [int(th * W.shot_aspect(g, i)) for i in range(n)]
+            avail = t.w - 2 * t.m
+            first = 0
+            if self.section == "shots":              # scroll so the focused one fits
+                while sum(ws[first:self.shot + 1]) + t.gap * (self.shot - first) > avail:
+                    first += 1
+            pad = int(th * (SHOT_GROW - 1) / 2)      # room for the focused one to grow
+            y += pad
+            xx, last = t.m, None
+            for i in range(first, n):
+                if xx + ws[i] > t.m + avail:
+                    break
+                r = pg.Rect(xx, y, ws[i], th)
+                last, xx = (i, r), xx + ws[i] + t.gap
                 foc = self.section == "shots" and i == self.shot and not self.overlay
                 k = W.anim(("shot", g["id"], i), 1.0 if foc else 0.0)
-                grow = (t.focus_scale - 1) * k
+                grow = (SHOT_GROW - 1) * k
                 if grow:
-                    r = r.inflate(tw * grow, th * grow)
+                    r = r.inflate(r.w * grow, th * grow)
                 s.blit(W.rounded(W.screenshot(t, g, i, r.size), t.radius), r)
                 if k > 0.5:
                     W.focus_ring(t, s, r)
-            if first + fits < n:  # more to the right: count on the last visible shot
-                last = pg.Rect(t.m + (fits - 1) * (tw + t.gap), y, tw, th)
-                W.tag(t, s, f"+{n - first - fits} more", last.right - t.xs, last.bottom - t.xs,
-                      kind="dark", anchor="bottomright")
-            y += th + t.lg
+            if last and last[0] < n - 1:  # more to the right: count on the last visible shot
+                W.tag(t, s, f"+{n - 1 - last[0]} more", last[1].right - t.xs,
+                      last[1].bottom - t.xs, kind="dark", anchor="bottomright")
+            y += th + pad + t.lg
         desc_y = y
         paras = g.get("description") or []
         if paras:
@@ -276,83 +295,78 @@ class Game(Scene):
         return y
 
     def _hero(self, s):
-        """Blurred, darkened cover across the top, fading out into the page gradient."""
-        t = self.t
-        h = int(t.h * 0.75)
-        key = (self.g["id"], self.g.get("cover_file"), t.w, h)
+        """Big art across the top: the first screenshot (sharp, darkened), or the blurred cover
+        when there are none; fades out into the page gradient."""
+        t, g = self.t, self.g
+        h = t.h                                 # whole screen: About/Comments sit on it too
+        shot = bool(g.get("screens"))
+        key = (g["id"], g.get("cover_file"), tuple(g.get("shot_files") or ()), shot, t.w, h)
         if getattr(self, "_hero_key", None) == key:
             return s.blit(self._hero_img, (0, 0))
-        small = pg.transform.smoothscale(W.cover(self.t, self.g, (315, 250)), (24, 14))
-        hero = pg.transform.smoothscale(small, (t.w, h))
+        if shot:                         # softened: colours + composition, never competes with text
+            sharp = W.screenshot(t, g, 0, (t.w, h))
+            soft = pg.transform.smoothscale(sharp, (max(1, t.w // 10), max(1, h // 10)))
+            hero = pg.transform.smoothscale(soft, (t.w, h))
+        else:
+            small = pg.transform.smoothscale(W.cover(self.t, g, (315, 250)), (24, 14))
+            hero = pg.transform.smoothscale(small, (t.w, h))
         dark = pg.Surface((t.w, h), pg.SRCALPHA)
-        dark.fill((0, 0, 0, 150))
+        dark.fill((0, 0, 0, 150))      # keeps text readable, even on bright art
         hero.blit(dark, (0, 0))
         out = pg.Surface((t.w, h), pg.SRCALPHA)
         out.blit(hero, (0, 0))
         mask = pg.Surface((t.w, h), pg.SRCALPHA)
         for yy in range(h):
-            a = int(200 * (1 - yy / h) ** 1.4)
+            a = int(255 - (255 - 90) * (yy / h) ** 0.8) if shot else int(200 * (1 - yy / h) ** 1.4)
             pg.draw.line(mask, (255, 255, 255, a), (0, yy), (t.w, yy))
         out.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
         self._hero_key, self._hero_img = key, out
         s.blit(out, (0, 0))
 
-    def _status(self, s, x, y, maxw):
-        t, g = self.t, self.g
-        w = min(maxw, t.read_w)
-
-        def note(title, body):                  # neutral status: lit title + dim line
-            y2 = W.text(t, s, title, x, y, t.f_btn).bottom
-            return W.wrap(t, s, body, x, y2, t.f_body, w, color=t.dim) + t.md
-
+    def message(self):
+        """What to tell the player about this game: (kind, title, line) or None.
+        Always drawn as ONE box under the buttons (Omri: consistent). Red only for errors."""
+        g = self.g
         if not self.playable:
             if "html" in g["platforms"]:
-                lines = ("Browser game", "Browser games can't be played from here yet. "
-                         "Open it on itch.io in a browser.")
-            else:
-                lines = ("Not playable on the Deck", "This has no Linux or Windows download "
-                         "(for example macOS-only, a soundtrack or a book).")
-            return note(*lines)
-        if g.get("state") == "failed":
-            return W.notice(t, s, x, y, w, "Couldn't install",
-                            self.fail_reason or "See the log for details.").bottom + t.md
-        if g.get("state") == "missing":
-            if g.get("missing") == "card":
-                lines = ("SD card missing", "This game is installed on the SD card. Insert the "
-                         "card and it comes back by itself.")
-            else:
-                lines = ("Game files missing", "The install folder is gone. Uninstall removes it "
-                         "from the list, then you can install it again.")
-            return note(*lines)
-        if g.get("state") == "queued":
-            y = W.text(t, s, "Queued — starts after the current download", x, y, t.f_body,
-                       color=t.dim).bottom
-            return y + t.md
-        if not self.phase:
-            return y
-        base = y + t.f_btn.get_ascent()            # label and speed share a baseline
-        bar = pg.Rect(x, y + t.f_btn.get_linesize() + t.xs, w, max(6, t.u))
+                return ("info", "Browser game", "Open it on itch.io in a browser.")
+            return ("info", "Not playable on the Deck", "It has no Linux or Windows download.")
+        st = g.get("state")
+        if st == "failed":
+            return ("error", "Couldn't install", self.fail_reason or "See the log for details.")
+        if st == "missing" and g.get("missing") == "card":
+            return ("info", "SD card missing", "Insert the card and the game comes back.")
+        if st == "missing":
+            return ("info", "Game files missing", "Uninstall it, then install it again.")
+        if st == "queued":
+            return ("info", "Queued", "Starts after the current download.")
+        return None
+
+    def _progress_inline(self, s, x, y, w):
+        """Progress next to Cancel, inside the button row's height (no extra lines under it)."""
+        t, g = self.t, self.g
+        bar_h = max(6, t.u)
+        lh = t.f_btn.get_linesize()
+        top = y + (t.btn_h - (lh + t.sm + bar_h)) // 2
+        base = top + t.f_btn.get_ascent()          # label and details share a baseline
+        bar = pg.Rect(x, top + lh + t.sm, w, bar_h)
         if self.phase == "download":
             p = g.get("progress", 0)
-            W.text(t, s, f"Downloading  {int(p * 100)}%", x, base, t.f_btn, anchor="baseleft")
-            m, sec = divmod(int(g.get("eta_s", 0)), 60)
-            W.text(t, s, f"{g.get('speed_mbs', 0):.1f} MB/s · {m}:{sec:02d} left", bar.right, base,
-                   t.f_small, color=t.dim, anchor="baseright")
+            label = f"Downloading  {int(p * 100)}%"
+            info = (f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}  ·  "
+                    f"{g.get('speed_mbs', 0):.1f} MB/s")
             W.progress(t, s, bar, p)
-            sub = f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}"
         else:
-            label, sub = {
-                "extract": ("Extracting…", "Unpacking the download"),
-                "installing": ("Installing…", "The game's installer is running silently. "
-                                              "No progress % for installers."),
-                "proton": ("Preparing Proton…", "First run only — about 30 s"),
-                "umu": ("Getting umu-launcher…", "One-time download for Windows games"),
-            }[self.phase]
-            W.text(t, s, label, x, y, t.f_btn)
+            label, info = {"extract": "Extracting…", "installing": "Installing…",
+                           "proton": "Preparing Proton…", "umu": "Getting umu-launcher…"
+                           }[self.phase], ""      # no explanations: the label is enough
             W.progress(t, s, bar, 0)          # track only; draw_page animates the segment live
             self._live_bar = bar
-        r = W.text(t, s, sub, x, bar.bottom + t.xs, t.f_small, color=t.dim, maxw=maxw)
-        return r.bottom + t.md
+        lr = W.text(t, s, label, x, base, t.f_btn, anchor="baseleft")
+        room = max(0, bar.right - lr.right - t.md)
+        if t.f_small.size(info)[0] > room:          # too tight (Deck): drop the last detail
+            info = info.rsplit("  ·  ", 1)[0]
+        W.text(t, s, info, bar.right, base, t.f_small, color=t.dim, anchor="baseright", maxw=room)
 
     def draw_overlay(self, s):
         if self.overlay[0] == "viewer":

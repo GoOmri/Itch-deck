@@ -219,16 +219,18 @@ class App:
     # --- per-scene input -----------------------------------------------
     def handle(self, act):
         sc = self.scene
-        if sc.overlay and sc.overlay[0] == "confirm":
-            if act == A:
+        if sc.overlay and sc.overlay[0] == "confirm":     # buttons: [action, Cancel]
+            if act in (LEFT, RIGHT):
+                sc.confirm_focus = 1 - sc.confirm_focus
+            elif act == A and sc.confirm_focus == 0:
                 fn = self.on_confirm if sc.overlay is not QUIT_DLG else None
-                sc.overlay = None
+                sc.overlay, sc.confirm_focus = None, 0
                 if fn:
                     fn()
                 else:
                     self.running = False
-            elif act == B:
-                sc.overlay = None
+            elif act in (A, B):                          # A on Cancel, or B
+                sc.overlay, sc.confirm_focus = None, 0
             return
         getattr(self, f"_h_{self.kind}")(act)
 
