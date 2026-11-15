@@ -594,6 +594,61 @@ def hint_bar(t, s, items, activity=None, notice=None):
 
 
 # --- controls ---------------------------------------------------------------
+def _i_disk(b, d, w, c):                 # size: a drive
+    pg.draw.rect(b, c, (d * .1, d * .22, d * .8, d * .56), w, border_radius=int(d * .1))
+    pg.draw.line(b, c, (d * .1, d * .56), (d * .9, d * .56), w)
+    pg.draw.circle(b, c, (d * .74, d * .67), w * 0.7)
+
+
+def _i_tag(b, d, w, c):                  # genre: a label tag
+    pts = [(d * .12, d * .2), (d * .52, d * .2), (d * .88, d * .52), (d * .54, d * .86),
+           (d * .12, d * .5)]
+    pg.draw.polygon(b, c, pts, w)
+    pg.draw.circle(b, c, (d * .32, d * .38), w * 0.8)
+
+
+def _i_clock(b, d, w, c):                # time to beat
+    pg.draw.circle(b, c, (d / 2, d / 2), d * .4, w)
+    pg.draw.line(b, c, (d / 2, d / 2), (d / 2, d * .26), w)
+    pg.draw.line(b, c, (d / 2, d / 2), (d * .68, d * .6), w)
+
+
+def _i_mouse(b, d, w, c):                # controls: trackpad as mouse
+    pg.draw.rect(b, c, (d * .26, d * .1, d * .48, d * .8), w, border_radius=int(d * .24))
+    pg.draw.line(b, c, (d / 2, d * .14), (d / 2, d * .38), w)
+
+
+def _i_keys(b, d, w, c):                 # controls: buttons as keyboard
+    pg.draw.rect(b, c, (d * .06, d * .24, d * .88, d * .52), w, border_radius=int(d * .08))
+    for i in range(4):
+        pg.draw.circle(b, c, (d * (.24 + i * .17), d * .42), w * 0.75)
+    pg.draw.line(b, c, (d * .3, d * .6), (d * .7, d * .6), w)
+
+
+_LINE_ICONS = {"disk": _i_disk, "tag": _i_tag, "clock": _i_clock, "mouse": _i_mouse,
+               "keys": _i_keys}
+
+
+def facts(t, s, x, y, items, maxw):
+    """Game facts as one calm row of icon + value pairs (wraps if it must):
+    items = [(icon, text, color or None)]. Icons dim, values white, a wide gap between.
+    Returns the bottom y."""
+    f = t.f_body
+    ih = int(f.get_height() * 0.8)
+    gap, row_h = t.lg, f.get_linesize() + t.sm
+    cx, cy = x, y + f.get_height() / 2
+    for icon, txt, col in items:
+        w = ih + t.sm + f.size(txt)[0]
+        if cx > x and cx + w > x + maxw:                 # next line
+            cx, cy = x, cy + row_h
+        iw = icon_draw(s, icon, (cx + ih / 2, cy), ih * (0.7 if icon == "check" else 1),
+                       col or t.dim)
+        iw = max(iw, ih)                                  # same slot for every icon: values align
+        text(t, s, txt, cx + iw + t.sm, cy, f, color=col or t.text_c, anchor="midleft")
+        cx += w + gap
+    return int(cy + f.get_height() / 2)
+
+
 def icon_draw(s, name, center, size, color):
     """Drawn icons (never font characters, so they match the footer glyphs): "play", "check".
     size = icon height in px. Returns its width."""
@@ -628,6 +683,13 @@ def icon_draw(s, name, center, size, color):
         pg.draw.polygon(s, color, pts)
         pg.draw.aalines(s, color, True, pts)
         return int(a * 1.6)
+    if name in _LINE_ICONS:              # outline icons for the game page facts (supersampled)
+        k, d = 4, int(h * 4)
+        big = pg.Surface((d, d), pg.SRCALPHA)
+        _LINE_ICONS[name](big, d, max(2, int(d * 0.11)), color)
+        img = pg.transform.smoothscale(big, (int(h), int(h)))
+        s.blit(img, img.get_rect(center=(int(cx), int(cy))))
+        return int(h)
     if name == "check":
         w = max(2, round(h * 0.2))
         pts = [(cx - h * 0.42, cy + h * 0.02), (cx - h * 0.12, cy + h * 0.32),

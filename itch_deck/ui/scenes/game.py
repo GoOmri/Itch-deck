@@ -209,33 +209,30 @@ class Game(Scene):
         maxw = t.w - t.m - x
         y = cover_r.y - W.cap_gap(t.f_h1)       # capitals of the title = cover top edge
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
-        parts = ([f"by {g['author']}"] if g.get("author") else []) + \
-                ([_mb(g["size_mb"])] if g["size_mb"] else []) + \
-                ([g["genre"]] if g.get("genre") else [])               # itch's own Genre
-        info = "  ·  ".join(parts) or " "                         # no author: skip the "by"
-        r = W.text(t, s, info, x, y, t.f_body, color=t.dim)      # one info line, no loose tags
-        free = getattr(self, "free_mb", None)
-        if free is not None and g["size_mb"] and self.playable and \
-                g.get("state") not in ("installed", "downloading", "queued", "missing"):
-            W.text(t, s, "  ·  ", r.right, y, t.f_body, color=t.dim)    # space before installing:
-            r = r.union(W.text(t, s, f"{_mb(free)} free", r.right + t.f_body.size("  ·  ")[0], y,
-                               t.f_body, color=t.error if g["size_mb"] > free else t.dim))
-        if g.get("state") == "installed":                         # state = purple (rule 1)
-            ih = int(t.f_body.get_height() * 0.42)
-            cx = r.right + t.md
-            W.text(t, s, "·", r.right + t.sm * 0.6, y, t.f_body, color=t.dim)
-            cx += W.icon_draw(s, "check", (cx + ih * 0.45, r.centery), ih, t.accent) + t.xs
-            W.text(t, s, "Installed", cx, y, t.f_body, color=t.accent)
-        y = r.bottom + t.sm
-        ttb = hltb.summary(g.get("ttb"))                         # time to beat (HowLongToBeat)
-        if ttb:
-            y = W.text(t, s, ttb, x, y - t.xs, t.f_body, color=t.dim, maxw=maxw).bottom + t.sm
-        # what SCRiTCH maps, on its own line so it reads as a fact about this game (only when
-        # it isn't plain controller): "Controls  Trackpad as mouse"
-        ctl = CONTROL_WORDS.get(g.get("controls_mode")) if self.playable else None
-        if ctl:
-            lr = W.text(t, s, "Controls", x, y - t.xs, t.f_body, color=t.dim)
-            y = W.text(t, s, ctl, lr.right + t.sm, y - t.xs, t.f_body).bottom + t.sm
+        if g.get("author"):                                       # who made it: one quiet line
+            y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim, maxw=maxw).bottom
+        y += t.sm
+        # the facts: icon + value pairs, scannable at a glance (state first, purple = yours)
+        items = [("check", "Installed", t.accent)] if g.get("state") == "installed" else []
+        if g["size_mb"]:
+            size, col = _mb(g["size_mb"]), None
+            free = getattr(self, "free_mb", None)
+            if free is not None and self.playable and \
+                    g.get("state") not in ("installed", "downloading", "queued", "missing"):
+                size += f"  ·  {_mb(free)} free"                # space, before installing
+                col = t.error if g["size_mb"] > free else None
+            items.append(("disk", size, col))
+        if g.get("genre"):
+            items.append(("tag", g["genre"], None))
+        ttb = g.get("ttb") or {}
+        hours = ttb.get("main") or ttb.get("done")                # main story; completionist cut
+        if hours:
+            items.append(("clock", f"{hltb.fmt(hours)} to beat", None))
+        mode = g.get("controls_mode") if self.playable else None
+        if mode in CONTROL_WORDS:                                 # what SCRiTCH converts
+            items.append(("mouse" if mode == "mouse" else "keys", CONTROL_WORDS[mode], None))
+        if items:
+            y = W.facts(t, s, x, y, items, maxw) + t.md
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
             y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w))
         y += t.md
