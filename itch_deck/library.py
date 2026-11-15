@@ -80,7 +80,11 @@ class Library:
     def load_cache(self):
         try:
             data = json.loads(paths.LIBRARY.read_text())
-            self.games = [self._prep(g) for g in data.get("games", [])]
+            seen, self.games = set(), []
+            for g in data.get("games", []):     # v0.7.6 saved each itch game again per refresh
+                if g.get("id") not in seen:
+                    seen.add(g.get("id"))
+                    self.games.append(self._prep(g))
             self.synced_at = data.get("synced_at")
             log.info("cache: %d games, synced %s", len(self.games), self.synced_at)
         except FileNotFoundError:
@@ -113,6 +117,7 @@ class Library:
         if self._played().get(g["id"]):
             g["played"] = self._played()[g["id"]]
         g["platforms"] = set(g.get("platforms") or ["other"])
+        g["store"] = g.get("store") or "itch"    # v0.7.6 cached itch games as store: null
         g.setdefault("size_mb", 0)
         g.setdefault("state", None)
         g.setdefault("screens", 0)

@@ -650,6 +650,11 @@ Epic step 2 (branch epic-install, NOT released - waits for "push"; Omri 15 Nov "
     % / speed / time left. 3 Cancel halfway, Install again: continues. 4 Play: splash, game starts,
     pad works; hold quit combo returns. 5 Options: Uninstall, Controls (no Change build). 6 Uninstall.
     If broken: app.log "epic:", "install epic-…", logs/games/<game>-install.log and <game>.log.
+v0.7.6 BUG (Omri 15 Nov 17:30): itch games x3 in the library. save_cache wrote "store": null for
+  itch games; after a restart _sync's "keep non-itch games" (g.get("store","itch") != "itch") kept
+  them -> one more copy per refresh. Fix (branch fix-dupes): _prep sets store = store or "itch";
+  load_cache drops duplicate ids (repairs old caches). LESSON: g.get(k, default) doesn't cover a
+  key saved as null; normalise in _prep. Test: test_itch_games_not_duplicated_after_restart.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
