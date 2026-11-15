@@ -706,6 +706,17 @@ v0.8.0 Deck test (15 Nov): all ✓ except the install-done feedback: no toast, n
 OPEN (Omri 15 Nov: "ruminate some other time"): Details shows raw log lines - useless to a casual
   player. Idea on the table: "Get help" = the plain reason + a QR that opens the full log on the
   phone (phonelink) to send to whoever helps; no log text on the TV. Not decided.
+ROADMAP (Omri 15 Nov 20:23, after v0.8.1; page: https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo),
+  one item per update, in this order:
+  1 Rename folders itch-deck -> scritch (moves user data: plan + size first, migration with
+    fallback, keep old paths readable). 2 "Get help" instead of Details (plain reason + QR that
+    opens the full log on the phone via phonelink; no log text on the TV). 3 Ready to share
+    (README / install steps for strangers, fresh-Deck first-run check, logo SVG from Omri).
+  4 Epic DLC. 5 Epic cloud saves (legendary sync-saves; risky: own update + test round).
+  Later: browser games, opt-in "Add to Steam" per game, hide extra pads for player-1-only games.
+  Decided against: auto Steam tiles, IGDB (secret key), reading Epic from Heroic.
+  Needs a Deck test, not code: itch update detection, split installer (Stranger More), Epic long
+  descriptions count ("epic text fields" log line), Epic game updates.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
