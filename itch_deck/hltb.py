@@ -8,12 +8,14 @@ HLTB hides its search endpoint behind a name that changes with each site build, 
 Only an exact (normalised) title or alias match counts: a wrong time is worse than none.
 Stdlib only (via net). Any failure -> net.Offline, and the caller just shows nothing."""
 import json
+import logging
 import re
 import time
 import unicodedata
 
 from . import net
 
+log = logging.getLogger("itch-deck")
 BASE = "https://howlongtobeat.com/"
 # HLTB turns away unknown clients; a plain browser UA is what every HLTB client sends.
 UA = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"
@@ -97,6 +99,7 @@ class Client:
         key = next((v for k, v in d.items() if "key" in k.lower()), None)
         val = next((v for k, v in d.items() if "val" in k.lower()), None)
         self.auth = (d.get("token"), key, val)
+        log.debug("hltb: endpoint %s, init keys %s", self.endpoint, sorted(d))
 
     def search(self, title):
         """Raw result rows for a title (one retry with a fresh session if HLTB says no)."""
@@ -123,7 +126,8 @@ class Client:
                 raw = net.get(BASE + self.endpoint, timeout=20, headers=hdr,
                               data=json.dumps(body).encode())
                 return json.loads(raw).get("data") or []
-            except (net.Offline, net.NotFound, ValueError):
+            except (net.Offline, net.NotFound, ValueError) as e:
+                log.debug("hltb: search %s failed: %s", self.endpoint, e)
                 self.auth = None
                 if attempt:
                     self.endpoint = None          # site rebuilt: rediscover next time
@@ -141,6 +145,7 @@ class Client:
 
 if __name__ == "__main__":        # python -m itch_deck.hltb "Title" ...  (CI live check)
     import sys
+    logging.basicConfig(level=logging.DEBUG)
     c, found = Client(), 0
     for name in sys.argv[1:]:
         t = c.lookup(name)
