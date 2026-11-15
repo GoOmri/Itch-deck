@@ -3,6 +3,7 @@ import pygame as pg
 
 from ...input import UP, DOWN, LEFT, RIGHT, A, B
 from .. import widgets as W
+from ... import hltb
 from .base import Scene
 
 PLATFORM = {"linux": "Linux", "windows": "Windows", "html": "Browser",
@@ -149,7 +150,7 @@ class Game(Scene):
         t = self.t
         g = self.g
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
-               g.get("controls_label"),
+               g.get("controls_label"), str(g.get("ttb")),
                g.get("cover_file"), self.section, self.shot,   # focus: buttons are live bool(self.overlay),
                self.offline, self.card_out, self.phase, self.behind, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
@@ -199,7 +200,7 @@ class Game(Scene):
         y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
         parts = ([f"by {g['author']}"] if g.get("author") else []) + \
                 ([_mb(g["size_mb"])] if g["size_mb"] else []) + \
-                [x for x in (g.get("genre"), g.get("session")) if x]   # itch's own Genre / session
+                ([g["genre"]] if g.get("genre") else [])               # itch's own Genre
         info = "  ·  ".join(parts) or " "                         # no author: skip the "by"
         r = W.text(t, s, info, x, y, t.f_body, color=t.dim)      # one info line, no loose tags
         if g.get("state") == "installed":                         # state = purple (rule 1)
@@ -212,6 +213,9 @@ class Game(Scene):
             if ctl and "auto" not in ctl.lower():                 # only when not the default
                 W.text(t, s, f"  ·  {ctl}", cx, y, t.f_body, color=t.dim)
         y = r.bottom + t.sm
+        ttb = hltb.summary(g.get("ttb"))                         # time to beat (HowLongToBeat)
+        if ttb:
+            y = W.text(t, s, ttb, x, y - t.xs, t.f_body, color=t.dim, maxw=maxw).bottom + t.sm
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
             y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w))
         y += t.md

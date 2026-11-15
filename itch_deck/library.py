@@ -9,11 +9,12 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, net, paths
+from . import config, hltb, net, paths
 from .stores import itch_page
 
 log = logging.getLogger("itch-deck")
 PAGE_MAX_AGE = dt.timedelta(days=7)
+HLTB_MAX_AGE = dt.timedelta(days=30)   # time to beat (and "not on HLTB") rechecked monthly
 MAX_SHOTS = 8
 SHOT_W = 1280
 
@@ -69,7 +70,8 @@ class Library:
         self._queued = set()
         self._worker = None
         self.installs, self.live = {}, {}   # set by Installer: install index, in-progress fields
-        self.jobs = {"cover": [0, 0], "page": [0, 0]}   # [done, total] for the top-bar indicator
+        self.jobs = {"cover": [0, 0], "page": [0, 0], "hltb": [0, 0]}   # [done, total] (top bar)
+        self._hltb, self._hltb_client, self._hltb_down = self._load_hltb(), None, False
         self.load_cache()
 
     # --- cache ------------------------------------------------------------------
@@ -116,6 +118,7 @@ class Library:
             g["cover_file"] = str(f)
             break
         self._apply_install(g)
+        g["ttb"] = self._ttb(g["id"])
         return g
 
     def _apply_install(self, g):
@@ -188,6 +191,7 @@ class Library:
         if not self.offline and not self.auth_failed:
             self.queue_covers()
             self.queue_prefetch()
+            self.queue_hltb()
 
     # --- background jobs (covers first, then page details) -----------------------
     def _put(self, prio, kind, gid):
@@ -234,10 +238,14 @@ class Library:
             try:
                 if kind == "cover":
                     self._fetch_cover(g)
+                elif kind == "hltb":
+                    self._fetch_hltb(g)
                 else:
                     self._fetch_page(g)
             except net.Offline as e:
                 log.info("%s %s: offline (%s)", kind, gid, e)
+                if kind == "hltb":
+                    self._hltb_down = True      # HLTB down or changed: skip the rest this run
             except net.NotFound:
                 log.info("%s %s: gone on itch.io (404)", kind, gid)
                 if kind == "page":
@@ -250,7 +258,7 @@ class Library:
             finally:
                 g.pop("details_loading", None) if kind == "page" else None
                 self._job_done(kind)
-            if prio >= 5:
+            if prio >= 5 and not (kind == "hltb" and self._hltb_down):
                 time.sleep(1.5)   # background prefetch: go easy on itch.io
 
     def _job_done(self, kind):
@@ -280,6 +288,42 @@ class Library:
         paths.COVERS.mkdir(parents=True, exist_ok=True)
         f.write_bytes(net.get(url, timeout=20))
         g["cover_file"] = str(f)
+
+    # --- time to beat (HowLongToBeat) ---------------------------------------------
+    def _load_hltb(self):
+        try:
+            return json.loads(paths.HLTB.read_text())
+        except (OSError, ValueError):
+            return {}
+
+    def _ttb(self, gid):
+        """{"main": h, "done": h} for the UI, or None (not looked up yet / not on HLTB)."""
+        e = self._hltb.get(gid) or {}
+        return {"main": e["main"], "done": e.get("done")} if e.get("main") or e.get("done") else None
+
+    def _hltb_fresh(self, gid):
+        try:
+            return _now() - dt.datetime.fromisoformat(self._hltb[gid]["at"]) < HLTB_MAX_AGE
+        except (KeyError, TypeError, ValueError):
+            return False
+
+    def queue_hltb(self):
+        """Look up games HLTB hasn't been asked about this month (lowest priority, after pages)."""
+        if self._hltb_down:
+            return
+        for g in self.games:
+            if g.get("title") and g["platforms"] & {"linux", "windows"} and not self._hltb_fresh(g["id"]):
+                self._put(7, "hltb", g["id"])
+
+    def _fetch_hltb(self, g):
+        if self._hltb_down:
+            return
+        self._hltb_client = self._hltb_client or hltb.Client()
+        t = self._hltb_client.lookup(g["title"]) or {}
+        self._hltb[g["id"]] = {"at": _now().isoformat(timespec="seconds"), **t}
+        _write_json(paths.HLTB, self._hltb)
+        g["ttb"] = self._ttb(g["id"])
+        log.info("hltb %s: %s", g["id"], hltb.summary(g["ttb"]) or "not found")
 
     # --- itch page details ------------------------------------------------------
     def _page_file(self, g):
@@ -315,7 +359,6 @@ class Library:
         g["comment_count"] = d.get("comment_count", len(cs))
         g["inputs"] = d.get("inputs") or []
         g["genre"] = (d.get("genre") or [""])[0]
-        g["session"] = d.get("session") or ""
         # pages cached before Genre/Average session were read: stale, so they refetch once
         g["details_at"] = d.get("fetched") if "inputs" in d and "genre" in d else None
 
@@ -336,7 +379,7 @@ class Library:
         _write_json(self._page_file(g), {
             "fetched": _now().isoformat(timespec="seconds"), "description": p["description"],
             "comments": p["comments"], "comment_count": p["comment_count"], "shots": n,
-            "inputs": p["inputs"], "genre": p["genre"], "session": p["session"]})
+            "inputs": p["inputs"], "genre": p["genre"]})
         log.info("page %s: %d paras, %d shots, %d comments", g["id"], len(p["description"]), n,
                  len(p["comments"]))
         g.pop("details_at", None)

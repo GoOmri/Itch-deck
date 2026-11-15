@@ -1,0 +1,17 @@
+name: hltb-live
+# Live check of the HowLongToBeat client (HLTB changes its site; this tells us early).
+# Branches only, never releases. Main's build step runs the same check as a warning.
+on:
+  push:
+    branches-ignore: [main]
+    paths: ["itch_deck/hltb.py", ".github/workflows/hltb.yml"]
+  workflow_dispatch:
+jobs:
+  live:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - run: python -m itch_deck.hltb Celeste "Circa Infinity" "Cosmic Express" "Baba Is You" "Not A Real Game 12345"

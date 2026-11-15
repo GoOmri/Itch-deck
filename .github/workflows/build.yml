@@ -17,6 +17,9 @@ jobs:
         with: { python-version: "3.11" }
       - run: pip install -r requirements.txt pyinstaller pytest
       - run: python -m pytest -q tests
+      - name: HowLongToBeat still answers (warning only)
+        continue-on-error: true
+        run: python -m itch_deck.hltb Celeste "Circa Infinity"
       - name: Refuse to ship secrets
         run: "! git ls-files | grep -iE '(config\\.json|itch_key|\\.key$)'"
       - run: pyinstaller --onefile --name itch-deck --add-data itch_deck/assets:itch_deck/assets run.py

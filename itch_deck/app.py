@@ -121,7 +121,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         c = self.cfg
         sc = LibScene(self.t, self.lib.games, filt=self.filt, sort=c.get("library_sort", "az"),
                       show=c.get("library_show", "all"), genre=c.get("library_genre", "any"),
-                      session=c.get("library_session", "any"))
+                      length=c.get("library_length", "any"))
         self._set("library", sc)
         self._sync_library_scene()
         ids = [g["id"] for g in sc.shown]
@@ -147,7 +147,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         c = self.cfg
         return visible(self.lib.games, self.filt, c.get("library_sort", "az"),
                        c.get("library_show", "all"), c.get("library_genre", "any"),
-                       c.get("library_session", "any"))
+                       c.get("library_length", "any"))
 
     # --- per-scene input -----------------------------------------------
     def handle(self, act):
@@ -173,7 +173,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             if act in (A, LEFT, RIGHT):
                 sc.menu_next(sc.overlay[3][sc.overlay[4]][0], -1 if act == LEFT else 1)
                 self.cfg.update(library_sort=sc.sort, library_show=sc.show,
-                                library_genre=sc.genre, library_session=sc.session)
+                                library_genre=sc.genre, library_length=sc.length)
                 config.save(self.cfg)
             elif act in (B, X):
                 sc.overlay = None

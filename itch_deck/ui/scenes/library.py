@@ -4,22 +4,23 @@ import pygame as pg
 from ...input import UP, DOWN, LEFT, RIGHT, X, L2, R2
 from .. import widgets as W
 from .base import Scene
+from ... import hltb
 
 
 TABS = (("all", "All"), ("installed", "Installed"), ("recent", "Recent"))
-SORTS = (("az", "A–Z"), ("added", "Recently added"))
+SORTS = (("az", "A–Z"), ("added", "Recently added"), ("short", "Shortest first"))
 SHOWS = (("all", "Everything"), ("playable", "Playable here"))
-SESSIONS = (("any", "Any"), ("short", "Short"), ("long", "Long"))
-SHORT = ("a few seconds", "a few minutes", "about a half-hour")   # itch "Average session" values
+LENGTHS = (("any", "Any"), ("short", "Under 2 h"), ("mid", "2–10 h"), ("long", "10 h+"))
 
 
 def playable(g):
     return bool(g["platforms"] & {"linux", "windows"})
 
 
-def session_kind(g):
-    s = (g.get("session") or "").lower()
-    return "" if not s else ("short" if s in SHORT else "long")
+def length_kind(g):
+    """Time to beat (HowLongToBeat main story) bucket, "" when unknown."""
+    h = hltb.length_hours(g.get("ttb"))
+    return "" if not h else ("short" if h < 2 else "mid" if h <= 10 else "long")
 
 
 def genres(games):
@@ -28,30 +29,32 @@ def genres(games):
     return [x for x, _ in Counter(g["genre"] for g in games if g.get("genre")).most_common()]
 
 
-def visible(games, filt="all", sort="az", show="all", genre="any", session="any"):
+def visible(games, filt="all", sort="az", show="all", genre="any", length="any"):
     """The games a tab shows, in order (the app uses it too, for L1/R1 on the game page)."""
     gs = [g for g in games if playable(g)] if show == "playable" else list(games)
     if genre != "any":
         gs = [g for g in gs if g.get("genre") == genre]
-    if session != "any":
-        gs = [g for g in gs if session_kind(g) == session]
+    if length != "any":
+        gs = [g for g in gs if length_kind(g) == length]
     if filt == "installed":
         gs = [g for g in gs if g.get("state") in ("installed", "missing")]
     if filt == "recent":                                    # newest play first
         return sorted((g for g in gs if g.get("played")), key=lambda g: g["played"], reverse=True)
     if sort == "added":
         gs.sort(key=lambda g: g.get("added") or "", reverse=True)
+    elif sort == "short":                                   # unknown length last, A–Z
+        gs.sort(key=lambda g: hltb.length_hours(g.get("ttb")) or float("inf"))
     return gs
 
 
 class Library(Scene):
     def __init__(self, t, games, filt="all", focus=0, syncing=None, sync_page=0,
                  offline_since=None, offline=False, sort="az", show="all", genre="any",
-                 session="any", **kw):
+                 length="any", **kw):
         super().__init__(t, **kw)
         self.games, self.filt, self.focus = games, filt, focus
         self.sort, self.show = sort, show                   # X menu (saved in config by the app)
-        self.genre, self.session = genre, session
+        self.genre, self.length = genre, length
         self.syncing, self.sync_page = syncing, sync_page   # None | "first" | "bg"
         self.offline_since = offline_since
         self.offline = offline          # True with no cache yet: nothing to show
@@ -60,23 +63,23 @@ class Library(Scene):
 
     @property
     def shown(self):
-        return visible(self.games, self.filt, self.sort, self.show, self.genre, self.session)
+        return visible(self.games, self.filt, self.sort, self.show, self.genre, self.length)
 
     def filtered(self):
-        """True when Show / Genre / Session narrow the list (Sort only orders it)."""
-        return (self.show, self.genre, self.session) != ("all", "any", "any")
+        """True when Show / Genre / Length narrow the list (Sort only orders it)."""
+        return (self.show, self.genre, self.length) != ("all", "any", "any")
 
     def filter_summary(self):
-        """Short words for the top bar, e.g. "Puzzle · Short" (empty when nothing filters)."""
+        """Short words for the top bar, e.g. "Puzzle · Under 2 h" (empty when nothing filters)."""
         bits = [dict(SHOWS)[self.show] if self.show != "all" else "",
                 self.genre if self.genre != "any" else "",
-                f"{dict(SESSIONS)[self.session]} sessions" if self.session != "any" else ""]
+                dict(LENGTHS)[self.length] if self.length != "any" else ""]
         return "  ·  ".join(b for b in bits if b)
 
     def _count(self, **change):
         """How many games this tab would show with one setting changed (counts in the menu)."""
         v = dict(filt=self.filt, sort=self.sort, show=self.show, genre=self.genre,
-                 session=self.session)
+                 length=self.length)
         v.update(change)
         return len(visible(self.games, **v))
 
@@ -87,7 +90,7 @@ class Library(Scene):
         rows = [("Sort", dict(SORTS)[self.sort], ""),
                 ("Show", dict(SHOWS)[self.show] + n(show=self.show), ""),
                 ("Genre", ("Any" if self.genre == "any" else self.genre) + n(genre=self.genre), ""),
-                ("Session", dict(SESSIONS)[self.session] + n(session=self.session), "")]
+                ("Length", dict(LENGTHS)[self.length] + n(length=self.length), "")]
         if self.filtered():
             rows.append(("Clear filters", "", ""))
         return rows
@@ -107,10 +110,10 @@ class Library(Scene):
             self.show = turn(self.show, [k for k, _ in SHOWS])
         elif label == "Genre":
             self.genre = turn(self.genre, ["any"] + genres(self.games))
-        elif label == "Session":
-            self.session = turn(self.session, [k for k, _ in SESSIONS])
+        elif label == "Length":
+            self.length = turn(self.length, [k for k, _ in LENGTHS])
         elif label == "Clear filters":
-            self.show, self.genre, self.session = "all", "any", "any"
+            self.show, self.genre, self.length = "all", "any", "any"
         self.focus, self._first, self._sy = 0, 0, None
         self.menu_open(self.overlay[4] if label != "Clear filters" else 1)
 

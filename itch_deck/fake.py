@@ -47,7 +47,8 @@ def library():
         g["comments"] = _COMMENTS if i % 3 else []
         g["comment_count"] = 24 if i % 3 else 0
         g["genre"] = ("Puzzle", "Platformer", "Adventure", "Action", "")[i % 5]
-        g["session"] = ("About an hour", "A few minutes", "", "A few hours", "About a half-hour")[i % 5]
+        g["ttb"] = ({"main": 4.2, "done": 9.1}, {"main": 0.4, "done": 0.8}, None,
+                    {"main": 14.5, "done": 31.0}, {"main": 1.6, "done": None})[i % 5]
         g["added"] = f"2026-{1 + i % 11:02d}-{1 + (i * 7) % 27:02d}"
         if i % 4 == 1 or state == "installed":
             g["played"] = f"2026-11-{1 + (i * 5) % 14:02d}T20:00:00"

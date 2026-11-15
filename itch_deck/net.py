@@ -31,10 +31,11 @@ def _ctx():
 _CTX = None
 
 
-def get(url, key=None, timeout=20, accept=None):
+def get(url, key=None, timeout=20, accept=None, headers=None, data=None):
+    """GET (or POST when data is given). headers override the defaults."""
     global _CTX
     _CTX = _CTX or _ctx()
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    req = urllib.request.Request(url, data=data, headers={"User-Agent": UA, **(headers or {})})
     if key:
         req.add_header("Authorization", f"Bearer {key}")
     if accept:
