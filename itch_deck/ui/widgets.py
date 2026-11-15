@@ -907,7 +907,7 @@ def progress(t, s, rect, frac=None, phase=0.3):
         if band is None:
             band = pg.Surface((bw, rect.h))
             for x in range(bw):
-                v = int(70 * math.sin(math.pi * x / bw) ** 2)
+                v = int(42 * math.sin(math.pi * x / bw) ** 2)     # 40% softer (Omri)
                 pg.draw.line(band, (v, v, v), (x, 0), (x, rect.h))
             _cover_cache[("bar-shine", bw, rect.h)] = band
         ph = time.monotonic() / BAR_SHINE_S % 1
