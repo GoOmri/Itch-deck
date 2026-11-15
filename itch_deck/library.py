@@ -60,7 +60,7 @@ class Library:
     def __init__(self, store=None):
         self.store = store
         self.epic = None               # EpicStore when connected (opt-in, read-only for now)
-        self.epic_error = None
+        self.epic_error, self.epic_syncing = None, False
         self.games, self.synced_at = [], None
         self.syncing = None            # None | "first" | "bg"
         self.page = 0
@@ -214,17 +214,27 @@ class Library:
                 self._put(1, "cover", g["id"])
 
     # --- Epic (read-only, step 1) --------------------------------------------------
-    def sync_epic(self):
-        """Replace the Epic games with what Heroic's legendary knows. Reads local files only;
-        any failure is logged and leaves the itch library alone."""
-        if not self.epic:
+    def start_epic_sync(self):
+        """Refresh the Epic games in the background (legendary list: a few seconds online)."""
+        if not self.epic or self.epic_syncing:
             return False
+        self.epic_syncing = True
+        threading.Thread(target=self.sync_epic, daemon=True, name="epic").start()
+        return True
+
+    def sync_epic(self):
+        """Replace the Epic games with Epic's current list. Any failure is logged and keeps the
+        Epic games we had (and never touches itch's)."""
         try:
+            if not self.epic:
+                return False
             raw = self.epic.sync()
         except Exception as e:  # noqa: BLE001  - isolated: never breaks itch
             log.warning("epic sync failed: %s", e)
             self.epic_error = str(e)
             return False
+        finally:
+            self.epic_syncing = False
         self.epic_error = None
         fresh = [self._prep(g) for g in raw]
         self.games = sorted([g for g in self.games if g.get("store", "itch") != "epic"] + fresh,

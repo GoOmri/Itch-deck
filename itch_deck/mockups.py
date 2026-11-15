@@ -132,6 +132,8 @@ def _shots(t, version):
         def draw(self, s):
             W.splash(t, s, self.msg, self.sub)
 
+    from .ui.scenes.epic import EpicConnect
+
     if pads.current == "ps":           # DualSense set: the screens where its glyphs show
         return [
             ("ps_04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
@@ -210,6 +212,9 @@ def _shots(t, version):
         ("21a_settings_account", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=1)),
         ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=5)),
         ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
+        ("26_epic_connect", EpicConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
+        ("26b_epic_getting_ready", EpicConnect(t, "prep", qr=_qr(), url=PHONE_URL, progress=0.4)),
+        ("26c_epic_rejected", EpicConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("06e_library_two_stores", Library(t, both, focus=1, stores=("itch", "epic"))),
         ("06f_library_epic_tab", Library(t, both, filt="epic", focus=0, stores=("itch", "epic"))),
         ("15d_game_epic", Game(t, epic_games[1], pos=(2, len(epic_games)))),

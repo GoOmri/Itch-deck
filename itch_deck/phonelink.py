@@ -46,6 +46,22 @@ PAGES = {
             ("Come back to this tab and paste it below.", ""),
         ],
         "field": "Paste your itch API key",
+        "checking": "Checking your key…", "retry": "Try another key",
+        "note": "The key goes straight to your Deck and is stored only there.",
+    },
+    # Epic: its web sign-in ends on a page of text with a one-time code (works for a few
+    # minutes); the whole page is pasted and the Deck picks the code out (stores/epic.py).
+    "epic": {
+        "title": "Connect Epic Games to SCRiTCH",
+        "steps": [
+            ('<a class="btn pri" href="https://legendary.gl/epiclogin" target="_blank" '
+             'rel="noopener">Open Epic sign-in</a>', "Sign in to Epic if it asks."),
+            ("A page of text appears. Select all of it and copy it.", ""),
+            ("Come back to this tab and paste it below.", ""),
+        ],
+        "field": "Paste the page from Epic",
+        "checking": "Signing in…", "retry": "Try again",
+        "note": "Your sign-in goes straight to your Deck and is stored only there.",
     },
 }
 
@@ -123,7 +139,7 @@ class PhoneLink:
                     return self._send(200, form_page(link.purpose, link.token, "Nothing was pasted."))
                 log.info("phonelink: %s text received (%d chars)", link.purpose, len(text))
                 link.on_text(text)
-                return self._send(200, sent_page(link.token))
+                return self._send(200, sent_page(link.token, purpose=link.purpose))
 
         try:
             self.httpd = ThreadingHTTPServer(("0.0.0.0", port), Handler)
@@ -248,8 +264,7 @@ def form_page(purpose, token, error="", text=""):
 autocapitalize="off" spellcheck="false">{html.escape(text)}</textarea><button>Send to your Deck</button></form>
 <script>{{const x=document.querySelector('textarea'),b=document.querySelector('form button'),
 u=()=>b.disabled=!x.value.trim();x.addEventListener('input',u);u()}}</script>
-<p class="note">Only use this on your home Wi-Fi. The key goes straight to your Deck and is stored
-only there.</p>""")
+<p class="note">Only use this on your home Wi-Fi. {html.escape(p["note"])}</p>""")
 
 
 def split_status(s):
@@ -261,7 +276,7 @@ def split_status(s):
 CLOSE = "You can close this tab."    # browsers can't close a QR-opened tab, so we say it
 
 
-def sent_page(token, preview=None):
+def sent_page(token, preview=None, purpose="itch"):
     """After Send: a big centred result. preview=(kind, status) renders one state without the
     script's help (mockups); normally the script polls the Deck and switches states."""
     t = json.dumps(token)
@@ -269,11 +284,12 @@ def sent_page(token, preview=None):
     ok_h, ok_p = split_status(status) if kind == "ok" else ("", "")
     bad_h, bad_p = split_status(status) if kind == "bad" else ("", "")
     hide = lambda k: "" if k == kind else " hidden"           # noqa: E731
-    body = (result("wait", "Checking your key…", "Checking it on your Deck…").replace(
+    p = PAGES[purpose]
+    body = (result("wait", p["checking"], "Checking it on your Deck…").replace(
                 '<div class="res"', f'<div class="res"{hide("wait")}', 1)
             + result("ok", ok_h, (ok_p + " " + CLOSE).strip()).replace('<div class="res"', f'<div class="res"{hide("ok")}', 1)
             + result("bad", bad_h, bad_p, f'<a class="btn pri" href="/?t={html.escape(token)}">'
-                     'Try another key</a>').replace('<div class="res"', f'<div class="res"{hide("bad")}', 1))
+                     f'{html.escape(p["retry"])}</a>').replace('<div class="res"', f'<div class="res"{hide("bad")}', 1))
     return _page("Sent", body + f"""
 <script>const t={t};let n=0;
 function show(id,s){{for(const k of ['wait','ok','bad'])document.getElementById(k).hidden=k!==id;

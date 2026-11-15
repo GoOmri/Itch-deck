@@ -1,22 +1,29 @@
-"""Epic step 1: read-only Epic tab from Heroic's legendary files (no network, no tokens touched)."""
+"""Epic step 1: sign in with the phone code through legendary, read-only Epic tab. A stand-in
+legendary script plays Epic (the workspace can't reach it): auth --code, list --json, auth --delete."""
 import json
 import os
+import time
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 from itch_deck import library, paths
 from itch_deck.stores import epic
 
-FLATPAK = ".var/app/com.heroicgameslauncher.hgl/config/heroic/legendaryConfig/legendary"
-
-
-def _heroic(home, games, user="omri_epic"):
-    d = home / FLATPAK
-    (d / "metadata").mkdir(parents=True)
-    (d / "user.json").write_text(json.dumps({"displayName": user, "access_token": "SECRET"}))
-    for name, data in games.items():
-        (d / "metadata" / f"{name}.json").write_text(json.dumps(data) if isinstance(data, dict) else data)
-    return d
+GOOD = "a" * 32
+FAKE = r"""#!/bin/sh
+# stand-in legendary: config in $LEGENDARY_CONFIG_PATH, library from $FAKE_LIST
+case "$1 $2" in
+  "auth --code")
+    [ "$3" = "%s" ] || { echo "Login attempt failed" >&2; exit 1; }
+    mkdir -p "$LEGENDARY_CONFIG_PATH"
+    echo '{"displayName": "omri_epic", "refresh_token": "SECRET"}' > "$LEGENDARY_CONFIG_PATH/user.json";;
+  "auth --delete") rm -f "$LEGENDARY_CONFIG_PATH/user.json";;
+  "list --json")
+    [ -f "$LEGENDARY_CONFIG_PATH/user.json" ] || { echo "Login failed, cannot continue!" >&2; exit 1; }
+    [ -n "$OFFLINE" ] && { echo "ConnectionError" >&2; exit 1; }
+    cat "$FAKE_LIST";;
+esac
+""" % GOOD
 
 
 def _game(name, title, **meta):
@@ -25,43 +32,70 @@ def _game(name, title, **meta):
         {"type": "DieselGameBox", "url": "https://x/wide.jpg"}]}
     m.update(meta)
     return {"app_name": name, "app_title": title, "asset_infos": {"Windows": {"build_version": "1"}},
-            "metadata": m, "base_urls": []}
+            "metadata": m, "base_urls": [], "dlcs": []}
 
 
-GAMES = {
-    "Fern": _game("Fern", "Hades"),
-    "FernDLC": _game("FernDLC", "Hades Soundtrack", mainGameItem={"id": "x"}),
-    "Ubi1": _game("Ubi1", "Far Cry 5", customAttributes={"ThirdPartyManagedApp": {"value": "UbisoftConnect"}}),
-    "Old": {"app_name": "Old", "app_title": "Old Game", "asset_info": {"build_version": "1"}, "metadata": {}},
-    "Broken": "{not json",
-}
+LIST = [_game("Fern", "Hades"),
+        _game("FernDLC", "Hades Soundtrack", mainGameItem={"id": "x"}),
+        _game("Ubi1", "Far Cry 5", customAttributes={"ThirdPartyManagedApp": {"value": "UbisoftConnect"}}),
+        {"app_name": "Old", "app_title": "Old Game", "asset_info": {"build_version": "1"}, "metadata": {}}]
 
 
-def test_reads_heroic_library(tmp_path):
-    assert epic.EpicStore(tmp_path).connected() is False
-    _heroic(tmp_path, GAMES)
-    st = epic.EpicStore(tmp_path)
-    assert st.connected() and st.user() == "omri_epic"
+def _setup(tmp_path, monkeypatch):
+    paths.use_root(tmp_path)
+    b = epic.bin_path()
+    b.parent.mkdir(parents=True, exist_ok=True)
+    b.write_text(FAKE)
+    b.chmod(0o755)
+    lst = tmp_path / "list.json"
+    lst.write_text(json.dumps(LIST))
+    monkeypatch.setenv("FAKE_LIST", str(lst))
+    return epic.EpicStore()
+
+
+def test_code_from_pasted_page():
+    page = '{"warning":"Do not share this code","redirectUrl":"https://x","authorizationCode":"%s","sid":null}' % GOOD
+    assert epic.code_from_text(page) == GOOD
+    assert epic.code_from_text(f'  "authorizationCode": "{GOOD}",') == GOOD
+    assert epic.code_from_text(GOOD) == GOOD
+    assert epic.code_from_text("hello there") is None
+
+
+def test_sign_in_list_sign_out(tmp_path, monkeypatch):
+    st = _setup(tmp_path, monkeypatch)
+    assert st.ready() and not st.connected()
+    assert st.login("b" * 32) is False                      # Epic says no
+    assert st.login(GOOD) and st.user() == "omri_epic"
+    assert oct(epic.config_dir().stat().st_mode)[-3:] == "700"  # holds the sign-in
     games = {g["title"]: g for g in st.sync()}
-    assert set(games) == {"Hades", "Far Cry 5", "Old Game"}             # DLC + broken file left out
+    assert set(games) == {"Hades", "Far Cry 5", "Old Game"}     # DLC left out
     h = games["Hades"]
     assert h["id"] == "epic-Fern" and h["store"] == "epic" and h["platforms"] == ["windows"]
-    assert h["cover_url"] == "https://x/wide.jpg" and h["author"] == "Dev Co"   # landscape art first
-    assert games["Far Cry 5"]["platforms"] == ["other"]                # Ubisoft: not installable
-    assert games["Old Game"]["platforms"] == ["windows"]               # old single-asset file
-    assert "SECRET" not in json.dumps(list(games.values()))            # tokens never copied
+    assert h["cover_url"] == "https://x/wide.jpg" and h["author"] == "Dev Co"
+    assert games["Far Cry 5"]["platforms"] == ["other"] and games["Old Game"]["platforms"] == ["windows"]
+    assert "SECRET" not in json.dumps(list(games.values()))
+    monkeypatch.setenv("OFFLINE", "1")
+    try:
+        st.sync()
+        raise AssertionError("offline sync must raise")
+    except epic.EpicError:
+        pass
+    st.logout()
+    assert not st.connected()
 
 
 def test_library_keeps_stores_apart(tmp_path, monkeypatch):
-    paths.use_root(tmp_path / "data")
-    home = tmp_path / "home"
-    _heroic(home, GAMES)
+    st = _setup(tmp_path, monkeypatch)
+    st.login(GOOD)
     lib = library.Library(None)
     lib.games = [lib._prep({"id": "5", "title": "Bleed 2", "platforms": ["linux"]})]
-    lib.epic = epic.EpicStore(home)
+    lib.epic = st
     monkeypatch.setattr(lib, "queue_covers", lambda: None)
     monkeypatch.setattr(lib, "queue_hltb", lambda: None)
-    assert lib.sync_epic()
+    assert lib.start_epic_sync()
+    end = time.time() + 10
+    while lib.epic_syncing and time.time() < end:
+        time.sleep(0.02)
     titles = [g["title"] for g in lib.games]
     assert titles == sorted(titles, key=str.lower) and "Bleed 2" in titles and "Hades" in titles
 
@@ -73,10 +107,10 @@ def test_library_keeps_stores_apart(tmp_path, monkeypatch):
     lib._sync()
     assert lib.by_id("epic-Fern") and lib.by_id("5")
     saved = json.loads(paths.LIBRARY.read_text())["games"]
-    assert {g.get("store") for g in saved} >= {"epic"}                 # survives a restart
+    assert any(g.get("store") == "epic" for g in saved)            # survives a restart
 
-    lib.epic = epic.EpicStore(tmp_path / "nobody")  # Heroic signed out: Epic fails, itch untouched
-    assert lib.sync_epic() is False and lib.epic_error and lib.by_id("5")
+    monkeypatch.setenv("OFFLINE", "1")             # Epic down: its games stay, itch untouched
+    assert lib.sync_epic() is False and lib.epic_error and lib.by_id("epic-Fern") and lib.by_id("5")
     lib.drop_epic()
     assert not any(g.get("store") == "epic" for g in lib.games) and lib.by_id("5")
 

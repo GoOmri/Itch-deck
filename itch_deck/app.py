@@ -1,5 +1,6 @@
 """itch-deck: scene switching, key import, library sync, installs (Linux + Windows via Proton)."""
 import argparse
+import json
 import logging
 import os
 import sys
@@ -18,6 +19,7 @@ from .app_game import GameMixin
 from .app_play import PlayMixin
 from .app_settings import SettingsMixin
 from .app_setup import SetupMixin
+from .app_epic import EpicMixin
 
 log = logging.getLogger("itch-deck")
 VERSION = "0.7.5"
@@ -31,7 +33,7 @@ def setup_logging():
     logging.basicConfig(level=logging.INFO, handlers=[h, logging.StreamHandler()], force=True)
 
 
-class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
+class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
     def __init__(self, windowed=False):
         import pygame
         self.pg = pygame
@@ -44,10 +46,9 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         self.open_display()
         key = self.cfg.get("api_key")
         self.lib = Library(ItchStore(key) if key else None)
-        if self.cfg.get("epic"):                   # opt-in: Settings -> Account -> Epic
+        if self.cfg.get("epic"):                   # opt-in: Settings -> Account -> Epic Games
             from .stores.epic import EpicStore
-            self.lib.epic = EpicStore()
-            self.lib.sync_epic()                   # local files: instant, never blocks itch
+            self.lib.epic = EpicStore()            # cached Epic games show at once
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
         self._pin_root()
         self.picker = None              # (gid, builds) behind an open Change build picker
@@ -77,6 +78,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             self.lib.queue_covers()
             self.lib.start_sync()
             self.inst.resume()
+        if self.lib.epic and self.lib.epic.ready():
+            self.lib.start_epic_sync()             # background; failures stay in the log
         else:
             self.go_setup("waiting")
 
@@ -112,13 +115,13 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
     def _set(self, kind, scene):
         from .ui import widgets as W
         if self.scene is not None and W.LIVE:
-            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3}
+            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3, "epic": 4}
             self.fade_dir = 1 if depth.get(kind, 0) >= depth.get(self.kind, 0) else -1  # in / back
             try:
                 self.fade_from, self.fade_t0 = self.screen.copy(), time.monotonic()  # slide + fade
             except Exception:  # noqa: BLE001  - display closed (game running): no fade
                 self.fade_from = None
-        if kind != "setup" and self.phone and not self.phone_stop_at:
+        if kind not in ("setup", "epic") and self.phone and not self.phone_stop_at:
             self.phone_stop_at = time.time() + 10  # let the phone read "Connected", then close
         self.kind, self.scene = kind, scene
         self.toast_until = 0
@@ -228,8 +231,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             sc.overlay = QUIT_DLG
         elif act == Y:
             started = self.lib.start_sync()
-            if self.lib.epic:
-                self.lib.sync_epic()
+            self.lib.start_epic_sync()
             if started:
                 self.say("Refreshing library…")
         elif act == START:
@@ -335,6 +337,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         if self.key_result and self.kind == "setup":
             self._key_done()
         self._phone_tick(now)
+        self._epic_tick(now)
         if self.lib.auth_failed:
             self.lib.auth_failed = False
             self.go_setup("rejected")
@@ -419,6 +422,47 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             if max_frames and frame >= max_frames:
                 break
         self.pg.quit()
+
+def _selftest_epic(app):
+    """Settings → Epic Games → Connect: QR page; the phone sends Epic's page -> stand-in legendary
+    signs in -> Epic tab fills; then Disconnect. No network: legendary is a tiny script here."""
+    from .stores import epic
+    b = epic.bin_path()
+    b.parent.mkdir(parents=True, exist_ok=True)
+    lst = b.parent / "list.json"
+    lst.write_text(json.dumps([{"app_name": "Fern", "app_title": "Selftest Epic Game",
+                                "asset_infos": {"Windows": {}}, "metadata": {}}]))
+    b.write_text("#!/bin/sh\ncase \"$1 $2\" in\n"
+                 '"auth --code") mkdir -p "$LEGENDARY_CONFIG_PATH"; '
+                 'echo \'{"displayName": "selftest"}\' > "$LEGENDARY_CONFIG_PATH/user.json";;\n'
+                 f'"list --json") cat "{lst}";;\n'
+                 '"auth --delete") rm -f "$LEGENDARY_CONFIG_PATH/user.json";;\nesac\n')
+    b.chmod(0o755)
+    app.go_settings()
+    labels = [r[0] for r in app.scene.items()]
+    app.scene.focus = labels.index("Epic")
+    assert app.scene.hints()[0] == ("A", "Connect")
+    app.handle(A)
+    assert app.kind == "epic" and app.scene.status in ("phone", "nonet")
+    app._epic_got('{"authorizationCode":"' + "c" * 32 + '","sid":null}')
+    for _ in range(200):                                 # login + list run in threads
+        app.update()
+        if app.kind == "library" and not app.lib.epic_syncing and app.lib.by_id("epic-Fern"):
+            break
+        time.sleep(0.02)
+    assert app.kind == "library" and app.scene.filt == "epic", app.kind
+    assert app.lib.by_id("epic-Fern") and app.cfg.get("epic"), "Epic games didn't arrive"
+    assert app.phone_status.startswith("Connected as selftest")
+    app.go_settings()
+    app.scene.focus = [r[0] for r in app.scene.items()].index("Epic")
+    assert app.scene.hints()[0] == ("A", "Disconnect")
+    app.handle(A)
+    app.handle(A)                                        # confirm
+    assert not app.cfg.get("epic") and not app.lib.by_id("epic-Fern") and app.lib.epic is None
+    if app.phone:
+        app.phone.stop()
+        app.phone = None
+
 
 def selftest(screenshot=None):
     """Headless: walk Setup -> Library (fake games) -> Game -> Settings without network."""
@@ -518,6 +562,7 @@ def selftest(screenshot=None):
     app.handle(A)
     assert app.kind == "setup" and "api_key" not in app.cfg and app.lib.store is None
     app.go_library()
+    _selftest_epic(app)
     # Play: a fake installed game (a tiny script) -> display released, game runs, display back
     app = App(windowed=True)
     app.lib.games = [dict(g) for g in fake.library()]

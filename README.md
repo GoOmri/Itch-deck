@@ -57,10 +57,12 @@ Settings → **Disconnect itch** makes scritch forget it; to revoke it as well, 
 → Settings → API keys.
 
 ### Epic Games (optional, early)
-If you use **Heroic** and are signed in to Epic there, Settings → Account → **Epic Games** → A
-adds your Epic library as its own tab (All · Installed · itch · Epic). SCRiTCH only reads the
-list Heroic keeps, so open Heroic once in a while to keep it fresh. Installing Epic games from
-SCRiTCH comes in a later update. Disconnecting removes the tab; Heroic stays signed in.
+Settings → Account → **Epic Games** → A shows a QR code. Scan it, tap **Open Epic sign-in**, sign
+in, then copy the page of text Epic shows, paste it and tap Send. Your Epic library becomes its
+own tab (All · Installed · itch · Epic). The code on that page works once and only for a few
+minutes, so do it in one go. SCRiTCH downloads the small open-source Epic helper
+([legendary](https://github.com/legendary-gl/legendary)) the first time and keeps its own Epic
+sign-in, separate from Heroic. Installing Epic games from SCRiTCH comes in a later update.
 
 ### 4. GE-Proton (for Windows games)
 Nothing to do: the first time you install a Windows game, scritch downloads the newest
@@ -142,6 +144,7 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 ~/Applications/itch-deck/app/           the app itself (app.old/ = the version before)
 ~/.config/itch-deck/config.json         settings + API key
 ~/.local/share/itch-deck/               library cache, covers, game pages, times to beat, umu-launcher
+~/.local/share/itch-deck/epic/          the Epic helper (legendary) and your Epic sign-in
 ~/.local/state/itch-deck/logs/          logs
 <SD card>/itch/<game>/                  installed games (or ~/Games/itch/ on internal storage)
 <SD card>/itch/_prefixes/<game>/        Windows saves (Proton prefixes)

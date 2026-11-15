@@ -86,8 +86,7 @@ class Settings(Scene):
         act = self.ACTION.get(label, "Select")
         if label == "Epic":
             val = str(value)
-            act = "Disconnect" if val.startswith("Connected") else \
-                "Connect" if val == "Not connected" else "Check"
+            act = "Disconnect" if val.startswith("Connected") else "Connect"
         if label == "Proton version" and str(self.v.get("proton", "")).startswith("Not installed"):
             act = "Download"
         if label == "Update app" and isinstance(value, tuple):

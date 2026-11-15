@@ -591,32 +591,36 @@ v0.7.5 RELEASED 15 Nov (Omri "push"; branch v075-tabs-splash):
 v0.7.5 Deck test (15 Nov): all ✓. Omri: the launch logo only flashes (start too quick) -> removed
   on branch v076-no-splash (first frame = plain background, no fade; W.launch_splash, mockup 00
   and DESIGN line gone). NOT released.
-Epic step 1 (branch epic-tab, built on v076-no-splash; NOT released - Omri 15 Nov "go ahead with
-  step 1"): read-only Epic tab from Heroic's legendary files, no network, no legendary download.
-  - stores/epic.py: legendary_dir() = first of ~/.var/app/com.heroicgameslauncher.hgl/config/heroic/
-    legendaryConfig/legendary (flatpak) or ~/.config/heroic/legendaryConfig/legendary with a
-    user.json; user_name() = displayName (tokens never read/copied); sync() = metadata/<app>.json
-    (legendary's Game.__dict__: app_name, app_title, asset_infos{Platform: ...}, metadata = Epic
-    catalog item). DLC (metadata.mainGameItem) skipped; Ubisoft/EA (customAttributes
-    ThirdPartyManagedApp/Provider) -> platforms ["other"] (dimmed); old "asset_info" = Windows.
-    Ids "epic-<app_name>", store "epic", cover = DieselGameBox (landscape) first.
-  - Library.epic / sync_epic() / drop_epic(): Epic games merged into lib.games; itch _sync keeps
-    non-itch games; any Epic error logged ("epic sync failed") and itch untouched. Cache keeps
-    "store" + "app_name". queue_prefetch skips games without an itch url. HLTB works by title.
-  - App: cfg "epic": true -> EpicStore at start; Library tabs All · Installed · itch · Epic
-    (App._stores); Y refresh re-reads Epic too. Settings → Account → "Epic Games" row: Connect
-    (Heroic signed in) / Disconnect (confirm; Heroic stays signed in) / "Sign in with Heroic
-    first" (A = check again). Game page for Epic = no buttons, info "Coming soon · Installing
-    Epic games is next." (Game.read_only).
-  - Mockups 06e (two stores), 06f (Epic tab), 15d (Epic game), 21e (Settings Epic row);
-    21c focus moved to 5. tests/test_epic.py.
-  Freshness: as fresh as Heroic's last library refresh (open Heroic once to update). Step 2 =
-  legendary for install/launch (download on demand, LEGENDARY_CONFIG_PATH = Heroic's dir).
-  Deck checklist (Epic step 1): 1 Heroic signed in to Epic (open it once). 2 SCRiTCH Settings →
-  Account → Epic Games → A Connect: toast "Epic connected · N games". 3 Tabs All · Installed ·
-  itch · Epic; Epic covers load. 4 An Epic game page: "Coming soon". 5 Y refresh: itch + Epic
-  both still there. 6 Disconnect: Epic tab and games gone, itch untouched, Heroic still signed in.
-  If wrong: app.log "epic sync".
+Epic step 1 (v0.7.6; Omri 15 Nov: "build the way a fresh user will", no Heroic): read-only Epic tab.
+  - stores/epic.py: legendary downloaded on first Connect (GitHub legendary-gl/legendary latest,
+    asset legendary_linux_x64 -> DATA/epic/legendary; >1 MB check). OWN config dir DATA/epic/config
+    (LEGENDARY_CONFIG_PATH, chmod 700) = never touches Heroic. login(code) = `auth --code`, ok when
+    user.json exists; sync() = `list --json` (legendary Game.__dict__ entries; DLC via
+    metadata.mainGameItem skipped; Ubisoft/EA customAttributes ThirdPartyManaged* -> ["other"];
+    old "asset_info" = Windows; ids "epic-<app_name>"; cover DieselGameBox first); logout() =
+    `auth --delete` + rmtree config. code_from_text(): authorizationCode from the pasted JSON page,
+    or a lone 32-hex code. EpicError = short reason; legendary stderr tail goes to app.log.
+  - Phone: phonelink PAGES["epic"]: button -> https://legendary.gl/epiclogin (legendary's redirect
+    to Epic's login; ends on JSON with authorizationCode, one use, a few minutes). sent_page texts
+    per purpose ("Signing in…", "Try again"). _phone_start(purpose, on_text): one page at a time.
+  - app_epic.EpicMixin: go_epic() = scene "epic" (ui/scenes/epic.EpicConnect: QR + 3 steps +
+    status prep %/phone/checking/rejected/offline/nonet), legendary fetch thread, phone text ->
+    login thread -> ok: cfg epic, lib.epic, start_epic_sync, filt "epic", library, toast. B = back
+    to Settings. Settings row "Epic Games": Connected as X (A Disconnect: confirm, logout in a
+    thread) / Not connected / Signed out (A Connect).
+  - Library: epic games merged into lib.games (itch _sync keeps non-itch games); start_epic_sync()
+    thread at start (if legendary + config) and on Y; failure = log "epic sync failed", cached
+    Epic games kept, itch untouched. Cache keeps store + app_name. queue_prefetch skips url-less.
+  - Game page for Epic: no buttons, "Coming soon · Installing Epic games is next." (Game.read_only).
+  - Tests: tests/test_epic.py (stand-in legendary script), selftest drives Connect -> phone text
+    -> Epic tab -> Disconnect. Mockups 06e, 06f, 15d, 21e, 26, 26b, 26c.
+  UNVERIFIED against real Epic (workspace can't reach it): the login page text, list --json speed
+  on a real library, token lifetime. Deck log: "epic:", "epic sync".
+  Deck checklist v0.7.6: 1 Update. 2 Start: no launch logo, library at once. 3 Settings → Account
+    → Epic Games → A: "Getting ready…" then QR. 4 Phone: Open Epic sign-in → sign in → copy the
+    whole page → paste → Send: phone "Connected as …", TV jumps to the Epic tab, games + covers
+    fill in. 5 Epic game page says Coming soon. 6 Y: itch + Epic still there. 7 Restart: Epic tab
+    still there. 8 Disconnect: tab and games gone. If 4 fails: app.log lines "epic:".
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

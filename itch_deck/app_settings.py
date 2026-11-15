@@ -41,39 +41,6 @@ class SettingsMixin:
             "epic": self._epic_label(),
         }
 
-    def _epic_label(self):
-        """Settings → Account → Epic Games: connected / ready to connect / sign in with Heroic."""
-        from .stores.epic import EpicStore
-        if self.lib.epic:
-            return f"Connected as {self.lib.epic.user() or 'Epic'}"
-        return "Not connected" if EpicStore().connected() else "Sign in with Heroic first"
-
-    def _connect_epic(self):
-        from .stores.epic import EpicStore
-        store = EpicStore()
-        if not store.connected():
-            self.say("Sign in to Epic in Heroic, then try again.")
-            return
-        self.lib.epic = store
-        if not self.lib.sync_epic():
-            self.lib.epic = None
-            self.say("Couldn't read your Epic games.", error=True)
-            return
-        self.cfg["epic"] = True
-        config.save(self.cfg)
-        n = sum(1 for g in self.lib.games if g.get("store") == "epic")
-        log.info("settings: epic connected (%d games)", n)
-        self.say(f"Epic connected · {n} games" if n else "Epic connected. Open Heroic once to load your games.")
-
-    def _disconnect_epic(self):
-        self.lib.drop_epic()
-        self.cfg.pop("epic", None)
-        config.save(self.cfg)
-        if self.filt == "epic":
-            self.filt = "all"
-        log.info("settings: epic disconnected")
-        self.say("Epic disconnected.")
-
     def _symbols_label(self):
         want = self.cfg.get("button_symbols", "auto")
         if want in pads.KINDS:
@@ -236,13 +203,12 @@ class SettingsMixin:
                 self.go_setup("waiting", back=True)
                 self.try_import(auto=True)
             elif label == "Epic":
-                if self.lib.epic:
+                if self.lib.epic and self.lib.epic.connected():
                     self.confirm("Disconnect Epic?",
-                                 ["Epic games leave your library.", "Heroic stays signed in."],
+                                 ["Epic games leave your library.", "Sign in again any time."],
                                  "Disconnect", self._disconnect_epic)
                 else:
-                    self._connect_epic()
-                sc.v["epic"] = self._epic_label()
+                    self.go_epic()
             elif label == "Disconnect itch":
                 self.confirm("Sign out of itch?",
                              ["SCRiTCH forgets the key. Installed games still play.",

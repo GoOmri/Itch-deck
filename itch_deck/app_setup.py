@@ -21,11 +21,14 @@ def key_from_text(text):
 
 class SetupMixin:
     # --- phone login (QR) ------------------------------------------------
-    def _phone_start(self):
-        if self.phone and self.phone.httpd:
+    def _phone_start(self, purpose="itch", on_text=None):
+        if self.phone and self.phone.httpd and self.phone.purpose == purpose:
             self.phone_stop_at = 0
             return
-        self.phone = PhoneLink("itch", self._phone_got, lambda: self.phone_status)
+        if self.phone:                    # the other store's page: one phone page at a time
+            self.phone.stop()
+        self.phone_stop_at = 0
+        self.phone = PhoneLink(purpose, on_text or self._phone_got, lambda: self.phone_status)
         if not self.phone.start():
             self.phone = None
 
