@@ -372,7 +372,12 @@ class Game(Scene):
         top = y + (t.btn_h - (lh + t.sm + bar_h)) // 2
         base = top + t.f_btn.get_ascent()          # label and details share a baseline
         bar = pg.Rect(x, top + lh + t.sm, w, bar_h)
-        if self.phase == "download":
+        if self.phase == "ge":                     # one-time GE-Proton download before the game
+            p = g.get("progress", 0)
+            label = f"Getting GE-Proton  {int(p * 100)}%"
+            info = f"One time only  ·  {g.get('speed_mbs', 0):.1f} MB/s"
+            W.progress(t, s, bar, p)
+        elif self.phase == "download":
             p = g.get("progress", 0)
             label = f"Downloading  {int(p * 100)}%"
             info = (f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}  ·  "

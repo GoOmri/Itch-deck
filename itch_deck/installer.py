@@ -430,8 +430,8 @@ class Installer:
             raise InstallError("No Linux or Windows download found for this game.")
         log.info("install %s: %s build %s", gid, platform, build["filename"])
         if platform == "windows" and not proton.proton_dir(self.cfg):
-            raise InstallError("Windows games need GE-Proton. Add it with ProtonUp-Qt in Desktop "
-                               "Mode, then Retry.")
+            self._upd(gid, state="downloading", phase="ge", progress=0, speed_mbs=0, eta_s=0)
+            proton.fetch_ge(cancel=lambda: gid in self._cancel, on_bytes=self._meter(gid))
         size = build["size"]
         self._upd(gid, size_mb=size // 1_000_000)
 

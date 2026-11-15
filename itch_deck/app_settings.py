@@ -26,7 +26,8 @@ class SettingsMixin:
             pass
         protons = config.proton_versions()
         want = self.cfg.get("proton")
-        proton_v = (want if want in protons else f"Auto · {protons[0]}") if protons else "Not installed"
+        proton_v = (want if want in protons else f"Auto · {protons[0]}") if protons else \
+            "Not installed · A to download"
         label = "SD card" if config.on_card(root) else "Internal storage"
         self._scan_saves()
         return {
@@ -36,6 +37,40 @@ class SettingsMixin:
             "update": self.updater.row_value(),
             "pointer": self.cfg.get("pointer_speed", "normal").capitalize(),
         }
+
+    def _get_ge(self):
+        """Settings: download GE-Proton now instead of with the first Windows game."""
+        job = self.ge_job = {"progress": 0.0, "done": False, "error": None}
+
+        def on_bytes(done, total):
+            job["progress"] = done / total if total else 0
+
+        def work():
+            try:
+                name = proton.fetch_ge(on_bytes=on_bytes)
+                job["name"] = name
+            except proton.ProtonError as e:
+                job["error"] = str(e)
+            except Exception:  # noqa: BLE001
+                log.exception("ge-proton download failed")
+                job["error"] = "Couldn't get GE-Proton. Details are in the log."
+            job["done"] = True
+        threading.Thread(target=work, daemon=True, name="ge-proton").start()
+        self.say("Downloading GE-Proton (about 0.5 GB, one time).")
+
+    def _ge_row(self):
+        """Per frame while Settings is open: the Proton row follows a running download."""
+        job = getattr(self, "ge_job", None)
+        if not job:
+            return None
+        if not job["done"]:
+            return f"Downloading {int(job['progress'] * 100)}%"
+        self.ge_job = None
+        if job["error"]:
+            self.say(job["error"], error=True)
+        else:
+            self.say(f"{job['name']} installed. Windows games are ready to go.")
+        return self.settings_values()["proton"]
 
     def _save_roots(self):
         roots = {str(config.install_root(self.cfg))}
@@ -116,8 +151,11 @@ class SettingsMixin:
                              "Installed games stay where they are.")
             elif label == "Proton version":
                 names = config.proton_versions()
-                if not names:
-                    self.say(proton.NEED_GE, error=True)
+                job = getattr(self, "ge_job", None)
+                if job and not job["done"]:
+                    self.say("GE-Proton is already downloading.")
+                elif not names:
+                    self._get_ge()
                 else:
                     opts = [None] + names               # None = Auto (newest)
                     cur = self.cfg.get("proton")

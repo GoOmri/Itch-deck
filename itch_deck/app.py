@@ -245,8 +245,9 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         g = self.lib.by_id(gid) if gid else None
         if g and g.get("state") == "downloading":
             more = len(self.inst.queue) - 1
-            what = {"extract": "Unpacking", "umu": "Getting umu-launcher"}.get(
-                g.get("phase"), f"Downloading {int(g.get('progress', 0) * 100)}%")
+            pct = int(g.get('progress', 0) * 100)
+            what = {"extract": "Unpacking", "umu": "Getting umu-launcher",
+                    "ge": f"Getting GE-Proton {pct}%"}.get(g.get("phase"), f"Downloading {pct}%")
             return f"{what} · {g['title']}" + (f" (+{more})" if more > 0 else "")
         return self.lib.activity()
 
@@ -306,6 +307,9 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         elif self.kind == "settings":
             self.scene.v["update"] = self.updater.row_value()
             self.scene.v["prefix_size"] = self._saves_label()
+            ge = self._ge_row()
+            if ge:
+                self.scene.v["proton"] = ge
         elif self.kind == "game":
             sc = self.scene
             sc.offline = self.lib.offline

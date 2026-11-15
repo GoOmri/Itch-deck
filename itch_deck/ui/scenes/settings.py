@@ -39,7 +39,10 @@ class Settings(Scene):
 
     def hints(self):
         label = self.items()[self.focus][0] if self.items() else ""
-        return [("A", self.ACTION.get(label, "Select")), ("B", "Back")]
+        act = self.ACTION.get(label, "Select")
+        if label == "Proton version" and str(self.v.get("proton", "")).startswith("Not installed"):
+            act = "Download"
+        return [("A", act), ("B", "Back")]
 
     def draw_page(self, s):
         t = self.t
