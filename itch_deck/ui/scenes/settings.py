@@ -16,7 +16,8 @@ class Settings(Scene):
         v = self.v
         return [
             ("Library", [("Refresh library", "", f"Last synced {v['last_sync']}"),
-                         ("Re-import API key", "", "")]),
+                         ("Re-import API key", "", ""),
+                         ("Disconnect itch", v.get("itch_user", ""), "")]),
             ("Storage", [("Install location", v["install_label"], ""),  # SD card / Internal storage
                          ("Saves of uninstalled games", v["prefix_size"], "")]),
             ("Games", [("Proton version", v["proton"], ""),
@@ -35,7 +36,7 @@ class Settings(Scene):
 
     ACTION = {"Refresh library": "Refresh", "Re-import API key": "Import", "Install location": "Change",
               "Saves of uninstalled games": "Delete", "Proton version": "Change",
-              "Pointer speed": "Change", "Update app": "Check"}
+              "Pointer speed": "Change", "Update app": "Check", "Disconnect itch": "Disconnect"}
 
     def hints(self):
         label = self.items()[self.focus][0] if self.items() else ""

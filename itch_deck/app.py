@@ -20,7 +20,7 @@ from .app_settings import SettingsMixin
 from .app_setup import SetupMixin
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.6.5"
+VERSION = "0.7.0"
 
 
 def setup_logging():
@@ -437,6 +437,17 @@ def selftest(screenshot=None):
             break
         time.sleep(0.05)
     assert not pre.exists(), "leftover prefix not deleted"
+    # v0.7 Disconnect itch: confirm -> key forgotten -> Setup (with the phone QR if there's a network)
+    app.cfg["api_key"], app.cfg["itch_user"] = "k" * 20, "selftest-user"
+    app.go_settings()
+    labels = [r[0] for r in app.scene.items()]
+    app.scene.focus = labels.index("Disconnect itch")
+    assert app.scene.hints()[0] == ("A", "Disconnect")
+    app.handle(A)
+    assert app.scene.overlay and app.scene.overlay[0] == "confirm"
+    app.handle(A)
+    assert app.kind == "setup" and "api_key" not in app.cfg and app.lib.store is None
+    app.go_library()
     # Play: a fake installed game (a tiny script) -> display released, game runs, display back
     app = App(windowed=True)
     app.lib.games = [dict(g) for g in fake.library()]

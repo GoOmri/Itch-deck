@@ -102,7 +102,7 @@ def _shots(t, version):
 
     settings_vals = {
         "install_label": "SD card", "install_path": "/run/media/deck/SD/itch", "free": "112 GB",
-        "proton": "Auto · GE-Proton9-20", "prefix_size": "2 games · 1.2 GB", "last_sync": "today 11:02",
+        "proton": "Auto · GE-Proton9-20", "prefix_size": "2 games · 1.2 GB", "last_sync": "today 11:02", "itch_user": "omri",
         "update": (f"v{version[:-1]}9 available", "Update"),
     }
     picker = ("picker", "Choose a build",

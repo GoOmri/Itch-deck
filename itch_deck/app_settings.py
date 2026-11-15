@@ -34,9 +34,19 @@ class SettingsMixin:
             "install_label": label + (" (missing)" if config.card_missing(root) else ""),
             "install_path": str(root), "free": free, "proton": proton_v,
             "prefix_size": "Checking…", "last_sync": short_date(self.lib.synced_at),
+            "itch_user": self.cfg.get("itch_user") or "",
             "update": self.updater.row_value(),
             "pointer": self.cfg.get("pointer_speed", "normal").capitalize(),
         }
+
+    def _disconnect_itch(self):
+        self.cfg.pop("api_key", None)
+        self.cfg.pop("itch_user", None)
+        config.save(self.cfg)
+        self.lib.store = None
+        log.info("settings: itch disconnected")
+        self.go_setup("waiting")
+        self.say("itch disconnected. Connect again any time.")
 
     def _get_ge(self):
         """Settings: download GE-Proton now instead of with the first Windows game."""
@@ -174,5 +184,10 @@ class SettingsMixin:
             elif label == "Re-import API key":
                 self.go_setup("waiting", back=True)
                 self.try_import(auto=True)
+            elif label == "Disconnect itch":
+                self.confirm("Disconnect itch?",
+                             "scritch forgets your key; installed games stay and still play. To "
+                             "revoke the key too, delete it on itch.io → Settings → API keys.",
+                             "Disconnect", self._disconnect_itch)
         elif not isinstance(act, tuple):
             sc.handle(act)

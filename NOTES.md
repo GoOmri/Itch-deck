@@ -400,6 +400,29 @@ v0.6.5 (branch v065-launch-split, 15 Nov; NOT merged/released - Omri: "build and
     (play/hide/show/splash), app_common (QUIT_DLG, LATER, _gb). app.py 969 -> 486 lines.
   - Epic research (no code): see "Epic tab" below.
 
+v0.7.0 (same branch v065-launch-split, 15 Nov; NOT released - waits for Omri's push; includes
+  v0.6.5). Roadmap v2 = plan doc section 9. Licence GPL-3 (Omri 15 Nov; needed to bundle legendary).
+  - Phone login: phonelink.PhoneLink = ThreadingHTTPServer on 0.0.0.0:<random>, URL
+    http://<lan_ip>:<port>/?t=<secrets.token_urlsafe(8)>, TTL 300 s (tick() -> new token + QR),
+    403 without the token, POST /send (<=8 KB) -> on_text (server thread) -> App.phone_text ->
+    _phone_tick (main loop) -> check_key(key_from_text). /status for the phone's "Checking… /
+    Connected as X". Started in go_setup (also Settings -> Re-import), stopped 6 s after leaving
+    Setup. No LAN IP -> qr None -> old 3-step Warpinator layout. QR = qrcode 8.2 (BSD, pure
+    Python) drawn as rects on a white plate. Setup buttons: Import file / Type key.
+  - GE-Proton: proton.fetch_ge (GitHub latest GloriousEggroll/proton-ge-custom, *.tar.gz +
+    *.sha512sum, resume, 2.5 GB free check, DATA/ge/) -> install_ge_tar (refuses abs/../links
+    out, + tarfile filter="tar", unpack to .scritch-unpack then rename into STEAM_TOOLS).
+    Installer phase "ge" before a Windows game's download (game page "Getting GE-Proton N%").
+    Settings Proton row "Not installed · A to download" -> App._get_ge thread, row shows %.
+  - Settings "Disconnect itch" (value = itch user; cfg itch_user saved on key success) -> confirm
+    -> api_key removed, lib.store None, Setup.
+  - README: setup now 1 Desktop Mode step; phone login, GE-Proton auto, Licence section.
+  Deck checklist v0.7.0: 1 Update app. 2 Settings -> Disconnect itch -> Setup shows a QR. 3 Scan
+    with the phone -> page opens -> Open itch API keys -> generate -> paste -> Send -> TV says
+    Connected, phone says Connected. 4 Settings -> Proton version: your GE-Proton (Auto). 5 (only
+    if you want) launch checklist from v0.6.5. If 3 fails: is the phone on the same Wi-Fi? try
+    the address under the QR in the phone's browser; send app.log lines "phonelink:".
+
 ## Epic tab - research 15 Nov (Omri: only if importing the library is easy)
   legendary (open-source Epic CLI, Python) does it all: list (JSON), install -y, launch
   --dry-run (gives the command to run ourselves via umu + GE-Proton, like itch Windows games),

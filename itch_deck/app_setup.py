@@ -97,7 +97,7 @@ class SetupMixin:
                                  "offline": "Your Deck can't reach itch.io. Check its Wi-Fi."
                                  }.get(status, "")
             return
-        self.cfg["api_key"] = key
+        self.cfg["api_key"], self.cfg["itch_user"] = key, user
         config.save(self.cfg)
         if file:
             try:

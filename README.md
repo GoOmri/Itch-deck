@@ -15,7 +15,7 @@ uninstall, all with the pad. Windows games run through GE-Proton automatically.
 It's a single Linux binary (Python + pygame-ce, built with PyInstaller). Nothing gets installed on
 the Deck's system, and you never need a terminal.
 
-## Setup (about 15 minutes, once)
+## Setup (about 10 minutes, once)
 
 You need a Steam Deck (or another SteamOS / Linux PC) and an itch.io account.
 
@@ -33,21 +33,32 @@ You need a Steam Deck (or another SteamOS / Linux PC) and an itch.io account.
    off, because it's a native Linux app.
 3. Back in Game Mode: tile → controller icon → pick the **Gamepad** template.
 
-### 3. GE-Proton (for Windows games)
-In Desktop Mode, install **ProtonUp-Qt** from Discover and add the newest **GE-Proton**
-(version 9 or later). scritch uses the newest one it finds. You can pick another in Settings.
+That's the only Desktop Mode step. Everything below happens in Game Mode.
 
-### 4. Your itch API key
-1. On any computer: itch.io → **Settings → API keys → Generate new API key**.
-2. Save the key on its own in a text file called `itch_key.txt`, then send it to the Deck's
-   `~/Downloads` (Warpinator or KDE Connect both work).
-3. Open scritch in Game Mode. It finds the file, checks the key, saves it and deletes the text
-   file. Your library syncs.
+### 3. Connect itch with your phone
+1. Open scritch. The Setup screen shows a **QR code**.
+2. Scan it with your phone (same Wi-Fi as the Deck). A small page from your Deck opens.
+3. Tap **Open itch API keys** → **Generate new API key** → copy it.
+4. Back on that page, paste it and tap **Send**. The TV says *Connected as …* and your library
+   syncs.
 
-No file? On the Setup screen, choose **Type key**, then use Steam + X for the on-screen keyboard
-(or paste with Ctrl+V over RustDesk).
+The page only works while the QR code is on screen, the QR carries a one-time password, and it
+expires after 5 minutes (a new QR appears). Use it on your home Wi-Fi only: the page is plain
+HTTP on your local network.
+
+No phone, or the page won't open (some routers block devices from reaching each other)? Use
+**Import file**: save the key as `itch_key.txt` and send it to the Deck's `~/Downloads` with
+Warpinator. Or **Type key**, with Steam + X for the on-screen keyboard.
 
 The key is stored only in `~/.config/itch-deck/config.json`, which only your user can read.
+Settings → **Disconnect itch** makes scritch forget it; to revoke it as well, delete it on itch.io
+→ Settings → API keys.
+
+### 4. GE-Proton (for Windows games)
+Nothing to do: the first time you install a Windows game, scritch downloads the newest
+**GE-Proton** (about 0.5 GB, once) into Steam's compatibility tools folder, where Steam and
+ProtonUp-Qt see it too. To get it ahead of time: Settings → **Proton version**. Already have
+GE-Proton from ProtonUp-Qt? scritch uses it.
 
 ## Using it
 
@@ -89,11 +100,12 @@ The key is stored only in `~/.config/itch-deck/config.json`, which only your use
 |---|---|
 | "Can't reach itch.io" | Check Wi-Fi. Games you've installed still play offline. |
 | "Key rejected" | Make a new API key and send it again (Settings → Re-import API key). |
+| The QR page won't open on the phone | Same Wi-Fi? Some routers isolate devices: use Import file or Type key. |
 | "SD card missing" | Put the card back. scritch notices within a couple of seconds. |
-| "Windows games need GE-Proton" | Install it with ProtonUp-Qt (step 3 above). |
+| "Couldn't download GE-Proton" | Check Wi-Fi and press Retry; the download resumes. |
 | "…can't run silently" | The installer type isn't supported. Try Options → Change build. |
 | A game closes right after starting | Try Change build (Windows instead of Linux, or 64-bit). |
-| "needs a newer GE-Proton" | Add the newest GE-Proton in ProtonUp-Qt. |
+| "needs a newer GE-Proton" | Settings → Proton version → pick the newest (or Auto). |
 | A game's controls do nothing | It may be mouse-only. Set Options → Controls → Mouse. |
 
 **Logs** (open them in Dolphin; turn on *Show hidden files*):
@@ -132,3 +144,7 @@ python run.py --render-mockups out # PNGs of every screen
 Every push to `main` builds the binary on GitHub Actions (Ubuntu 22.04) and publishes a release
 named after `VERSION` in `itch_deck/app.py`. Read `NOTES.md` (working notes and decisions) and
 `DESIGN.md` (UI rules) before changing things.
+
+## Licence
+scritch is free software under the **GNU General Public License v3.0** (see `LICENSE`). You may
+use, change and share it; versions you share must stay under the GPL with their source code.
