@@ -59,6 +59,88 @@ def command(exe, size=None, umu=None):
     return cmd
 
 
+WINDOW_MAX_S = 10        # longest we wait for the game's window before handing over anyway
+
+
+class WindowWatch:
+    """Notices when a new, visible top-level window appears on the X display (the game's), so
+    we hand the screen over exactly then instead of after a fixed delay. Uses libX11 through
+    ctypes (already loaded by SDL; nothing to install). ok is False when there's no X display
+    or no libX11: the caller then falls back to OVERLAP_S."""
+
+    def __init__(self, min_size=64):
+        import ctypes
+        import ctypes.util
+        self.ok, self.min = False, min_size
+        if not os.environ.get("DISPLAY"):
+            return
+        try:
+            x = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
+        except OSError:
+            return
+        c = ctypes
+        Win = c.c_ulong
+
+        class Attrs(c.Structure):
+            _fields_ = [("x", c.c_int), ("y", c.c_int), ("width", c.c_int), ("height", c.c_int),
+                        ("border_width", c.c_int), ("depth", c.c_int), ("visual", c.c_void_p),
+                        ("root", Win), ("class_", c.c_int), ("bit_gravity", c.c_int),
+                        ("win_gravity", c.c_int), ("backing_store", c.c_int),
+                        ("backing_planes", c.c_ulong), ("backing_pixel", c.c_ulong),
+                        ("save_under", c.c_int), ("colormap", c.c_ulong),
+                        ("map_installed", c.c_int), ("map_state", c.c_int),
+                        ("all_event_masks", c.c_long), ("your_event_mask", c.c_long),
+                        ("do_not_propagate_mask", c.c_long), ("override_redirect", c.c_int),
+                        ("screen", c.c_void_p)]
+        x.XOpenDisplay.restype = c.c_void_p
+        x.XOpenDisplay.argtypes = [c.c_char_p]
+        x.XDefaultRootWindow.restype = Win
+        x.XDefaultRootWindow.argtypes = [c.c_void_p]
+        x.XQueryTree.argtypes = [c.c_void_p, Win, c.POINTER(Win), c.POINTER(Win),
+                                 c.POINTER(c.POINTER(Win)), c.POINTER(c.c_uint)]
+        x.XGetWindowAttributes.argtypes = [c.c_void_p, Win, c.POINTER(Attrs)]
+        x.XFree.argtypes = [c.c_void_p]
+        x.XCloseDisplay.argtypes = [c.c_void_p]
+        # A window can vanish between listing and asking about it; Xlib's default error
+        # handler would then exit the whole app. Ignore errors instead.
+        self._handler = c.CFUNCTYPE(c.c_int, c.c_void_p, c.c_void_p)(lambda d, e: 0)
+        x.XSetErrorHandler(self._handler)
+        self.dpy = x.XOpenDisplay(None)
+        if not self.dpy:
+            return
+        self.x, self.c, self.Win, self.Attrs = x, c, Win, Attrs
+        self.root = x.XDefaultRootWindow(self.dpy)
+        self.before = self._visible()
+        self.ok = True
+
+    def _visible(self):
+        c, x = self.c, self.x
+        root, parent = self.Win(), self.Win()
+        kids, n = c.POINTER(self.Win)(), c.c_uint()
+        if not x.XQueryTree(self.dpy, self.root, c.byref(root), c.byref(parent),
+                            c.byref(kids), c.byref(n)):
+            return set()
+        out = set()
+        a = self.Attrs()
+        for i in range(n.value):
+            w = kids[i]
+            if x.XGetWindowAttributes(self.dpy, w, c.byref(a)) and a.map_state == 2 \
+                    and a.width >= self.min and a.height >= self.min:   # 2 = IsViewable
+                out.add(w)
+        if kids:
+            x.XFree(kids)
+        return out
+
+    def appeared(self):
+        """True once a visible window exists that wasn't there when we started watching."""
+        return bool(self._visible() - self.before) if self.ok else False
+
+    def close(self):
+        if self.ok:
+            self.x.XCloseDisplay(self.dpy)
+            self.ok = False
+
+
 def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=None, hold=None):
     """Start exe, call on_started() after OVERLAP_S (or sooner if it already exited), wait.
     pump() keeps our window alive during the overlap; hold() -> True keeps it up longer (Proton
@@ -89,11 +171,25 @@ def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=No
             return None, 0.0
         _proc = proc
         log.info("play: started %s (pid %d)", exe, proc.pid)
-        while proc.poll() is None and (time.time() - t0 < OVERLAP_S or
-                                       hold and time.time() - t0 < HOLD_MAX_S and hold()):
+        watch = WindowWatch()
+
+        def waiting():
+            el = time.time() - t0
+            if hold and el < HOLD_MAX_S and hold():
+                return True                          # Proton still building the prefix
+            if watch.ok:                             # hand over when the game's window is up
+                return el < WINDOW_MAX_S and not watch.appeared()
+            return el < OVERLAP_S
+
+        while proc.poll() is None and waiting():
             if pump:
                 pump()
-            time.sleep(0.03)
+            time.sleep(0.05)
+        log.info("play: handing over after %.1fs (%s)", time.time() - t0,
+                 "exited" if proc.poll() is not None else
+                 "window seen" if watch.ok and watch.appeared() else
+                 "timer" if not watch.ok else "no window yet")
+        watch.close()
         if on_started:
             on_started()
         rc = proc.wait()

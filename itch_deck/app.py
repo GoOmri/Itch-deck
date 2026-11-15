@@ -586,18 +586,23 @@ class App:
         if self.controls_of(g)[1] == "mouse":
             mm = mouse.MouseMode(pg, self.inp.pads, self.cfg.get("pointer_speed", "normal"))
 
-        def release():                       # after the overlap: the game has its window up
+        def release():                       # the game's window is up: step aside
             if not state["closed"]:
                 state["closed"] = True
-                pg.display.quit()
-                if mm:                       # our window is gone: the mapper owns SDL now
+                state["hidden"] = self._hide_window()
+                if not state["hidden"]:
+                    pg.display.quit()
+                if mm:                       # our window is out of the way: the mapper owns SDL
                     mm.start()
 
         rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump,
                               size=self.screen.get_size(), umu=umu, extra_env=env, hold=hold)
         if mm:
             mm.stop()
-        if state["closed"]:
+        if state.get("hidden"):
+            self._show_window()              # instant: no display re-init, so no Steam UI gap
+            self._splash("Returning…")
+        elif state["closed"]:
             self.open_display()
             self._splash("Returning…")
         self.inp.flush()
@@ -609,6 +614,33 @@ class App:
             log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
             self.say(hint or f"{g['title']} closed right after starting. Details are in its log.",
                      error=True)
+
+    def _hide_window(self):
+        """Hide our window while a game runs instead of closing the display: showing it again is
+        instant, while reopening the display took ~0.9 s under gamescope (Steam's UI showed
+        through). config "launch_release": "quit" goes back to closing the display."""
+        if self.cfg.get("launch_release") == "quit":
+            return False
+        try:
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")     # pygame-ce: from_display_module is deprecated
+                self._win = self.pg.Window.from_display_module()
+            self._win.hide()
+            log.info("play: window hidden")
+            return True
+        except Exception as e:  # noqa: BLE001  - old pygame / driver without windows
+            log.info("play: can't hide the window (%s), closing the display", e)
+            return False
+
+    def _show_window(self):
+        self._win.show()
+        try:
+            self._win.focus()
+        except Exception:  # noqa: BLE001
+            pass
+        self.screen = self.pg.display.get_surface()
+        log.info("play: window shown")
 
     def _transition(self):
         """Page switch: the new page slides in (from the right going deeper, from the left going
@@ -956,6 +988,9 @@ def exit_on_signals():
     if anything stalls."""
     import signal
     os.environ["SDL_NO_SIGNAL_HANDLERS"] = "1"
+    # Mouse mode reads the pads while our window is hidden behind a game: SDL would otherwise
+    # drop controller input for an unfocused window.
+    os.environ.setdefault("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
 
     def on_signal(num, _frame):
         log.info("signal %d: quitting", num)
