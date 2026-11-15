@@ -170,7 +170,7 @@ class GameMixin:
 
     def _uninstall(self, g):
         if not self.inst.uninstall(g["id"]):
-            self.say("The SD card is missing, so the game can't be uninstalled now.", error=True)
+            self.say("SD card missing.", error=True)
             return
         self.scene.focus = 0
         self.say(f"{g['title']} was uninstalled.")
@@ -200,9 +200,7 @@ class GameMixin:
         config.save(self.cfg)
         _, eff = self.controls_of(g)
         log.info("controls %s: %s (%s)", g["id"], nxt, eff)
-        a, b, x, y = (pads.name(k) for k in "ABXY")
-        self.say({"mouse": "Right stick moves the mouse, R2 clicks while this game runs.",
-                  "keys": f"D-pad = arrows, {a} = Space, {b} = Esc, {x} = Z, {y} = X; "
-                          "right stick + R2 = mouse.",
-                  "gamepad": "The game gets the controller as a gamepad."}[eff] +
-                 (" (Auto: from the game's itch page)" if nxt == "auto" else ""))
+        a = pads.name("A")
+        self.say({"mouse": "Mouse: right stick moves, R2 clicks.",
+                  "keys": f"Keys: D-pad = arrows, {a} = Space.",
+                  "gamepad": "Controller."}[eff] + (" (Auto)" if nxt == "auto" else ""))

@@ -84,7 +84,8 @@ class SettingsMixin:
             return f"Downloading {int(job['progress'] * 100)}%"
         self.ge_job = None
         if job["error"]:
-            self.say(job["error"], error=True)
+            log.info("ge-proton: %s", job["error"])
+            self.say("Couldn't get GE-Proton.", error=True)
         else:
             self.say(f"{job['name']} installed. Windows games are ready to go.")
         return self.settings_values()["proton"]
@@ -163,9 +164,8 @@ class SettingsMixin:
                     config.save(self.cfg)
                     self._card_out = config.card_missing(path)
                     sc.v.update(self.settings_values())
-                    self.say(f"New games install to {name.lower()}. Installed games stay where they are."
-                             if name != "SD card" else "New games install to the SD card. "
-                             "Installed games stay where they are.")
+                    self.say(f"New games install to {name.lower()}." if name != "SD card"
+                             else "New games install to the SD card.")
             elif label == "Proton version":
                 names = config.proton_versions()
                 job = getattr(self, "ge_job", None)

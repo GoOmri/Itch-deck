@@ -18,7 +18,7 @@ class PlayMixin:
     def play(self, g):
         exe = self.inst.exe_path(g["id"])
         if not exe or not exe.exists():
-            self.say("The game's files are missing. Uninstall and install it again.", error=True)
+            self.say("Game files missing. Reinstall to play.", error=True)
             return
         info = self.inst.index[g["id"]]
         self.lib.mark_played(g)             # Recent tab
@@ -81,12 +81,12 @@ class PlayMixin:
             return
         if mm and mm.error and not runner.crashed(rc, secs):
             mode = "Keys" if mm.mapper.layout == "keys" else "Mouse"
-            self.say(f"{mode} mode didn't start ({mm.error}). The game ran without it.", error=True)
+            log.info("play: %s mode off: %s", mode, mm.error)
+            self.say(f"{mode} controls didn't start.", error=True)
         if runner.crashed(rc, secs):
             hint = runner.crash_hint(slug_of(g))
             log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
-            self.say(hint or f"{g['title']} closed right after starting. Details are in its log.",
-                     error=True)
+            self.say(f"{g['title']} couldn't start." + (f" {hint}" if hint else ""), error=True)
 
     def _hide_window(self):
         """Hide our window while a game runs instead of closing the display: showing it again is

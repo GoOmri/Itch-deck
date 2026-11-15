@@ -231,12 +231,12 @@ def crashed(rc, secs):
     return rc is None or (rc != 0 and secs < CRASH_S) or secs < 3
 
 
-HINTS = (  # (text in the game's log, what to tell the user)
-    ("rand_util_win.cc", "This game needs a newer GE-Proton (9 or later). Install it with "
-                         "ProtonUp-Qt in Desktop Mode; SCRiTCH uses the newest one."),
-    ("error while loading shared libraries", "This Linux build needs a library SteamOS doesn't "
-                                             "have. Try Change build → the Windows build."),
-    ("libfuse","This game is an AppImage that couldn't start. Uninstall and install it again."),
+HINTS = (  # (text in the game's log, a few plain words after "<game> couldn't start.")
+    # the cause stays in the log (app.log "play: <id> crashed (<needle>)"); the player gets a
+    # next step only, no technical terms (Omri 15 Nov)
+    ("rand_util_win.cc", "Try another Proton in Settings."),          # needs GE-Proton 9+
+    ("error while loading shared libraries", "Try another build in Options."),
+    ("libfuse", "Reinstall it to fix this."),                         # AppImage without FUSE
 )
 
 

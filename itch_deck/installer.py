@@ -18,7 +18,7 @@ import time
 import zipfile
 from pathlib import Path
 
-from . import config, net, paths, proton
+from . import config, net, paths, proton, words
 from .stores.itch import pick_build
 
 log = logging.getLogger("itch-deck")
@@ -403,13 +403,16 @@ class Installer:
                     self._save_queue()
 
     def _fail(self, gid, title, reason):
-        if gid in self.index:                 # a Change build reinstall: the old build stays
+        """The full reason goes to the log; the player sees a few plain words (words.short)."""
+        log.info("install %s failed: %s", gid, reason)
+        hint = words.short(reason)
+        if gid in self.index:                 # an update / Change build: the old build stays
             self._revert_choice(gid)
             self._upd(gid, state="installed", phase=None, fail_reason=None)
-            self.events.append(("error", gid, f"Couldn't update {title}: {reason}"
-                                if gid in self.updating else f"Couldn't change the build: {reason}"))
+            what = f"Couldn't update {title}." if gid in self.updating else "Couldn't change the build."
+            self.events.append(("error", gid, f"{what} {hint}." if hint else what))
             return
-        self._upd(gid, state="failed", phase=None, fail_reason=reason)
+        self._upd(gid, state="failed", phase=None, fail_reason=hint)
         self.events.append(("failed", gid, f"Couldn't install {title}."))
 
     # --- updates (newer build of an installed game on itch) ---

@@ -71,7 +71,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
 
 ## 6. One place for each thing
 - **Game page:** ONE main button (Play / Install / Retry install; Cancel while downloading)
-  + a square **⚙ Options** next to it. Uninstall, Change build, Controls live in Options;
+  + a square **⚙ Options** next to it. When itch has a newer build: **Play · Update · ⚙**
+  (Update grey, Play stays the purple main action), no message box. Uninstall, Change build, Controls live in Options;
   ☰ opens it too (on a game page ☰ = Options, never Settings).
 - **Install progress is one module** next to Cancel: Starting…, Queued, Getting GE-Proton,
   Downloading %, Extracting…. No boxes appearing and disappearing under it.
@@ -121,8 +122,12 @@ sentence case everywhere else ("Change build").
 feel frozen. So: calm where you act, alive where you wait.
 
 ## 10. Words: only what the player needs
-Short, plain, sentence case. "…" means in progress. No exit codes or jargon (details go to the
-log). Errors say what happened and what to do. No explanations of how things work
+SCRiTCH is for casual players (Omri, 15 Nov). Short, plain, sentence case. "…" means in progress.
+**No technical words on screen** (file, installer, library, runnable, Proton reasons, exit codes,
+paths): the full reason goes to the log, the screen gets a title ("Couldn't install") and at most
+a few plain words the player can act on ("Not enough space", "No internet"), or nothing. One
+place maps reasons to those words: `words.short()`; crash hints in `runner.HINTS`. An action
+gets a button, never a sentence telling the player where to find it ("Options → Update"). No explanations of how things work
 ("installer runs silently"): if it doesn't help decide or act, cut it.
 Dialogs: at most 2 short sentences, one per line, always wrapped inside the box (`W.modal`
 wraps; pass a list of lines). Text is never cut off.

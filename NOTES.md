@@ -514,7 +514,7 @@ v0.7.3 work (branch filter-and-ps-glyphs, 15 Nov, NOT released yet), Omri's v0.7
     installer.update_for(); Installer.check_updates() in a thread: after sync every 30 min (each
     game at most every 6 h) and forced for the game whose page opens. Found -> install.json
     "update" {upload_id, filename, updated}; tile tag "Update" (accent), info box "Update
-    available", Options → Update (first row) = Installer.update(): reinstall over (same upload
+    available" → Play · Update · ⚙, Update button = Installer.update(): reinstall over (same upload
     id allowed via Installer.updating), fail keeps the old build ("Couldn't update X: …").
     Installs from before v0.7.3 get a baseline on the first check (no false update).
     UNVERIFIED against live itch: whether updated_at changes on a file replace (build_id does
@@ -523,6 +523,12 @@ v0.7.3 work (branch filter-and-ps-glyphs, 15 Nov, NOT released yet), Omri's v0.7
     D-pad + left stick (0.5) = arrows, A Space, B Esc, X Z, Y X, Menu Enter, L1 R, R1 Shift,
     right stick + R2/L2 = mouse. auto_mode: pad listed -> gamepad, keyboard -> keys, mouse/touch
     -> mouse. For Cosmic Express (keyboard only, ignored the pad).
+  - Omri 15 Nov (screenshots): update = its own button, Play · Update · ⚙ (no info box, not in
+    Options). And: NO technical/long text in the app for casual players. words.short() maps
+    install reasons to a few plain words (or nothing), full reason in app.log ("install <id>
+    failed: …"); crash toast "<game> couldn't start." + runner.HINTS short next step; game page
+    boxes cut to title + ≤ 4 words. DESIGN rule 10 rewritten. Open (Omri): later, a way to give
+    specific errors to players who want to troubleshoot (e.g. a details view) — not now.
   Deck checklist v0.7.3: 1 Sort & filter: ◀ ▶ changes values, library behind stays still, new
     result fades in on close. 2 DualSense: Create / Options look like the pad (footer + Starting).
     3 Tabs: All · Installed; Sort has Recently played. 4 Cosmic Express → Options → Controls

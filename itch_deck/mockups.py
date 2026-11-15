@@ -176,7 +176,7 @@ def _shots(t, version):
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "", "")], 0))),
         ("16_game_failed", game("Grave Gardener",
-                                fail_reason="No runnable file found in the download (Windows build).")),
+                                fail_reason=None)),        # the reason is in the log only
         ("17_game_browser", game("Frog Parliament")),
         ("18_game_not_playable", game("Velvet Static")),
         ("19_game_picker", with_overlay(game("Quiet Quarry"), picker)),

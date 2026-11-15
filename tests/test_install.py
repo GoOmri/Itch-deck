@@ -205,12 +205,12 @@ def test_cancel_and_failures(tmp_path, server):
     _wait(inst)
     assert lib.games[0]["state"] is None
     assert not list((tmp_path / "games/_downloads").glob("5-*"))
-    # Windows-only and "no space" give a reason on the game page
+    # the game page gets a few plain words (words.short); the full reason is only in the log
     _Handler.slow = False
     inst.lib.store.uploads = [_up(9, "w.zip", p_linux=False, p_windows=True)]
     inst.enqueue(lib.games[0])
     _wait(inst)
-    assert lib.games[0]["state"] == "failed" and "Windows" in lib.games[0]["fail_reason"]
+    assert lib.games[0]["state"] == "failed" and lib.games[0]["fail_reason"] == "No internet"  # GE fetch
     inst.lib.store.uploads = [_up(9, "big.zip", size=10 ** 15)]
     inst.enqueue(lib.games[0])
     _wait(inst)
@@ -219,7 +219,7 @@ def test_cancel_and_failures(tmp_path, server):
     inst.lib.store.uploads = [_up(9, "missing.zip", size=10)]
     inst.enqueue(lib.games[0])
     _wait(inst)
-    assert "Retry" in lib.games[0]["fail_reason"]
+    assert lib.games[0]["fail_reason"] == "No internet"
 
 
 def test_runner_env_and_crash():
@@ -290,7 +290,7 @@ def test_windows_install_then_change_build(tmp_path, server):
     # no GE-Proton yet: a clear reason, nothing downloaded
     inst.enqueue(lib.games[0])
     _wait(inst)
-    assert lib.games[0]["state"] == "failed" and "GE-Proton" in lib.games[0]["fail_reason"]
+    assert lib.games[0]["state"] == "failed" and lib.games[0]["fail_reason"] == "No internet"
     _fake_proton(tmp_path)
     inst.enqueue(lib.games[0])
     _wait(inst)
@@ -395,12 +395,12 @@ def test_installer_failures(tmp_path, server, monkeypatch):
     _umu(tmp_path)
     inst.enqueue(lib.games[0])
     _wait(inst)
-    assert lib.games[0]["state"] == "failed" and "InstallShield" in lib.games[0]["fail_reason"]
+    assert lib.games[0]["state"] == "failed" and lib.games[0]["fail_reason"] is None   # log only
     monkeypatch.setenv("FAIL", "1")                 # installer exits with an error
     inst.lib.store.uploads = [_up(8, "s.exe", p_linux=False, p_windows=True, size=len(INNO))]
     inst.enqueue(lib.games[0])
     _wait(inst)
-    assert "stopped with an error" in lib.games[0]["fail_reason"]
+    assert lib.games[0]["state"] == "failed" and lib.games[0]["fail_reason"] is None
     assert not (tmp_path / "games/quiet-quarry/files.new").exists()
     assert proton.silent_args("nsis", "/a/b")[-1] == "/D=Z:\\a\\b"
     monkeypatch.delenv("FAIL")
@@ -456,7 +456,7 @@ def test_crash_hint_old_proton(tmp_path):
     paths.use_root(tmp_path)
     (paths.LOGS / "games").mkdir(parents=True)
     (paths.LOGS / "games/pm.log").write_text("[1114/205806.280:FATAL:rand_util_win.cc(60)] Check failed: hmod.\n")
-    assert "GE-Proton" in runner.crash_hint("pm")
+    assert runner.crash_hint("pm") == "Try another Proton in Settings."
     assert runner.crash_hint("nope") is None
 
 
@@ -528,7 +528,7 @@ def test_crash_hint_missing_lib(tmp_path, monkeypatch):
     (tmp_path / "games").mkdir()
     (tmp_path / "games/pm.log").write_text("./pm.bin: error while loading shared libraries: "
                                            "libnss3.so: cannot open shared object file\n")
-    assert "Windows build" in runner.crash_hint("pm")
+    assert runner.crash_hint("pm") == "Try another build in Options."
 
 
 def test_leftover_prefixes(tmp_path, monkeypatch):
@@ -594,3 +594,16 @@ def test_update_found_installed_and_cleared(tmp_path, server):
     assert b"v2" in inst.exe_path("5").read_bytes()
     assert inst.events[-1] == ("done", "5", "Quiet Quarry is updated.")
     assert inst.index["5"]["upload_updated"] == "2026-11-14"
+
+
+
+def test_player_words_are_short_and_plain():
+    """Omri 15 Nov: casual players - a few plain words, no technical reasons on screen."""
+    from itch_deck import runner, words
+    assert words.short("Not enough space on the SD card: needs about 2.1 GB, 0.4 GB free.") \
+        == "Not enough space"
+    assert words.short("Lost the connection to itch.io. Retry when you're online") == "No internet"
+    assert words.short("itch.io rejected the API key. Re-import it in Settings.") == "Sign in to itch again"
+    assert words.short("No program to run was found in the download.") is None
+    for say in [s for _, s in words._HINTS] + [h for _, h in runner.HINTS]:
+        assert len(say.split()) <= 6, say

@@ -47,6 +47,8 @@ class Game(Scene):
         st = self.g.get("state")
         if not self.playable:
             main = []
+        elif st == "installed" and self.g.get("update"):   # Play · Update · ⚙ (Omri)
+            main = [("Play", "play", True), ("Update", None, True)]
         elif st == "installed":
             main = [("Play", "play", True)]
         elif st == "missing":            # SD card out / files gone: nothing to run
@@ -69,7 +71,7 @@ class Game(Scene):
         if not self.playable:
             return []
         if st == "installed":
-            return (["Update"] if g.get("update") else []) + ["Uninstall", "Change build", "Controls"]
+            return ["Uninstall", "Change build", "Controls"]
         if st == "missing":
             return [] if g.get("missing") == "card" else ["Uninstall"]
         if st in ("downloading", "queued") or self.phase:
@@ -352,22 +354,19 @@ class Game(Scene):
         """What to tell the player about this game: (kind, title, line) or None.
         Always drawn as ONE box under the buttons (Omri: consistent). Red only for errors."""
         g = self.g
-        if not self.playable:
+        if not self.playable:          # few plain words (Omri: casual players, no tech terms)
             if "html" in g["platforms"]:
-                return ("info", "Browser game", "Open it on itch.io in a browser.")
-            return ("info", "Not playable on the Deck", "It has no Linux or Windows download.")
+                return ("info", "Browser game", "Play it on itch.io.")
+            return ("info", "Can't be played here", None)
         st = g.get("state")
         if self.card_out and st in (None, "failed"):
-            return ("info", "SD card missing", "Insert it to install this game, or change "
-                    "Install location in Settings.")
+            return ("info", "SD card missing", "Insert it to install.")
         if st == "failed":
-            return ("error", "Couldn't install", self.fail_reason or "See the log for details.")
+            return ("error", "Couldn't install", self.fail_reason)
         if st == "missing" and g.get("missing") == "card":
-            return ("info", "SD card missing", "Insert the card and the game comes back.")
+            return ("info", "SD card missing", "Insert it to play.")
         if st == "missing":
-            return ("info", "Game files missing", "Uninstall it, then install it again.")
-        if st == "installed" and g.get("update"):
-            return ("info", "Update available", "A newer build is on itch. Options → Update gets it.")
+            return ("info", "Game files missing", "Reinstall to play.")
         return None
 
     def _progress_inline(self, s, x, y, w):
