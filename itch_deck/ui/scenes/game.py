@@ -208,7 +208,7 @@ class Game(Scene):
         x = cover_r.right + t.lg
         maxw = t.w - t.m - x
         y = cover_r.y - W.cap_gap(t.f_h1)       # capitals of the title = cover top edge
-        y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
+        y = W.wrap(t, s, g["title"], x, y, t.f_h1, maxw, max_lines=2)    # long titles: 2 lines
         if g.get("author"):                                       # who made it: one quiet line
             y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim, maxw=maxw).bottom
         y += t.sm
@@ -233,8 +233,11 @@ class Game(Scene):
             items.append(("mouse" if mode == "mouse" else "keys", CONTROL_WORDS[mode], None))
         if items:
             y = W.facts(t, s, x, y, items, maxw) + t.md
+        self._tag_cut = False
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
-            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w))
+            tw = min(maxw, t.read_w)                  # 2 lines max; a longer one opens About
+            self._tag_cut = len(W.wrap_lines(t.f_body, g["short_text"], tw)) > 2
+            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, tw, max_lines=2)
         y += t.md
 
         if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
@@ -292,7 +295,8 @@ class Game(Scene):
                       last[1].bottom - t.xs, kind="dark", anchor="bottomright")
             y += th + pad + t.lg
         desc_y = y
-        paras = g.get("description") or []
+        paras = ([g["short_text"]] if getattr(self, "_tag_cut", False) else []) + \
+            (g.get("description") or [])              # a cut tagline reads in full here
         if paras:
             y = W.text(t, s, "About this game", t.m, y, t.f_h2).bottom + t.sm
             w = min(t.w - 2 * t.m, t.read_w * 1.4)   # long reading: ~95 chars per line

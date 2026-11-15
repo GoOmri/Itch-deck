@@ -74,11 +74,13 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   + a square **⚙ Options** next to it. When itch has a newer build: **Play · Update · ⚙**
   (Update grey, Play stays the purple main action), no message box. Uninstall, Change build, Controls live in Options;
   ☰ opens it too (on a game page ☰ = Options, never Settings).
-- **Game page info:** title, "by author" (dim), then the facts as icon + value pairs
+- **Game page info:** title (wraps to 2 lines, then "…"), "by author" (dim), then the facts as icon + value pairs
   (`W.facts`, drawn icons, dim icon / white value, wraps to a second row): ✓ Installed
   (purple) · size (+ free space before installing, red when it won't fit) · genre · time to
   beat (main story only) · controls when SCRiTCH converts ("Trackpad as mouse",
   "Buttons as keyboard"). Facts you scan, not a sentence you read.
+  The tagline under them is 2 lines max; when it's cut it reads in full as the first
+  paragraph of About, so nothing is lost.
 - **Install progress is one module** next to Cancel: Starting…, Queued, Getting GE-Proton,
   Downloading %, Extracting…. No boxes appearing and disappearing under it.
 - **Messages about a game** go in ONE box under its buttons (`W.notice`). Never above.

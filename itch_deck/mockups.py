@@ -209,7 +209,9 @@ def _shots(t, version):
                                               genre="Interactive Fiction", size_mb=12_800,
                                               ttb={"main": 14.6, "done": 40}, controls_mode="keys",
                                               short_text="A very long short description that keeps going for a while, "
-                                              "far past one line, to see what happens to the buttons below it."),
+                                              "far past one line, to see what happens to the buttons below it. "
+                                              "It even runs onto a third line, so it gets cut here and reads "
+                                              "in full under About this game."),
                                      pos=(1, 30)), free_mb=4_100)),
         ("15g_game_mouse_controls", _set(game("Moss & Rivets"), mode="mouse")),
         ("15f_game_other_downloading", _act(game("Moss & Rivets"), "Downloading 42% · Quiet Quarry (+1)")),
