@@ -815,4 +815,4 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - "Use a new itch key" removed (Omri): sign out + sign in covers a revoked key and a different
   account, and itch now reads like Epic (one row). Rejected-key error: "Sign in to itch again".
 - A–Z strip slides in from the right while moving, out 1.5 s after the last move (`ABC_HOLD_S`).
-- Sort & filter: "Clear filters" is a full-width purple button (`W.BUTTON_ROW`), not a row.
+- Sort & filter: "Clear filters" row label is purple (`W.ACTION_ROW`), white when lit (Omri: text, not a button).

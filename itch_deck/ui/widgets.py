@@ -950,7 +950,7 @@ def notice(t, s, x, y, w, title, body=None, kind="error"):
     return r
 
 
-BUTTON_ROW = "\0button"      # value that makes a row a full-width purple button (e.g. Clear filters)
+ACTION_ROW = "\0action"      # value that makes a row's label purple (a reset like Clear filters)
 
 
 def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
@@ -960,17 +960,15 @@ def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
     y = rect.y
     for i, (label, value, sub) in enumerate(items):
         r = pg.Rect(rect.x, y, rect.w, row_h)
-        if value == BUTTON_ROW:                    # as wide as its block; deep at rest, bright lit
-            br = pg.Rect(r.x, 0, r.w, t.btn_h)
-            br.centery = r.centery + t.sm               # a little air above: it ends the list
-            button(t, s, br, label, focused=(i == focus), accent=True)
-            y += row_h + t.u // 2
-            continue
         k = anim((key, label), 1.0 if i == focus else 0.0)
         if k > 0.01:
             panel(t, s, r, mix(t.panel_hi, t.focus_fill, k))
         ly = r.centery - (t.f_small.get_height() // 2 if sub else 0)
-        text(t, s, label, r.x + pad, ly, t.f_btn, anchor="midleft")
+        action = value == ACTION_ROW                # purple at rest, white when lit (contrast)
+        if action:
+            value = ""
+        text(t, s, label, r.x + pad, ly, t.f_btn, anchor="midleft",
+             color=t.accent if action and i != focus else t.text_c)
         if sub:
             text(t, s, sub, r.x + pad, ly + t.f_btn.get_height() * 0.55, t.f_small,
                  color=t.dim, anchor="topleft", maxw=r.w * 0.6)
