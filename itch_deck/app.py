@@ -3,6 +3,7 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import sys
 import threading
 import time
@@ -283,6 +284,17 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
                 "downloading": f"Updating · {int(u.frac * 100)}%",
                 "ready": f"v{u.new_version} installed · restart in Settings"}.get(u.state)
 
+    def _free_mb(self):
+        """Free space where games install, in MB (checked every few seconds, not every frame)."""
+        now = time.monotonic()
+        if now - getattr(self, "_free_at", -99) > 5:
+            self._free_at = now
+            try:
+                self._free = shutil.disk_usage(config.install_root(self.cfg)).free // 1_000_000
+            except OSError:
+                self._free = None
+        return self._free
+
     def _activity(self):
         """Footer-left background work (every screen): a running download first, then sync/covers/details."""
         gid = self.inst.current
@@ -376,6 +388,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
                 sc.g = g
             g = sc.g
             g["controls_label"] = self.controls_label(g)
+            g["controls_mode"] = self.controls_of(g)[1]     # what SCRiTCH maps for this game
+            sc.free_mb = self._free_mb()
             st = g.get("state")
             sc.phase = g.get("phase") if st == "downloading" else \
                 ("queued" if st == "queued" else None)   # waiting shows in the same module

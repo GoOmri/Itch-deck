@@ -19,6 +19,9 @@ def _mb(mb):
 SHOT_GROW = 1.12   # focused screenshot grows more than tiles: it's what you're looking at
 MAIN_ACTIONS = ("Install", "Retry install", "Play")
 
+CONTROL_WORDS = {"mouse": "Trackpad as mouse", "keys": "Buttons as keyboard"}   # pad: nothing to say
+
+
 class Game(Scene):
     def footer_status(self):
         act = self.activity                     # this game's own download shows by its button
@@ -157,10 +160,11 @@ class Game(Scene):
         t = self.t
         g = self.g
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
-               g.get("controls_label"), str(g.get("ttb")), str(g.get("update")),
+               g.get("controls_label"), g.get("controls_mode"), str(g.get("ttb")), str(g.get("update")),
                g.get("cover_file"), self.section, self.shot,   # focus: buttons are live bool(self.overlay),
                self.offline, self.card_out, self.phase, self.behind, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
+               (getattr(self, "free_mb", None) or 0) // 1000,   # GB steps: no re-layout per MB
                # buttons are drawn live on top; only the screenshot strip animates inside the page
                W.frame_tick() if W.animating() and self.section == "shots" else 0,
                getattr(self, "_end", 0))
@@ -210,19 +214,26 @@ class Game(Scene):
                 ([g["genre"]] if g.get("genre") else [])               # itch's own Genre
         info = "  ·  ".join(parts) or " "                         # no author: skip the "by"
         r = W.text(t, s, info, x, y, t.f_body, color=t.dim)      # one info line, no loose tags
+        free = getattr(self, "free_mb", None)
+        if free is not None and g["size_mb"] and self.playable and \
+                g.get("state") not in ("installed", "downloading", "queued", "missing"):
+            W.text(t, s, "  ·  ", r.right, y, t.f_body, color=t.dim)    # space before installing:
+            r = r.union(W.text(t, s, f"{_mb(free)} free", r.right + t.f_body.size("  ·  ")[0], y,
+                               t.f_body, color=t.error if g["size_mb"] > free else t.dim))
         if g.get("state") == "installed":                         # state = purple (rule 1)
             ih = int(t.f_body.get_height() * 0.42)
             cx = r.right + t.md
             W.text(t, s, "·", r.right + t.sm * 0.6, y, t.f_body, color=t.dim)
             cx += W.icon_draw(s, "check", (cx + ih * 0.45, r.centery), ih, t.accent) + t.xs
-            cx = W.text(t, s, "Installed", cx, y, t.f_body, color=t.accent).right
-            ctl = g.get("controls_label") or ""
-            if ctl and "auto" not in ctl.lower():                 # only when not the default
-                W.text(t, s, f"  ·  {ctl}", cx, y, t.f_body, color=t.dim)
+            W.text(t, s, "Installed", cx, y, t.f_body, color=t.accent)
         y = r.bottom + t.sm
-        ttb = hltb.summary(g.get("ttb"))                         # time to beat (HowLongToBeat)
-        if ttb:
-            y = W.text(t, s, ttb, x, y - t.xs, t.f_body, color=t.dim, maxw=maxw).bottom + t.sm
+        # second line: what SCRiTCH maps (only when it isn't plain controller) + time to beat
+        ctl = CONTROL_WORDS.get(g.get("controls_mode")) if self.playable else None
+        line2 = "  ·  ".join(b for b in (ctl, hltb.summary(g.get("ttb"))) if b)
+        if t.f_body.size(line2)[0] > maxw:                       # too long: main story only
+            line2 = line2.rsplit("  ·  ", 1)[0]
+        if line2:
+            y = W.text(t, s, line2, x, y - t.xs, t.f_body, color=t.dim, maxw=maxw).bottom + t.sm
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
             y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w))
         y += t.md

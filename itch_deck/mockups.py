@@ -51,6 +51,15 @@ def _menu(scene, focus):
     return scene
 
 
+def _set(scene, mode=None, **kw):
+    """Mockup-only state the app normally sets each frame (free space, control mapping)."""
+    for k, v in kw.items():
+        setattr(scene, k, v)
+    if mode:
+        scene.g = dict(scene.g, controls_mode=mode)
+    return scene
+
+
 def _act(scene, text):
     scene.activity = text
     return scene
@@ -177,6 +186,8 @@ def _shots(t, version):
                                      toast="Grave Gardener closed right after starting. Try Change build.",
                                      toast_error=True)),
         ("11_game_not_installed", game("Quiet Quarry")),
+        ("11b_game_free_space", _set(game("Quiet Quarry"), free_mb=42_300)),
+        ("11c_game_no_space", _set(game("Quiet Quarry"), free_mb=120)),
         ("12_game_downloading", game("Hollow Lighthouse")),
         ("12c_game_queued", game("Paper Comet", behind=True)),
         ("12b_game_offline", game("Quiet Quarry", offline=True)),
@@ -190,6 +201,7 @@ def _shots(t, version):
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
         ("15c_game_update", game("Harbor Ghosts")),
+        ("15g_game_mouse_controls", _set(game("Moss & Rivets"), mode="mouse")),
         ("15f_game_other_downloading", _act(game("Moss & Rivets"), "Downloading 42% · Quiet Quarry (+1)")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
