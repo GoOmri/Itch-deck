@@ -801,3 +801,8 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - Expect more moves while Epic lands; categories are cheap to reshuffle in `Settings.groups()`
   (app acts on internal labels, `shown()` makes the words).
 - Library top bar: filter summary removed (count only).
+
+## Filter visible as a filter (15 Nov)
+- Omri removed the plain "Under 2 h" because it read like his playtime, then games looked missing.
+  Now: purple tag "FILTER: UNDER 2 H" + "12 of 30 games" in the top bar; a tab the filter
+  empties says "No games match this filter. Press X to change it." (not "No games yet").

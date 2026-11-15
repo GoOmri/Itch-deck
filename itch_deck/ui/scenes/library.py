@@ -237,6 +237,9 @@ class Library(Scene):
             return self._center_msg(s, y, f"Syncing library… page {self.sync_page}",
                                     "This is only slow the first time.", spinner=True)
         if not self.shown:
+            if self.filtered():                 # games exist, the filter hides them all
+                return self._center_msg(s, y, "No games match this filter.",
+                                        f"Press {pads.name('X')} to change it.")
             if self.filt == "installed":
                 return self._center_msg(s, y, "Nothing installed yet.",
                                         "Install a game from All and it shows up here.")
@@ -270,7 +273,12 @@ class Library(Scene):
         if self.offline_since:
             right = W.offline_mark(t, s, right, base, self.offline_since)
         count = f"{n} game{'s' if n != 1 else ''}"
+        if self.filtered():                     # say it's a filter, and that games are hidden
+            count = f"{n} of {self._count(show='all', genre='any', length='any')} games"
         rr = W.text(t, s, count, right, base, t.f_small, color=t.dim, anchor="baseright")
+        if self.filtered():
+            rr = W.tag(t, s, "Filter: " + self.filter_summary().replace("  ·  ", " · "),
+                       rr.x - t.md, base - W.x_mid(t.f_small), kind="accent", anchor="midright")
         act = self.activity or ("Refreshing library" if self.syncing == "bg" else None)
         if act:                         # background work, hidden when done
             sep = W.text(t, s, "·", rr.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright")

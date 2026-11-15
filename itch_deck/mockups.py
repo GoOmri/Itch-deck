@@ -163,6 +163,8 @@ def _shots(t, version):
         ("05d_library_update", _note(_act(Library(t, lib, focus=1), "Covers 40/120"),
                                      "Update v0.3.4 available · Settings")),
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
+        ("06g_library_filtered", Library(t, lib, focus=0, length="short")),
+        ("06h_library_filtered_two", Library(t, lib, focus=0, genre="Puzzle", length="short")),
         ("06b_library_recent", Library(t, lib, sort="played", focus=0)),   # Recent = a sort now
         ("06c_library_sort_filter", _menu(Library(t, lib, focus=0, sort="short", genre="Puzzle"), 3)),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
