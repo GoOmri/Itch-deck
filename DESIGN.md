@@ -145,7 +145,10 @@ sentence case everywhere else ("Change build").
   moves as one wave); the cover fades in over it, never pops.
 - Waiting: **the chasing arc** (`W.chase`, used by `W.spinner`, the tile busy ring and the
   phone `.spin`): the front edge races ahead, the back edge catches up, the whole thing turns
-  slowly (`CHASE_S` 1.4 s). The indeterminate bar glides end to end (`BUSY_SWEEP_S` 0.75 s).
+  slowly (`CHASE_S` 1.4 s). The indeterminate bar glides end to end (`BUSY_SWEEP_S` 0.75 s). Progress fills and tile rings
+  glide to each new value (`FILL_MS` 0.9 s) instead of jumping when an update arrives.
+  While filling, a soft light sweeps along the bar (`BAR_SHINE_S` 1.6 s), the same shine as
+  loading covers.
 - No sound or vibration of our own; Steam's are enough. Mockups show the end state.
 *Why:* moving things you're about to press feels unstable; still things that are working
 feel frozen. So: calm where you act, alive where you wait.
