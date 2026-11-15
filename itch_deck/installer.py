@@ -392,7 +392,7 @@ class Installer:
                     raise InstallError("This game isn't in your library any more.")
                 self._install(dict(g))
                 self.events.append(("done", gid, f"{title} is updated." if gid in self.updating
-                                    else f"{title} is installed."))
+                                    else f"{title} is ready to play."))
             except net.Cancelled:
                 log.info("install %s: cancelled", gid)
                 self._cleanup_download(gid)

@@ -878,16 +878,28 @@ def _tile_img(t, game, size, playable):
     return img
 
 
+_WAS_BUSY = set()       # games seen downloading: their ✓ pops in once when they finish
+
+
 def _badges(t, s, game, r, playable):
     pad = t.u
     st = game.get("state")
+    if st in ("downloading", "queued"):
+        _WAS_BUSY.add(game["id"])
     # top-right: install state
     if st == "installed" and game.get("update"):       # newer build on itch
         tag(t, s, "Update", r.right - pad, r.y + pad, kind="accent", anchor="topright")
     elif st == "installed":
-        c = (r.right - pad - t.u * 1.6, r.y + pad + t.u * 1.6)
-        pg.draw.circle(s, t.accent, c, t.u * 1.6)
-        icon_draw(s, "check", c, int(t.u * 1.4), t.on_accent)
+        key = ("check-pop", game["id"])
+        if game["id"] in _WAS_BUSY:                   # just finished: pop in (the one "done" spring)
+            _WAS_BUSY.discard(game["id"])
+            _ANIM.pop(key, None)
+            anim(key, 1.0, start=0.0, back=TAB_BACK)
+        k = anim(key, 1.0, back=TAB_BACK) if key in _ANIM else 1.0
+        if k > 0.02:
+            c = (r.right - pad - t.u * 1.6, r.y + pad + t.u * 1.6)
+            pg.draw.circle(s, t.accent, c, t.u * 1.6 * k)
+            icon_draw(s, "check", c, max(1, int(t.u * 1.4 * k)), t.on_accent)
     elif st == "downloading":
         ring(t, s, (int(r.right - pad - t.u * 1.6), int(r.y + pad + t.u * 1.6)), int(t.u * 1.6),
              game.get("progress", 0),
