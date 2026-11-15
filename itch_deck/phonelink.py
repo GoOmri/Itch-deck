@@ -40,7 +40,7 @@ PAGES = {
     "itch": {
         "title": "Connect itch to SCRiTCH",
         "steps": [
-            ('<a class="btn" href="https://itch.io/user/settings/api-keys" target="_blank" '
+            ('<a class="btn pri" href="https://itch.io/user/settings/api-keys" target="_blank" '
              'rel="noopener">Open itch API keys</a>', "Log in to itch if it asks."),
             ("Tap <b>Generate new API key</b>, then copy the key.", ""),
             ("Come back to this tab and paste it below.", ""),
@@ -170,13 +170,14 @@ class PhoneLink:
 
 
 CSS = """body{margin:0;background:#10101e;color:#f0f0f0;font:17px/1.45 system-ui,sans-serif}
-main{max-width:30rem;margin:0 auto;padding:1.4rem}h1{font-size:1.35rem;margin:.2rem 0 1rem}
+main{max-width:30rem;margin:0 auto;padding:1.4rem;
+padding-top:max(3rem,calc(env(safe-area-inset-top) + 1.6rem))}h1{font-size:1.35rem;margin:.2rem 0 1rem}
 ol{padding-left:1.2rem}li{margin:.7rem 0}small{color:#9a9ab0}
 .btn{display:inline-block;background:#2c2e48;color:#fff;padding:.6rem 1rem;border-radius:.6rem;
 text-decoration:none;font-weight:600}textarea{width:100%;box-sizing:border-box;min-height:6rem;
 background:#1d1f33;color:#fff;border:1px solid #3a3c58;border-radius:.6rem;padding:.7rem;font:inherit}
 button{margin-top:.8rem;width:100%;padding:.9rem;border:0;border-radius:.6rem;background:#9d6bff;
-color:#141020;font:700 1.05rem system-ui,sans-serif}.err{color:#ff8a8a}
+color:#fff;font:700 1.05rem system-ui,sans-serif}.btn.pri{background:#9d6bff}.err{color:#ff8a8a}
 .nm{color:#9d6bff}.nm i{color:#fff;font-style:normal}.note{color:#9a9ab0;font-size:.85rem}
 .wide{display:block;text-align:center}
 .res{min-height:72vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
@@ -216,7 +217,7 @@ def expired_page():
 
 def _page(title, body, heading=True):
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" '
-            f'content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
+            f'content="width=device-width,initial-scale=1,viewport-fit=cover"><title>{html.escape(title)}</title>'
             f'<style>{CSS}</style></head><body><main>{f"<h1>{named(title)}</h1>" if heading else ""}{body}</main>'
             f'</body></html>')
 
