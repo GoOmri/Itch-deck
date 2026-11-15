@@ -48,10 +48,32 @@ def stop_child(grace=4.0):
     t.start()
 
 
-def _no_bundle(value):
-    """Drop every PyInstaller unpack dir (/tmp/_MEIxxxx) from a path list. After an in-app
-    update the *_ORIG value can hold the previous copy's dir, so filter both."""
-    keep = [p for p in (value or "").split(":") if p and "/_MEI" not in p]
+def _bundle_dirs():
+    """Where our bundled libs live: the onefile unpack dir (/tmp/_MEIxxxx) or, for the folder
+    build (v0.7.4+), <app>/_internal. Also any app/ or app.old/ folder next to the launcher, so a
+    previous version's folder (left in *_ORIG after an in-app update) is dropped too."""
+    dirs = set()
+    mei = getattr(sys, "_MEIPASS", None)
+    if mei:
+        dirs.add(os.path.realpath(mei))
+    launcher = os.environ.get("SCRITCH_LAUNCHER")
+    if launcher:
+        here = os.path.dirname(os.path.realpath(launcher))
+        dirs.update(os.path.join(here, d) for d in ("app", "app.old", "app.new"))
+    return dirs
+
+
+def _no_bundle(value, dirs=None):
+    """Drop every PyInstaller lib dir from a path list. After an in-app update the *_ORIG value
+    can hold the previous copy's dir, so filter both."""
+    dirs = _bundle_dirs() if dirs is None else dirs
+
+    def ours(p):
+        if "/_MEI" in p:
+            return True
+        rp = os.path.realpath(p)
+        return any(rp == d or rp.startswith(d + os.sep) for d in dirs)
+    keep = [p for p in (value or "").split(":") if p and not ours(p)]
     return ":".join(keep)
 
 

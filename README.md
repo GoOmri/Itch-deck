@@ -106,7 +106,8 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 - **Button symbols:** *Auto* follows the controller you pressed last; or fix it to Steam Deck,
   PlayStation or Xbox.
 - **Update app:** checks GitHub for a new version, downloads it and restarts. The previous
-  version is kept as `itch-deck.old` next to the app, in case you need to go back.
+  version is kept as `itch-deck.old` next to the app, in case you need to go back: rename it
+  back to `itch-deck` in Dolphin.
 
 ## When something goes wrong
 
@@ -131,7 +132,8 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 ## Where things live
 
 ```
-~/Applications/itch-deck/itch-deck      the app
+~/Applications/itch-deck/itch-deck      the file Steam starts (unpacks the app once per version)
+~/Applications/itch-deck/app/           the app itself (app.old/ = the version before)
 ~/.config/itch-deck/config.json         settings + API key
 ~/.local/share/itch-deck/               library cache, covers, game pages, times to beat, umu-launcher
 ~/.local/state/itch-deck/logs/          logs
@@ -154,6 +156,7 @@ python -m pytest -q tests          # unit tests (itch API from fixtures, install
 python run.py --selftest           # headless run through every screen with fake data
 python run.py --windowed           # run it on a desktop (keyboard: arrows, Enter, Esc, x, y, m)
 python run.py --render-mockups out # PNGs of every screen
+sh packaging/build.sh              # release/itch-deck: folder build packed behind a launcher
 ```
 Every push to `main` builds the binary on GitHub Actions (Ubuntu 22.04) and publishes a release
 named after `VERSION` in `itch_deck/app.py`. Read `NOTES.md` (working notes and decisions) and

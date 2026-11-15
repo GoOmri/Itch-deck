@@ -545,11 +545,29 @@ v0.7.4 (branch v074-start-split, NOT released - waits for "push update"):
     setup.exe (copy if another drive) before the silent install; downloads kept until success.
     UNVERIFIED against live itch: whether itch tags the .bin uploads with a platform. Deck test:
     Stranger More -> Install; app.log "installer comes in N more pieces".
-  - Faster start (PLAN sent to Omri, waiting for go): folder build behind a self-unpacking
-    `itch-deck` launcher (same file name + tile path; unpacks to app/, keeps app.old/), strip
-    the folder's lib path from games (child_env), skip audio init, paint backdrop right after
-    set_mode, borderless desktop-size window with a config fallback. Measured here: 0.46 s
-    (onefile) vs 0.15 s (folder) to display open.
+  - Faster start (BUILT, Omri 15 Nov: "faster start and split installers in the same update"):
+    release file = packaging/launcher.sh + tar.gz of the PyInstaller FOLDER build
+    (packaging/pack.sh, packaging/build.sh -> release/itch-deck; CI uses it). Same asset name
+    "itch-deck", same tile path, >5 MB, so v0.7.3's updater takes it. Launcher: app/VERSION !=
+    its version -> unpack to app.new, app -> app.old, app.new -> app (fail = keep the old app,
+    log to logs/launcher.log; no app at all = exit 1); then exec app/itch-deck with
+    SCRITCH_LAUNCHER=<itself>. updater.launcher_path() = that file (replaced on update, restart
+    execs it). runner._bundle_dirs: child_env strips sys._MEIPASS + app/ app.old/ app.new/ lib
+    dirs (selftest asserts no "/_internal" in a game's env). tests/test_launcher.py.
+    In the app: pygame.display/font/joystick init instead of pygame.init() (no audio device;
+    input.py key repeat uses time.monotonic since get_ticks needs pygame.init), cfg loaded before
+    the display, borderless desktop-size window (NOFRAME) instead of FULLSCREEN (no mode switch;
+    config "window": "fullscreen" = old way), backdrop painted + flipped right after set_mode.
+    Measured here (dummy video): 0.46 s onefile vs 0.13 s via launcher to "display open".
+    Disk: ~45 MB file + ~120 MB app/ (+ app.old/ after the next update).
+  - Settings sidebar (design chat's origin/settings-sidebar) merged in (Omri: in v0.7.4, not 0.7.5).
+  Deck checklist v0.7.4: 1 Settings -> App -> Update (from v0.7.3): restarts into v0.7.4 (the
+    first start after an update unpacks once, Steam logo a bit longer). 2 Quit, start from the
+    tile: quicker? how many flickers now? 3 Screen looks right (full size, no border, overlay
+    OK); if not: "window": "fullscreen" in config.json and tell me. 4 Bleed 2 (Linux) + Circa
+    Infinity (Windows) still start. 5 Stranger More: Install -> Play. 6 Settings: ▲▼ / A / B
+    feel right. 7 Holding the D-pad scrolls at the same speed as before.
+    If broken: logs/launcher.log + app.log. Rollback: rename itch-deck.old to itch-deck.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
@@ -607,7 +625,7 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - CI: --add-data itch_deck/assets; renders mockups (crash test) and uploads them as artifact.
 
 ## Decisions
-- pygame-ce, PyInstaller onefile, built on GitHub Actions ubuntu-22.04; tag v* = Release.
+- pygame-ce, PyInstaller folder build behind a self-unpacking launcher (v0.7.4; onefile before), built on GitHub Actions ubuntu-22.04; tag v* = Release.
 - Windows games: umu-launcher + GE-Proton. Prefixes in <install root>/_prefixes/<slug> (saves survive uninstall).
 - Install root default: SD card, changeable in Settings (new installs only).
 - Installers: always silent, store-like (Install -> progress -> Play). Fail = "Couldn't install" + log.
@@ -662,7 +680,7 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   our display is closed (display.quit -> child window up, and child exit -> display reopen).
   Idea to test later: keep our window up until the child has had ~1 s to map, then quit display;
   on return, draw a "Returning…" frame first. Try in M3 with a real game.
-- App start: Steam logo, then 2 flickers before the window. Likely onefile unpack + SDL fullscreen
+- App start (v0.7.4 tries a fix, see above): Steam logo, then 2 flickers before the window. Likely onefile unpack + SDL fullscreen
   mode switch. Ideas: set_mode(desktop size, NOFRAME) instead of FULLSCREEN; --onedir build.
 - Screenshots are centre-cropped to 16:9 (strip + viewer); viewer should letterbox instead. Small.
 

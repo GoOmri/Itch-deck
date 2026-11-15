@@ -22,15 +22,16 @@ jobs:
         run: python -m itch_deck.hltb Celeste "Circa Infinity"
       - name: Refuse to ship secrets
         run: "! git ls-files | grep -iE '(config\\.json|itch_key|\\.key$)'"
-      - run: pyinstaller --onefile --name itch-deck --add-data itch_deck/assets:itch_deck/assets run.py
-      - name: Smoke test
-        run: ./dist/itch-deck --selftest
+      # Folder build packed behind packaging/launcher.sh (v0.7.4: starts faster than --onefile)
+      - run: sh packaging/build.sh
+      - name: Smoke test (through the launcher: unpacks into release/app, then runs)
+        run: ./release/itch-deck --selftest
       - name: Render mockups (draws every page/state; also a crash test)
-        run: ./dist/itch-deck --render-mockups mockups
+        run: ./release/itch-deck --render-mockups mockups
       - uses: actions/upload-artifact@v4
         with: { name: mockups, path: mockups }
       - uses: actions/upload-artifact@v4
-        with: { name: itch-deck, path: dist/itch-deck }
+        with: { name: itch-deck, path: release/itch-deck }
       # Release on every main push, tagged with VERSION from app.py (bump it to publish a new one)
       - id: ver
         run: echo "v=$(grep -oP 'VERSION = "\K[^"]+' itch_deck/app.py)" >> "$GITHUB_OUTPUT"
@@ -49,4 +50,4 @@ jobs:
         with:
           tag_name: v${{ steps.ver.outputs.v }}
           target_commitish: ${{ github.sha }}
-          files: dist/itch-deck
+          files: release/itch-deck

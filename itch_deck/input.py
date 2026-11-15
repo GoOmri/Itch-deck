@@ -1,6 +1,7 @@
 """Turns SDL controller + keyboard events into actions. Any pad works."""
 import logging
 import os
+import time
 
 from . import pads as PADS
 
@@ -13,6 +14,12 @@ log = logging.getLogger("itch-deck")
 REPEAT_MS = (300, 170)  # hold: first delay, then repeat every 170 ms (stick, D-pad, arrows)
 DIRS = (UP, DOWN, LEFT, RIGHT)
 FAST_MS = (300, 85)     # L2/R2 held: page jumps repeat at the old fast speed
+
+
+def _ms():
+    """Milliseconds for key repeat. Not pygame.time.get_ticks: that stays 0 unless pygame.init()
+    ran, and the app skips pygame.init() (it opens the audio device; SCRiTCH has no sound)."""
+    return int(time.monotonic() * 1000)
 
 
 class Input:
@@ -174,23 +181,23 @@ class Input:
                     out.append(self._press(self.btnmap[e.button]))
             elif e.type == pg.CONTROLLERBUTTONUP and self.btnmap.get(e.button) == self.btn_dir:
                 self.btn_dir = None
-        now = pg.time.get_ticks()
+        now = _ms()
         if now >= getattr(self, "next_scan", 0):
             self.next_scan = now + 2000
             self.rescan()
         out += self._stick()
-        if self.page_held and self.pg.time.get_ticks() >= self.page_next:
-            self.page_next = self.pg.time.get_ticks() + FAST_MS[1]
+        if self.page_held and _ms() >= self.page_next:
+            self.page_next = _ms() + FAST_MS[1]
             out.append(self.page_held)
         return out
 
     def _press(self, act):
         """A direction press starts hold-to-repeat (the first step is the press itself)."""
         if act in (L2, R2):
-            self.page_held, self.page_next = act, self.pg.time.get_ticks() + FAST_MS[0]
+            self.page_held, self.page_next = act, _ms() + FAST_MS[0]
         if act in DIRS:
             self.btn_dir = self.stick_dir = act
-            self.stick_next = self.pg.time.get_ticks() + REPEAT_MS[0]
+            self.stick_next = _ms() + REPEAT_MS[0]
         return act
 
     def _stick(self):
@@ -208,7 +215,7 @@ class Input:
                 d = RIGHT if x > 0 else LEFT
             if d:
                 break
-        now = self.pg.time.get_ticks()
+        now = _ms()
         if d is None:
             self.stick_dir = None
             return []

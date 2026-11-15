@@ -36,10 +36,12 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         import pygame
         self.pg = pygame
         self.windowed = windowed
-        pygame.init()
+        pygame.display.init()           # not pygame.init(): no audio device (no sound in SCRiTCH)
+        pygame.font.init()              # and it starts faster
+        pygame.joystick.init()
+        self.cfg = config.load()
         self.inp = Input(pygame)
         self.open_display()
-        self.cfg = config.load()
         key = self.cfg.get("api_key")
         self.lib = Library(ItchStore(key) if key else None)
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
@@ -82,12 +84,20 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         pg.font.init()
         if self.windowed:
             self.screen = pg.display.set_mode((1280, 800))
+        elif (getattr(self, "cfg", None) or {}).get("window") == "fullscreen":
+            self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)   # old way (mode switch)
         else:
-            self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
-        from .ui.widgets import APP_NAME
-        pg.display.set_caption(APP_NAME)
+            # A borderless window the size of the screen: gamescope shows it fullscreen without a
+            # display mode switch (one of the start-up flickers). "window": "fullscreen" in
+            # config.json goes back to the old way.
+            sizes = pg.display.get_desktop_sizes()
+            self.screen = pg.display.set_mode(sizes[0] if sizes else (0, 0), pg.NOFRAME)
+        from .ui import widgets as W
+        pg.display.set_caption(W.APP_NAME)
         pg.mouse.set_visible(False)
         self.t = theme.Theme(pg, self.screen.get_size())
+        self.screen.blit(W.backdrop(self.t), (0, 0))   # first frame = our background, not black
+        pg.display.flip()
         log.info("display open %s driver=%s", self.screen.get_size(), pg.display.get_driver())
 
     # --- navigation ----------------------------------------------------
@@ -500,7 +510,7 @@ def selftest(screenshot=None):
     app.run(max_frames=4, script={1: A})
     out = (paths.LOGS / "games" / f"{slug_of(g)}.log").read_text()
     assert app.kind == "game" and "hello" in out
-    assert "_MEI" not in out, "game inherited PyInstaller's LD_LIBRARY_PATH"
+    assert "_MEI" not in out and "/_internal" not in out, "game inherited our bundled libs"
     if screenshot:
         import pygame
         pygame.init()

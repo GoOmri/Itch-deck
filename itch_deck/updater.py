@@ -1,5 +1,11 @@
 """Self-update from GitHub Releases. Download next to the binary, swap it in (Linux keeps the
-running file open, so renaming is safe), keep itch-deck.old for one rollback, restart via exec."""
+running file open, so renaming is safe), keep itch-deck.old for one rollback, restart via exec.
+
+Since v0.7.4 the release file is the launcher (packaging/launcher.sh + the app folder packed
+behind it): the app runs from ~/Applications/itch-deck/app/, and the file Steam starts is
+~/Applications/itch-deck/itch-deck. Updates replace that file; on restart it unpacks the new
+app/ (keeping app.old/). The asset name and size check are the same as before, so v0.7.3 can
+update itself to it."""
 import logging
 import os
 import re
@@ -14,6 +20,17 @@ LATEST = "https://api.github.com/repos/GoOmri/Itch-deck/releases/latest"
 ASSET = "itch-deck"
 
 
+def launcher_path():
+    """The file Steam starts: the launcher (it says where it is in SCRITCH_LAUNCHER), or the
+    one-file binary itself (v0.7.3 and older). None when running from source."""
+    if not getattr(sys, "frozen", False):
+        return None
+    launcher = os.environ.get("SCRITCH_LAUNCHER")
+    if launcher and os.path.isfile(launcher):
+        return Path(launcher)
+    return Path(sys.executable)
+
+
 def _ver(s):
     return tuple(int(x) for x in re.findall(r"\d+", s or "")[:3]) or (0,)
 
@@ -23,7 +40,7 @@ class Updater:
 
     def __init__(self, version):
         self.version = version
-        self.exe = Path(sys.executable) if getattr(sys, "frozen", False) else None
+        self.exe = launcher_path()
         self.state = "idle" if self.exe else "source"
         self.new_version, self.url, self.frac, self.error = None, None, 0.0, None
 
