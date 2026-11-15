@@ -698,6 +698,14 @@ Earlier: Epic descriptions (Omri 15 Nov): only the catalog's short "description"
   longDescription / shortDescription / technicalDetails / screenshot keyImages + one long sample).
   Next: if many have longDescription -> show it as "About this game" (cheap, no new requests);
   Epic store pages (full text + screenshots) only if the catalog is thin (unofficial, fragile).
+v0.8.0 Deck test (15 Nov): all ✓ except the install-done feedback: no toast, no ✓ pop when Omri
+  waited on the game page (toast skipped on the game's own page; pop needed the library to have
+  drawn the tile busy). Fix on branch done-feedback (NOT released): App._install_events always
+  toasts "done" and calls W.mark_done(gid) so the ✓ pops next time the tile shows. Test in
+  tests/test_library_menu.py.
+OPEN (Omri 15 Nov: "ruminate some other time"): Details shows raw log lines - useless to a casual
+  player. Idea on the table: "Get help" = the plain reason + a QR that opens the full log on the
+  phone (phonelink) to send to whoever helps; no log text on the TV. Not decided.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

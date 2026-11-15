@@ -405,13 +405,21 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
             if sc.overlay and sc.overlay[0] == "confirm" and sc.overlay is not QUIT_DLG and (
                     (st not in ("queued", "downloading") and sc.overlay[1].startswith("Cancel"))):
                 sc.overlay = None                 # the download finished under the dialog
+        self._install_events()
+
+    def _install_events(self):
+        """Toasts for installs that finished in the background (and the tile's ✓ pop)."""
         while self.inst.events:
             kind, gid, msg = self.inst.events.pop(0)
             on_page = self.kind == "game" and self.scene.g["id"] == gid
             if kind == "failed" and not on_page:
                 self.say(msg, error=True)
-            elif kind == "done" and not on_page:
+            elif kind == "done":
+                # always: on the game page too (Omri saw nothing when he waited there), and the
+                # tile's ✓ pops the next time the library shows it, even if it never saw it busy
                 self.say(msg)
+                from .ui import widgets as W
+                W.mark_done(gid)
             elif kind == "error":                 # e.g. Change build failed, old build kept
                 self.say(msg, error=True)
 

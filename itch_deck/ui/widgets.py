@@ -1008,6 +1008,11 @@ def _tile_img(t, game, size, playable):
 _WAS_BUSY = set()       # games seen downloading: their ✓ pops in once when they finish
 
 
+def mark_done(gid):
+    """An install just finished: pop the ✓ the next time its tile is drawn."""
+    _WAS_BUSY.add(gid)
+
+
 def _badges(t, s, game, r, playable):
     pad = t.u
     st = game.get("state")
