@@ -383,6 +383,35 @@ v0.6.3 (Omri: finish M6 and push, 14 Nov): card-back = design-next + design's di
 v0.6.4 (15 Nov, Omri "push update"): only change = design's "Filters v2" (pushed to main 14 Nov
   23:20 at 0.6.3; CI correctly skipped re-releasing v0.6.3). Version bump only.
 
+v0.6.5 (branch v065-launch-split, 15 Nov; NOT merged/released - Omri: "build and don't push"):
+  - Launch: runner.WindowWatch (libX11 via ctypes, XSetErrorHandler no-op) hands over when a NEW
+    viewable >=64 px top-level window appears (max WINDOW_MAX_S=10, no DISPLAY/libX11 -> old
+    OVERLAP_S timer). app_play._hide_window: pygame.Window.from_display_module().hide() instead of
+    display.quit(); _show_window on exit = instant (Deck log showed 0.9 s reopen gap = Steam UI
+    flicker). SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS=1 (main) so mouse mode still reads pads while
+    our window is hidden. config "launch_release": "quit" = old behaviour (fallback if gamescope
+    misbehaves). Tested on Xvfb: handover at the game's window (1.6 s for a 1.5 s-start game),
+    10 s timeout for a windowless child; tests/test_launch.py (skips without Xvfb).
+    Deck check: Linux game + Windows game: no Steam UI between Starting…/game/Returning…; game
+    gets focus + pad; return works; mouse-mode game still moves the pointer. If the game opens
+    BEHIND or input is dead: set "launch_release": "quit" in config.json and tell me.
+  - app.py split into mixins (code unchanged, AST-compared: 45/45 methods identical): app_setup
+    (key import), app_settings, app_game (game page, picker, uninstall, controls), app_play
+    (play/hide/show/splash), app_common (QUIT_DLG, LATER, _gb). app.py 969 -> 486 lines.
+  - Epic research (no code): see "Epic tab" below.
+
+## Epic tab - research 15 Nov (Omri: only if importing the library is easy)
+  legendary (open-source Epic CLI, Python) does it all: list (JSON), install -y, launch
+  --dry-run (gives the command to run ourselves via umu + GE-Proton, like itch Windows games),
+  uninstall. Login is the hard part (browser + copy an authorizationCode) BUT Heroic is already on
+  his Deck: it runs legendary with its config under <heroic config>/legendaryConfig (flatpak:
+  ~/.var/app/com.heroicgameslauncher.hgl/config/heroic/). If he's logged in to Epic in Heroic,
+  scritch can reuse that login: no login screen at all. Plan if wanted: step 1 (1 session) =
+  read-only Epic tab (library + covers via Heroic's legendary login) = the "is importing easy" test;
+  step 2 (1-2 sessions) = install/progress/uninstall/launch through legendary + umu.
+  Limits: anti-cheat/EOS-online games won't work (same as Heroic). Heroic can already add Epic
+  games as Steam tiles, so the tab is mainly "one library".
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so

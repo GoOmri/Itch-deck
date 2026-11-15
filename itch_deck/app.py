@@ -20,7 +20,7 @@ from .app_settings import SettingsMixin
 from .app_setup import SetupMixin
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.6.4"
+VERSION = "0.6.5"
 
 
 def setup_logging():
