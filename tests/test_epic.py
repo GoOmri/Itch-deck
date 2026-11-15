@@ -240,3 +240,17 @@ def test_itch_games_not_duplicated_after_restart(tmp_path, monkeypatch):
         for k in ("queue_covers", "queue_prefetch", "queue_hltb"):
             monkeypatch.setattr(lib, k, lambda: None)
     assert sorted(g["id"] for g in lib.games) == ["5", "epic-Fern"]
+
+
+def test_big_covers_are_shrunk(tmp_path):
+    """Epic sends 2560 px art: saved at most 720 px so scrolling never decodes huge images."""
+    import pygame as pg
+    from pathlib import Path
+    f = Path(tmp_path) / "epic-Fern.jpg"
+    pg.image.save(pg.Surface((2560, 1440)), str(f))
+    out = library.shrink_cover(f)
+    assert out.name == "epic-Fern.small.jpg" and not f.exists()
+    assert max(pg.image.load(str(out)).get_size()) == 720
+    small = Path(tmp_path) / "5.png"
+    pg.image.save(pg.Surface((315, 250)), str(small))
+    assert library.shrink_cover(small) == small                     # itch-sized: untouched

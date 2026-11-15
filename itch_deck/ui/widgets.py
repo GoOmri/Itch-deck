@@ -7,7 +7,24 @@ import pygame as pg
 
 from .. import pads
 
-_cover_cache = {}
+class _LRU(dict):
+    """Drawn-image cache: drops the oldest entries instead of emptying itself (emptying made
+    every cover reload from disk at once while scrolling)."""
+    def __init__(self, cap):
+        super().__init__()
+        self.cap = cap
+
+    def __setitem__(self, k, v):
+        if k in self:
+            super().__delitem__(k)
+        super().__setitem__(k, v)
+        while len(self) > self.cap:
+            super().__delitem__(next(iter(self)))
+
+
+_cover_cache = _LRU(900)
+_src_cache = _LRU(400)        # decoded cover files, already shrunk (no disk read per size)
+SRC_MAX = 720                 # longest side kept in memory: a focused TV tile is ~460 px wide
 LIVE = False   # True in the running app: animate. False for mockups: draw the end state.
 
 
@@ -227,9 +244,7 @@ def _from_file(path, size, contain=False):
     if key in _cover_cache:
         return _cover_cache[key]
     try:
-        img = pg.image.load(path)
-        rgb = pg.Surface(img.get_size(), 0, 32)   # palette GIF/PNG -> 32-bit for smoothscale
-        rgb.blit(img, (0, 0))
+        rgb = _src(path)
         w, h = rgb.get_size()
         k = (min if contain else max)(size[0] / w, size[1] / h)
         big = pg.transform.smoothscale(rgb, (max(1, round(w * k)), max(1, round(h * k))))
@@ -238,10 +253,23 @@ def _from_file(path, size, contain=False):
         out.blit(big, ((size[0] - big.get_width()) // 2, (size[1] - big.get_height()) // 2))
     except Exception:  # noqa: BLE001  - broken download: fall back to placeholder
         out = None
-    if len(_cover_cache) > 600:
-        _cover_cache.clear()
     _cover_cache[key] = out
     return out
+
+
+def _src(path):
+    """A cover file decoded once, as 32-bit, at most SRC_MAX px (Epic's art is 2560 px)."""
+    img = _src_cache.get(path)
+    if img is None:
+        raw = pg.image.load(path)
+        img = pg.Surface(raw.get_size(), 0, 32)    # palette GIF/PNG -> 32-bit for smoothscale
+        img.blit(raw, (0, 0))
+        w, h = img.get_size()
+        if max(w, h) > SRC_MAX:
+            k = SRC_MAX / max(w, h)
+            img = pg.transform.smoothscale(img, (max(1, round(w * k)), max(1, round(h * k))))
+        _src_cache[path] = img
+    return img
 
 
 def cover(t, game, size):
@@ -793,12 +821,11 @@ def tile(t, s, game, rect, focused=False):
     k = anim(("tile", game["id"]), 1.0 if focused else 0.0)
     grow = (t.focus_scale - 1) * k
     r = rect.inflate(rect.w * grow, rect.h * grow) if grow else rect
-    img = rounded(cover(t, game, r.size), t.radius)
-    if not playable:
-        img = img.copy()
-        o = pg.Surface(r.size, pg.SRCALPHA)
-        pg.draw.rect(o, (0, 0, 0, t.dimmed_a), o.get_rect(), border_radius=t.radius)
-        img.blit(o, (0, 0))
+    if 0.001 < k < 0.999:            # growing / shrinking: scale the finished big one (cheap)
+        full = rect.inflate(rect.w * (t.focus_scale - 1), rect.h * (t.focus_scale - 1))
+        img = pg.transform.smoothscale(_tile_img(t, game, full.size, playable), r.size)
+    else:
+        img = _tile_img(t, game, r.size, playable)
     s.blit(img, r.topleft)
     if k > 0.5:
         focus_ring(t, s, r)
@@ -809,6 +836,20 @@ def tile(t, s, game, rect, focused=False):
     if not playable:                  # info tag on the art, like the other tile badges
         tag(t, s, "Browser game" if "html" in game["platforms"] else "Not playable here",
             r.x + t.u, r.bottom - t.u, kind="dark", anchor="bottomleft")
+
+
+def _tile_img(t, game, size, playable):
+    """Rounded (and dimmed when not playable) cover at one size, made once, not every frame."""
+    key = ("tile", game["id"], game.get("cover_file"), size, bool(playable), t.radius)
+    img = _cover_cache.get(key)
+    if img is None:
+        img = rounded(cover(t, game, size), t.radius)
+        if not playable:
+            o = pg.Surface(size, pg.SRCALPHA)
+            pg.draw.rect(o, (0, 0, 0, t.dimmed_a), o.get_rect(), border_radius=t.radius)
+            img.blit(o, (0, 0))
+        _cover_cache[key] = img
+    return img
 
 
 def _badges(t, s, game, r, playable):

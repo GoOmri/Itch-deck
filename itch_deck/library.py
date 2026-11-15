@@ -4,6 +4,7 @@ import datetime as dt
 import itertools
 import json
 import logging
+import os
 import queue
 import threading
 import time
@@ -54,6 +55,40 @@ def _write_json(path, data):
     tmp = paths.tmp_for(path)    # own name per thread/process: a shared hltb.tmp raced
     tmp.write_text(json.dumps(data, ensure_ascii=False))
     tmp.replace(path)
+
+
+COVER_MAX = 720          # px, longest side of a saved cover (Epic sends 2560 px art)
+
+
+def _size(path):
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return 0
+
+
+def shrink_cover(f):
+    """Save big cover art smaller (in a worker thread), so the library never decodes a 2560 px
+    image while scrolling. Returns the file to use (<id>.small.jpg when it was shrunk)."""
+    try:
+        import pygame as pg
+        raw = pg.image.load(str(f))
+        w, h = raw.get_size()
+        if max(w, h) <= COVER_MAX:
+            return f
+        img = pg.Surface((w, h), 0, 32)
+        img.blit(raw, (0, 0))
+        k = COVER_MAX / max(w, h)
+        small = pg.transform.smoothscale(img, (max(1, round(w * k)), max(1, round(h * k))))
+        out = f.with_name(f"{f.name.split('.')[0]}.small.jpg")
+        pg.image.save(small, str(out))
+        if out != f:
+            f.unlink(missing_ok=True)
+        log.info("cover %s: %dx%d -> %dx%d", out.name, w, h, *small.get_size())
+        return out
+    except Exception as e:  # noqa: BLE001  - keep the original
+        log.info("cover %s: not shrunk (%s)", f.name, e)
+        return f
 
 
 class Library:
@@ -217,6 +252,15 @@ class Library:
         for g in self.games:
             if not g.get("cover_file") and g.get("cover_url"):
                 self._put(1, "cover", g["id"])
+        big = [g for g in self.games if g.get("cover_file") and _size(g["cover_file"]) > 400_000]
+        if big and not getattr(self, "_shrinking", False):       # covers saved before v0.7.8
+            self._shrinking = True
+
+            def run():
+                for g in big:
+                    g["cover_file"] = str(shrink_cover(Path(g["cover_file"])))
+                self._shrinking = False
+            threading.Thread(target=run, daemon=True, name="shrink").start()
 
     # --- Epic (read-only, step 1) --------------------------------------------------
     def start_epic_sync(self):
@@ -332,7 +376,7 @@ class Library:
         f = paths.COVERS / f"{g['id']}{ext}"
         paths.COVERS.mkdir(parents=True, exist_ok=True)
         f.write_bytes(net.get(url, timeout=20))
-        g["cover_file"] = str(f)
+        g["cover_file"] = str(shrink_cover(f))
 
     # --- time to beat (HowLongToBeat) ---------------------------------------------
     def _load_hltb(self):

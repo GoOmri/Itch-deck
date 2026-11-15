@@ -285,6 +285,8 @@ class Game(Scene):
             for para in paras:
                 y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=t.text_c) + t.md
             y = W.text(t, s, "From the game's itch.io page", t.m, y, t.f_small, color=t.dim).bottom
+        elif not n and g.get("store") == "epic":
+            pass                                  # no itch page: Epic's text is in the header
         elif not n:
             msg = ("This game's itch.io page no longer exists." if g.get("page_missing") else
                    "Loading details from itch.io…" if g.get("details_loading") or not self.offline
