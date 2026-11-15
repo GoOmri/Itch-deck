@@ -2,25 +2,25 @@
 import argparse
 import logging
 import os
-import shutil
 import sys
 import threading
 import time
 from pathlib import Path
 
-from . import config, mouse, net, paths, proton, runner, theme
-from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1,
-                    TEXT, BKSP, ENTER, PASTE)
+from . import config, paths, runner, theme
+from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1)
 from .installer import Installer, slug_of
-from .library import Library, short_date
+from .library import Library
 from .stores.itch import ItchStore
 from .updater import Updater
+from .app_common import LATER, QUIT_DLG
+from .app_game import GameMixin
+from .app_play import PlayMixin
+from .app_settings import SettingsMixin
+from .app_setup import SetupMixin
 
 log = logging.getLogger("itch-deck")
 VERSION = "0.6.4"
-QUIT_DLG = ("confirm", "Quit SCRiTCH?", "Downloads in progress pause and resume next time.",
-            [("A", "Quit"), ("B", "Cancel")])
-LATER = "Comes in a later update."
 
 
 def setup_logging():
@@ -31,11 +31,7 @@ def setup_logging():
     logging.basicConfig(level=logging.INFO, handlers=[h, logging.StreamHandler()], force=True)
 
 
-def _gb(n):
-    return f"{n / 1e9:.0f} GB" if n >= 10e9 else f"{n / 1e9:.1f} GB"
-
-
-class App:
+class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
     def __init__(self, windowed=False):
         import pygame
         self.pg = pygame
@@ -145,125 +141,6 @@ class App:
                        c.get("library_show", "all"), c.get("library_genre", "any"),
                        c.get("library_session", "any"))
 
-    def settings_values(self):
-        root = config.install_root(self.cfg)
-        free = "?"
-        p = root
-        while not p.exists() and p != p.parent:
-            p = p.parent
-        try:
-            free = _gb(shutil.disk_usage(p).free)
-        except OSError:
-            pass
-        protons = config.proton_versions()
-        want = self.cfg.get("proton")
-        proton_v = (want if want in protons else f"Auto · {protons[0]}") if protons else "Not installed"
-        label = "SD card" if config.on_card(root) else "Internal storage"
-        self._scan_saves()
-        return {
-            "install_label": label + (" (missing)" if config.card_missing(root) else ""),
-            "install_path": str(root), "free": free, "proton": proton_v,
-            "prefix_size": "Checking…", "last_sync": short_date(self.lib.synced_at),
-            "update": self.updater.row_value(),
-            "pointer": self.cfg.get("pointer_speed", "normal").capitalize(),
-        }
-
-    # --- Settings: saves of uninstalled games ---------------------------
-    def _save_roots(self):
-        roots = {str(config.install_root(self.cfg))}
-        roots |= {str(Path(i["dir"]).parent) for i in self.inst.index.values() if i.get("dir")}
-        return roots
-
-    def _scan_saves(self):
-        """Size of leftover prefixes, in the background (thousands of files per prefix)."""
-        self.saves = None
-        installed = {Path(i["dir"]).name for i in self.inst.index.values() if i.get("dir")}
-        roots = self._save_roots()
-
-        def work():
-            dirs = proton.leftover_prefixes(roots, installed)
-            self.saves = (dirs, sum(proton.dir_size(d) for d in dirs))
-        threading.Thread(target=work, daemon=True).start()
-
-    def _saves_label(self):
-        if self.saves is None:
-            return "Checking…"
-        dirs, size = self.saves
-        return f"{len(dirs)} game{'s' * (len(dirs) != 1)} · {_gb(size)}" if dirs else "None"
-
-    def _delete_saves(self):
-        dirs = self.saves[0] if self.saves else []
-        if not dirs:
-            self.say("No saves of uninstalled games to delete.")
-            return
-
-        def go():
-            def work():
-                for d in dirs:
-                    log.info("settings: deleting prefix %s", d)
-                    shutil.rmtree(d, ignore_errors=True)
-                self._scan_saves()
-            threading.Thread(target=work, daemon=True).start()
-            self.say(f"Deleted the saves of {len(dirs)} uninstalled game{'s' * (len(dirs) != 1)}.")
-        self.confirm("Delete saves?", f"Saved games and settings of {len(dirs)} uninstalled "
-                     f"game{'s' * (len(dirs) != 1)} are deleted for good. Installed games keep "
-                     "theirs.", "Delete", go)
-
-    # --- API key -------------------------------------------------------
-    def try_import(self, auto=False):
-        f = paths.KEY_FILE
-        if not f.exists():
-            if not auto:
-                self.say("No itch_key.txt in Downloads yet.", error=True)
-            return
-        self.tried_mtime = f.stat().st_mtime
-        txt = f.read_text(errors="replace").strip()
-        key = txt.split()[0] if txt else ""
-        if not key:
-            if not auto:
-                self.say("itch_key.txt is empty.", error=True)
-            return
-        self.check_key(key, f)
-
-    def check_key(self, key, file=None):
-        self.scene.status, self.scene.typing = "testing", False
-        self.inp.set_text_mode(False)
-
-        def work():
-            try:
-                user = ItchStore(key).check_key()
-                self.key_result = ("ok", key, file, user)
-            except net.AuthError:
-                self.key_result = ("rejected", key, file, None)
-            except net.Offline as e:
-                log.info("key check offline: %s", e)
-                self.key_result = ("offline", key, file, None)
-            except Exception:  # noqa: BLE001
-                log.exception("key check failed")
-                self.key_result = ("offline", key, file, None)
-        threading.Thread(target=work, daemon=True, name="keycheck").start()
-
-    def _key_done(self):
-        status, key, file, user = self.key_result
-        self.key_result = None
-        log.info("key check: %s", status)
-        if status != "ok":
-            self.pending_key = key if status == "offline" else None
-            self.scene.status = status
-            return
-        self.cfg["api_key"] = key
-        config.save(self.cfg)
-        if file:
-            try:
-                file.unlink()
-            except OSError:
-                log.warning("could not delete %s", file)
-        self.pending_key = None
-        self.lib.store, self.lib.auth_failed = ItchStore(key), False
-        self.go_library()
-        self.lib.start_sync()
-        self.say(f"Connected to itch.io as {user}.")
-
     # --- per-scene input -----------------------------------------------
     def handle(self, act):
         sc = self.scene
@@ -281,54 +158,6 @@ class App:
                 sc.overlay, sc.confirm_focus = None, 0
             return
         getattr(self, f"_h_{self.kind}")(act)
-
-    def _h_setup(self, act):
-        sc = self.scene
-        if sc.status == "testing":
-            return
-        if sc.typing:
-            kind, val = act if isinstance(act, tuple) else (act, None)
-            if kind == TEXT:
-                sc.typed = (sc.typed + val.strip())[:128]
-            elif kind == BKSP:
-                sc.typed = sc.typed[:-1]
-            elif kind == PASTE:
-                sc.typed = (sc.typed + self._clipboard())[:128]
-            elif kind in (ENTER, A) and sc.typed:
-                self.check_key(sc.typed)
-            elif kind == B:
-                sc.typing = False
-                self.inp.set_text_mode(False)
-            return
-        if isinstance(act, tuple):
-            return
-        if act == A:
-            label = sc.buttons()[sc.focus]
-            if label == "Type key":
-                sc.typing, sc.typed = True, ""
-                self.inp.set_text_mode(True)
-            elif label == "Retry" and self.pending_key:
-                self.check_key(self.pending_key, paths.KEY_FILE if paths.KEY_FILE.exists() else None)
-            else:
-                self.try_import()
-        elif act == B:
-            if sc.back:                    # came from Settings: the old key still works
-                prev = getattr(self, "settings_back", "library")
-                self.go_settings()
-                self.settings_back = prev  # Settings' own B still returns where it came from
-            else:                          # first run / rejected key: nothing to go back to
-                sc.overlay = QUIT_DLG
-        else:
-            sc.handle(act)
-
-    def _clipboard(self):
-        try:
-            sc = self.pg.scrap
-            if not sc.get_init():
-                sc.init()
-            return (sc.get_text() or "").strip()
-        except Exception:  # noqa: BLE001
-            return ""
 
     def _h_library(self, act):
         sc = self.scene
@@ -364,284 +193,6 @@ class App:
             if sc.shown:
                 self.lib_focus_id = sc.shown[sc.focus]["id"]
 
-    def _h_game(self, act):
-        sc = self.scene
-        if sc.overlay and sc.overlay[0] == "picker" and act == A:
-            self._pick(sc)
-            return
-        if sc.overlay and sc.overlay[0] == "menu" and act == A:      # ☰ Options
-            label = sc.overlay[3][sc.overlay[4]][0]
-            sc.overlay = None
-            self.game_action(sc.g, label)
-            return
-        if sc.overlay:                    # screenshot viewer / build picker
-            sc.handle(act)
-            return
-        if act == B:
-            self.go_library()
-        elif act in (L1, R1):
-            shown = self._shown()
-            if sc.g in shown and len(shown) > 1:
-                i = (shown.index(sc.g) + (1 if act == R1 else -1)) % len(shown)
-                self.go_game(shown[i])
-        elif act == START:                # ☰ on a game = its Options (Steam Deck); Settings: Library
-            sc.open_options()
-        elif act == A and sc.section == "actions":
-            acts = sc.actions()
-            label = acts[min(sc.focus, len(acts) - 1)] if acts else None
-            if label and label[0] == "Options":        # the ⚙ button
-                sc.open_options()
-            elif label and label[2]:
-                self.game_action(sc.g, label[0])
-        elif not isinstance(act, tuple):
-            sc.handle(act)
-
-    # --- install / play ------------------------------------------------
-    def confirm(self, title, body, yes, fn):
-        self.on_confirm = fn
-        self.scene.overlay = ("confirm", title, body, [("A", yes), ("B", "Cancel")])
-
-    def game_action(self, g, label):
-        gid = g["id"]
-        if label in ("Install", "Retry install"):
-            if self.inst.enqueue(g):
-                if self.inst.current and self.inst.current != gid:
-                    self.say("Queued. It starts after the current download.")
-        elif label == "Cancel":
-            self.confirm("Cancel the install?", f"{g['title']} stops downloading and the partial "
-                         "download is deleted.", "Cancel install", lambda: self.inst.cancel(gid))
-        elif label == "Uninstall":
-            self.confirm(f"Uninstall {g['title']}?", "The game's files are deleted. You can "
-                         "install it again any time.", "Uninstall", lambda: self._uninstall(g))
-        elif label == "Play":
-            self.play(g)
-        elif label == "Change build":
-            self.change_build(g)
-        elif label.startswith("Controls"):
-            self.cycle_controls(g)
-        else:
-            self.say(LATER)
-
-    # --- Change build (picker) ------------------------------------------
-    def change_build(self, g):
-        if self.lib.offline or not self.lib.store:
-            if len(self.inst.programs(g["id"])) > 1:   # the program list works offline
-                self._program_picker(g["id"])
-                return
-            self.say("Changing the build needs internet.", error=True)
-            return
-        gid, self.picker = g["id"], None
-        self.scene.overlay = ("picker", "Choose a build", "Loading builds…", [], 0)
-
-        def work():
-            try:
-                builds = self.lib.store.list_builds(g)
-            except Exception as e:  # noqa: BLE001
-                log.info("change build %s: %s", gid, e)
-                builds = None
-            self.picker = (gid, builds)
-        threading.Thread(target=work, daemon=True, name="builds").start()
-
-    def _picker_ready(self, sc):
-        """Fill the open picker once the upload list is in: recommended first, then the rest."""
-        from .stores.itch import pick_build
-        gid, builds = self.picker
-        self.picker = (gid, builds, True, 0)
-        if builds is None:
-            if len(self.inst.programs(gid)) > 1:
-                self._program_picker(gid)
-                return
-            sc.overlay = None
-            self.say("Couldn't load the builds. Try again when you're online.", error=True)
-            return
-        lin, lin_o = pick_build(builds, "linux")
-        win, win_o = pick_build(builds, "windows")
-        order = [b for b in [lin] + lin_o + [win] + win_o if b]
-        order = [b for i, b in enumerate(order) if b not in order[:i]]
-        if not order:
-            if len(self.inst.programs(gid)) > 1:
-                self._program_picker(gid)
-                return
-            sc.overlay = None
-            self.say("This game has no other Linux or Windows builds.")
-            return
-        cur = (self.inst.index.get(gid) or {}).get("upload_id")
-        items, progs = [], self.inst.programs(gid)
-        if len(progs) > 1:                 # first row: which file starts the game
-            items.append(("Program to run", Path(progs[0]).name,
-                          f"{len(progs)} programs found · A to choose"))
-        extra = len(items)
-        for b in order:
-            kind = "Linux" if b["linux"] else "Windows"
-            sub = f"{kind} · {b['size'] // 1_000_000} MB" + (f" · {b['updated'][:10]}" if b["updated"] else "")
-            if b["demo"]:
-                sub += " · demo"
-            val = "Installed" if b["id"] == cur else ("Recommended" if b is order[0] else "")
-            items.append((b["filename"], val, sub))
-        self.picker = (gid, order, True, extra)
-        sub = "A installs it. Saves of Windows builds are kept separately." if cur else \
-            "A installs it. Linux builds are recommended when there is one."
-        sc.overlay = ("picker", "Choose a build", sub, items, 0)
-
-    def _pick(self, sc):
-        if not self.picker or len(self.picker) < 3 or not sc.overlay[3]:
-            return
-        gid, order, _, extra = self.picker
-        i = sc.overlay[4] - extra
-        if order == "exe":                 # program picker
-            sc.overlay, self.picker = None, None
-            if self.inst.set_exe(gid, self._progs[i]):
-                self.say(f"{Path(self._progs[i]).name} starts the game from now on.")
-            return
-        if i < 0:
-            self._program_picker(gid)
-            return
-        b = order[i]
-        sc.overlay, self.picker = None, None
-        if (self.inst.index.get(gid) or {}).get("upload_id") == b["id"]:
-            self.say("That build is already installed.")
-            return
-        g = self.lib.by_id(gid) or sc.g
-        self.inst.enqueue(g, upload_id=b["id"])
-        sc.focus = 0
-        self.say(f"Installing {b['filename']}…")
-
-    def _program_picker(self, gid):
-        """O1 as a program list: every runnable file found in the install, current one tagged."""
-        self._progs = self.inst.programs(gid)
-        items = [(Path(p).name, "In use" if i == 0 else "", str(Path(p).parent)
-                  if str(Path(p).parent) != "." else "Top folder") for i, p in enumerate(self._progs)]
-        self.picker = (gid, "exe", True, 0)
-        self.scene.overlay = ("picker", "Choose the program", "Pick the file that starts the game. "
-                              "Helpers like crash reporters are left out.", items, 0)
-
-    def _uninstall(self, g):
-        if not self.inst.uninstall(g["id"]):
-            self.say("The SD card is missing, so the game can't be uninstalled now.", error=True)
-            return
-        self.scene.focus = 0
-        self.say(f"{g['title']} was uninstalled.")
-
-    # --- controls (mouse mode) ---------------------------------------------------
-    CONTROLS = ("auto", "gamepad", "mouse")
-
-    def controls_of(self, g):
-        """(setting, effective): setting auto|gamepad|mouse; auto follows itch's Inputs."""
-        setting = (self.cfg.get("controls") or {}).get(g["id"], "auto")
-        eff = mouse.auto_mode(g.get("inputs")) if setting == "auto" else setting
-        return setting, eff
-
-    def controls_label(self, g):
-        setting, eff = self.controls_of(g)
-        name = {"gamepad": "Pad", "mouse": "Mouse"}[eff]
-        return f"{name} controls" + (" · auto" if setting == "auto" else "")
-
-    def cycle_controls(self, g):
-        setting, _ = self.controls_of(g)
-        nxt = self.CONTROLS[(self.CONTROLS.index(setting) + 1) % 3]
-        ctl = dict(self.cfg.get("controls") or {})
-        if nxt == "auto":
-            ctl.pop(g["id"], None)
-        else:
-            ctl[g["id"]] = nxt
-        self.cfg["controls"] = ctl
-        config.save(self.cfg)
-        _, eff = self.controls_of(g)
-        log.info("controls %s: %s (%s)", g["id"], nxt, eff)
-        self.say({"mouse": "Right stick moves the mouse, R2 clicks while this game runs.",
-                  "gamepad": "The game gets the controller as a gamepad."}[eff] +
-                 (" (Auto: from the game's itch page)" if nxt == "auto" else ""))
-
-    def play(self, g):
-        exe = self.inst.exe_path(g["id"])
-        if not exe or not exe.exists():
-            self.say("The game's files are missing. Uninstall and install it again.", error=True)
-            return
-        info = self.inst.index[g["id"]]
-        self.lib.mark_played(g)             # Recent tab
-        umu = env = hold = None
-        sub = None
-        if info.get("platform") == "windows":
-            umu, pdir = proton.umu_path(), proton.proton_dir(self.cfg)
-            if not pdir:
-                self.say(proton.NEED_GE,
-                         error=True)
-                return
-            if not umu:
-                self.say("umu-launcher is missing. Uninstall and install the game again.",
-                         error=True)
-                return
-            prefix = info.get("prefix") or proton.prefix_dir(Path(info["dir"]).parent,
-                                                              Path(info["dir"]).name)
-            env = proton.env(pdir, prefix)
-            if proton.first_run(prefix):
-                sub = "Preparing Proton… first run only, about 30 s"
-                hold = lambda: proton.first_run(prefix)   # noqa: E731
-            log.info("play: %s via %s, prefix %s", g["id"], pdir.name, prefix)
-        pg = self.pg
-        self.scene.toast, self.toast_until = None, 0
-        self._splash(f"Starting {g['title']}…", sub)
-        state = {"closed": False}
-        mm = None
-        if self.controls_of(g)[1] == "mouse":
-            mm = mouse.MouseMode(pg, self.inp.pads, self.cfg.get("pointer_speed", "normal"))
-
-        def release():                       # the game's window is up: step aside
-            if not state["closed"]:
-                state["closed"] = True
-                state["hidden"] = self._hide_window()
-                if not state["hidden"]:
-                    pg.display.quit()
-                if mm:                       # our window is out of the way: the mapper owns SDL
-                    mm.start()
-
-        rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump,
-                              size=self.screen.get_size(), umu=umu, extra_env=env, hold=hold)
-        if mm:
-            mm.stop()
-        if state.get("hidden"):
-            self._show_window()              # instant: no display re-init, so no Steam UI gap
-            self._splash("Returning…")
-        elif state["closed"]:
-            self.open_display()
-            self._splash("Returning…")
-        self.inp.flush()
-        self.go_game(self.lib.by_id(g["id"]) or g)
-        if mm and mm.error and not runner.crashed(rc, secs):
-            self.say(f"Mouse mode didn't start ({mm.error}). The game ran without it.", error=True)
-        if runner.crashed(rc, secs):
-            hint = runner.crash_hint(slug_of(g))
-            log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
-            self.say(hint or f"{g['title']} closed right after starting. Details are in its log.",
-                     error=True)
-
-    def _hide_window(self):
-        """Hide our window while a game runs instead of closing the display: showing it again is
-        instant, while reopening the display took ~0.9 s under gamescope (Steam's UI showed
-        through). config "launch_release": "quit" goes back to closing the display."""
-        if self.cfg.get("launch_release") == "quit":
-            return False
-        try:
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")     # pygame-ce: from_display_module is deprecated
-                self._win = self.pg.Window.from_display_module()
-            self._win.hide()
-            log.info("play: window hidden")
-            return True
-        except Exception as e:  # noqa: BLE001  - old pygame / driver without windows
-            log.info("play: can't hide the window (%s), closing the display", e)
-            return False
-
-    def _show_window(self):
-        self._win.show()
-        try:
-            self._win.focus()
-        except Exception:  # noqa: BLE001
-            pass
-        self.screen = self.pg.display.get_surface()
-        log.info("play: window shown")
-
     def _transition(self):
         """Page switch: the new page slides in (from the right going deeper, from the left going
         back) on the spring curve while the old frame fades out over it (theme.page_ms)."""
@@ -662,79 +213,6 @@ class App:
         self.screen.blit(buf, (off, 0))
         self.fade_from.set_alpha(int(255 * max(0.0, 1 - k * 1.6)))   # old page gone by ~60%
         self.screen.blit(self.fade_from, (int(-e * t.u * t.page_slide_u * 0.5 * self.fade_dir), 0))
-
-    def _splash(self, msg, sub=None):
-        """One plain frame while the screen changes hands (less of Steam's UI flickers through)."""
-        from .ui import widgets as W
-        t = self.t
-        self.screen.blit(W.backdrop(t), (0, 0))
-        W.text(t, self.screen, msg, t.cx, t.h / 2, t.f_h2, anchor="center")
-        if sub:
-            W.text(t, self.screen, sub, t.cx, t.h / 2 + t.u * 6, t.f_body, color=t.dim,
-                   anchor="center")
-        self.pg.display.flip()
-
-    def _h_settings(self, act):
-        sc = self.scene
-        if act in (B, START):
-            back = getattr(self, "settings_back", "library")
-            if back == "game" and self.lib.by_id(self.lib_focus_id):
-                self.go_game(self.lib.by_id(self.lib_focus_id))
-            else:
-                self.go_library()
-        elif act == A:
-            label = sc.items()[sc.focus][0]
-            if label == "Refresh library":
-                self.say("Refreshing library…" if self.lib.start_sync() else "Already refreshing…")
-            elif label == "Update app":
-                u = self.updater
-                if u.state == "available":
-                    u.download()
-                elif u.state == "ready":
-                    u.restart(self.pg)
-                elif u.state == "source":
-                    self.say("Updates only work in the released app.")
-                elif not u.busy():
-                    u.check()
-            elif label == "Install location":
-                opts = config.install_choices()
-                cur = str(config.install_root(self.cfg))
-                i = next((k for k, (_, p) in enumerate(opts) if str(p) == cur), -1)
-                if len(opts) == 1 and i == 0:
-                    self.say("No SD card found. Games install to internal storage.")
-                else:
-                    name, path = opts[(i + 1) % len(opts)]
-                    self.cfg["install_root"] = str(path)
-                    config.save(self.cfg)
-                    self._card_out = config.card_missing(path)
-                    sc.v.update(self.settings_values())
-                    self.say(f"New games install to {name.lower()}. Installed games stay where they are."
-                             if name != "SD card" else "New games install to the SD card. "
-                             "Installed games stay where they are.")
-            elif label == "Proton version":
-                names = config.proton_versions()
-                if not names:
-                    self.say(proton.NEED_GE, error=True)
-                else:
-                    opts = [None] + names               # None = Auto (newest)
-                    cur = self.cfg.get("proton")
-                    i = opts.index(cur) if cur in opts else 0
-                    self.cfg["proton"] = opts[(i + 1) % len(opts)]
-                    config.save(self.cfg)
-                    sc.v.update(self.settings_values())
-            elif label == "Saves of uninstalled games":
-                self._delete_saves()
-            elif label == "Pointer speed":
-                order = ("slow", "normal", "fast")
-                cur = self.cfg.get("pointer_speed", "normal")
-                self.cfg["pointer_speed"] = order[(order.index(cur) + 1) % 3] if cur in order else "normal"
-                config.save(self.cfg)
-                sc.v["pointer"] = self.cfg["pointer_speed"].capitalize()
-            elif label == "Re-import API key":
-                self.go_setup("waiting", back=True)
-                self.try_import(auto=True)
-        elif not isinstance(act, tuple):
-            sc.handle(act)
 
     # --- per-frame state -----------------------------------------------
     def _sync_library_scene(self):
@@ -874,7 +352,6 @@ class App:
                 break
         self.pg.quit()
 
-
 def selftest(screenshot=None):
     """Headless: walk Setup -> Library (fake games) -> Game -> Settings without network."""
     import tempfile
@@ -949,7 +426,6 @@ def selftest(screenshot=None):
         pygame.image.save(app.screen, screenshot)
         pygame.quit()
 
-
 def main(argv=None):
     p = argparse.ArgumentParser(prog="itch-deck")
     p.add_argument("--windowed", action="store_true", help="1280x800 window (Desktop Mode)")
@@ -978,9 +454,7 @@ def main(argv=None):
     logging.shutdown()
     os._exit(0)          # don't wait on background threads (downloads resume next launch)
 
-
 _APP = [None]
-
 
 def exit_on_signals():
     """Steam's "Exit game" sends SIGTERM. Handle it ourselves (installed before pygame.init, so
