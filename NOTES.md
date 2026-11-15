@@ -671,7 +671,14 @@ v0.7.7 Deck test (15 Nov): all ✓. Omri: R2 fast scroll choppy, app sluggish; E
   "About" message. Bench (/tmp, 130 games, a row every 3 frames, this server ~3-4x a Deck): 2560 px
   covers p95 58 ms / 26 frames > 33 ms -> 720 px covers p95 ~11 ms / 0-1; background shrink
   doesn't stall drawing (pygame releases the GIL).
-Epic descriptions (Omri 15 Nov): only the catalog's short "description" shows (game page header).
+Epic game pages (v0.7.9, Omri: "yes" to Epic text + Steam; IGDB rejected: needs a Twitch secret
+  key per app/user): library._fetch_epic_page = Epic catalog longDescription (game_from_json
+  "long_text", markdown/HTML -> steam.html_paras) first; stores/steam.py storesearch (no key) with
+  EXACT normalised title match (case, ™®©, punctuation, & = and) -> appdetails: screenshots (max
+  MAX_SHOTS, saved like itch shots), genre (filters), and the text when Epic has none. Saved as
+  the page json with "source" Epic/Steam (g["details_from"]); footer "From Epic Games ·
+  screenshots from Steam" / "From Steam". No match = nothing. Epic games are prefetched like itch.
+Earlier: Epic descriptions (Omri 15 Nov): only the catalog's short "description" shows (game page header).
   v0.7.8 logs "epic text fields: {...}" after each Epic sync (counts of description /
   longDescription / shortDescription / technicalDetails / screenshot keyImages + one long sample).
   Next: if many have longDescription -> show it as "About this game" (cheap, no new requests);
@@ -831,6 +838,7 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - "Use a new itch key" removed (Omri): sign out + sign in covers a revoked key and a different
   account, and itch now reads like Epic (one row). Rejected-key error: "Sign in to itch again".
 - A–Z strip slides in from the right while moving, out 1.5 s after the last move (`ABC_HOLD_S`).
+- Sort & filter: "Clear filters" row label is purple (`W.ACTION_ROW`), white when lit (Omri: text, not a button).
 
 ## Genre fix (15 Nov)
 - Genres were empty in v0.7.8: genre/inputs lived only in the saved page and were read back
