@@ -717,7 +717,7 @@ ROADMAP (Omri 15 Nov 20:23, after v0.8.1; page: https://claude.ai/artifact/Hkk8S
   Decided against: auto Steam tiles, IGDB (secret key), reading Epic from Heroic.
   Needs a Deck test, not code: itch update detection, split installer (Stranger More), Epic long
   descriptions count ("epic text fields" log line), Epic game updates.
-v0.8.2 = ROADMAP 1, folder rename (branch rename-scritch, NOT released; Omri "go" 15 Nov 20:37):
+v0.8.2 RELEASED 15 Nov (Omri "push"; branch rename-scritch) = ROADMAP 1, folder rename:
   - paths: NAME "scritch", OLD_NAME "itch-deck". paths.migrate() runs first thing in main (before
     logging/config/lock): per XDG base (config / data / state) old real dir + no new -> os.rename
     (same disk: no copy, no space, instant) + relative symlink itch-deck -> scritch, so a rollback
