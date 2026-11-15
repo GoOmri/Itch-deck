@@ -178,9 +178,9 @@ padding:.9rem 1.6rem;border:0;border-radius:.6rem;text-decoration:none;text-alig
 font:700 1.05rem system-ui,sans-serif;cursor:pointer}textarea{width:100%;box-sizing:border-box;min-height:6rem;
 background:#1d1f33;color:#fff;border:1px solid #3a3c58;border-radius:.6rem;padding:.7rem;font:inherit}
 button,.btn.pri{background:#6846b8}button:active,.btn.pri:active{background:#9d6bff}
-form button{margin-top:.8rem}
-/* ONE button style (DESIGN rule 5b): white text; main = deep purple, bright while pressed
-   (same as the app: deep at rest, bright when focused); sized to its text, min width */.err{color:#ff8a8a}
+form button{display:block;width:100%;margin-top:.8rem}button:disabled{background:#2c2e48;color:#9a9ab0;cursor:default}
+/* ONE button style (DESIGN, Buttons): white text; main = deep purple, bright while pressed
+   (same as the app); as wide as the block it belongs to; grey until it can do something */.err{color:#ff8a8a}
 .nm{color:#9d6bff}.nm i{color:#fff;font-style:normal}.note{color:#9a9ab0;font-size:.85rem}
 .wide{display:block;text-align:center}
 .res{min-height:calc(100vh - 6rem);display:flex;flex-direction:column;justify-content:center;
@@ -189,8 +189,13 @@ align-items:center;text-align:center}.res[hidden]{display:none}
 margin-bottom:1.4rem}.ico svg{width:3.2rem;height:3.2rem}
 .ico.ok{background:rgba(95,211,138,.16);color:#5fd38a}.ico.bad{background:rgba(255,138,138,.16);color:#ff8a8a}
 .ico.old{background:#1d1f33;color:#9a9ab0}
-.spin{width:4.6rem;height:4.6rem;border:.45rem solid #2c2e48;border-top-color:#9d6bff;border-radius:50%;
-animation:r .9s linear infinite;margin:1rem 0 2.3rem}@keyframes r{to{transform:rotate(360deg)}}
+.spin{width:4.6rem;height:4.6rem;margin:1rem 0 2.3rem;animation:r 4.5s linear infinite}
+.spin circle{fill:none;stroke-width:4.4}.spin .tr{stroke:#2c2e48}
+.spin .hd{stroke:#9d6bff;stroke-dasharray:6 200;animation:c 1.4s cubic-bezier(.65,0,.35,1) infinite}
+@keyframes r{to{transform:rotate(360deg)}}
+@keyframes c{0%{stroke-dasharray:6 200;stroke-dashoffset:0}50%{stroke-dasharray:96 200;stroke-dashoffset:-6}
+100%{stroke-dasharray:6 200;stroke-dashoffset:-96}}
+/* busy = chasing edges: the front races ahead, the back catches up (same as the app) */
 .res h2{font-size:1.75rem;line-height:1.2;margin:0 0 .5rem}.res p{color:#9a9ab0;margin:0 0 1.8rem;max-width:20rem}
 .res .btn,.res button{margin:0}"""
 
@@ -209,7 +214,8 @@ def result(kind, head, line, action=""):
     bad (red ✗) | old (grey ↻)."""
     svg = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '
            'stroke-linecap="round" stroke-linejoin="round">{}</svg>')    # drawn, exactly centred
-    icon = {"wait": '<div class="spin"></div>',
+    icon = {"wait": '<svg class="spin" viewBox="0 0 50 50"><circle class="tr" cx="25" cy="25" r="20"/>'
+                    '<circle class="hd" cx="25" cy="25" r="20" transform="rotate(-90 25 25)"/></svg>',
             "ok": f'<div class="ico ok">{svg.format("<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>")}</div>',
             "bad": f'<div class="ico bad">{svg.format("<path d=\"M7 7l10 10M17 7L7 17\"/>")}</div>',
             "old": f'<div class="ico old">{svg.format("<path d=\"M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5\"/>")}</div>'}
@@ -229,7 +235,7 @@ def _page(title, body, heading=True):
             f'</body></html>')
 
 
-def form_page(purpose, token, error=""):
+def form_page(purpose, token, error="", text=""):
     p = PAGES[purpose]
     steps = "".join(f"<li>{s}{f'<br><small>{html.escape(n)}</small>' if n else ''}</li>"
                     for s, n in p["steps"])
@@ -237,7 +243,9 @@ def form_page(purpose, token, error=""):
     return _page(p["title"], f"""<ol>{steps}</ol>{err}
 <form method="post" action="/send"><input type="hidden" name="t" value="{html.escape(token)}">
 <textarea name="text" placeholder="{html.escape(p['field'])}" autocomplete="off"
-autocapitalize="off" spellcheck="false"></textarea><button>Send to your Deck</button></form>
+autocapitalize="off" spellcheck="false">{html.escape(text)}</textarea><button>Send to your Deck</button></form>
+<script>{{const x=document.querySelector('textarea'),b=document.querySelector('form button'),
+u=()=>b.disabled=!x.value.trim();x.addEventListener('input',u);u()}}</script>
 <p class="note">Only use this on your home Wi-Fi. The key goes straight to your Deck and is stored
 only there.</p>""")
 

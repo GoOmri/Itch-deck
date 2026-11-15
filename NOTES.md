@@ -573,3 +573,12 @@ v0.7.1 (branch v071-fixes, NOT released):
 - App start: Steam logo, then 2 flickers before the window. Likely onefile unpack + SDL fullscreen
   mode switch. Ideas: set_mode(desktop size, NOFRAME) instead of FULLSCREEN; --onedir build.
 - Screenshots are centre-cropped to 16:9 (strip + viewer); viewer should letterbox instead. Small.
+
+## Phone Send + chasing spinner + principles (15 Nov)
+- Phone form: Send is full width of the form, grey (disabled) until something is pasted, then
+  purple (small inline script; server still answers "Nothing was pasted." without JS).
+- Busy spinners chase: `W.chase()` (front edge races ahead, back edge catches up, slow turn,
+  `CHASE_S` 1.4 s) drives `W.spinner` and `W.ring(busy=True)`; phone `.spin` is the same
+  motion as an SVG dash animation. Mockups draw one still pose.
+- DESIGN.md rewritten as 10 principles, each with its reason. Rules unchanged except buttons:
+  "a button is as wide as the block it belongs to".

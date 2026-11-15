@@ -584,26 +584,38 @@ def frame_tick():
     return int(time.monotonic() * 60) if LIVE else 0
 
 
-def _turn():
+CHASE_S = 1.4          # one grow + shrink of the busy arc
+
+
+def chase(phase=0.0):
+    """Busy arc as (start, sweep) in turns: the front edge races ahead, then the back edge
+    catches up, while the whole thing turns slowly. Same motion as the phone page spinner."""
+    if not LIVE:
+        return phase % 1, 0.6                    # mockups: one calm still pose
     import time
-    return time.monotonic() * 1.2 if LIVE else 0.0
+    lo, hi = 0.06, 0.78
+    d = hi - lo
+    x = time.monotonic() / CHASE_S + phase
+    n, k = int(x), x - int(x)
+    io = lambda u: 4 * u ** 3 if u < 0.5 else 1 - (-2 * u + 2) ** 3 / 2
+    head = n * d + d * io(min(1.0, k * 2)) + lo
+    tail = n * d + d * io(max(0.0, k * 2 - 1))
+    spin = time.monotonic() * 0.22
+    return (tail + spin) % 1, head - tail
 
 
 def ring(t, s, center, r, frac, width=None, busy=False):
-    """Download progress ring. busy=True (unpacking / waiting): a spinning arc instead."""
+    """Download progress ring. busy=True (unpacking / waiting): the chasing arc instead."""
     width = width or max(3, r // 4)
-    if busy:                                     # lively: spins + the arc breathes long/short
-        tt = _turn() * 1.5
-        start, sweep = tt % 1, 0.18 + 0.42 * (0.5 - 0.5 * math.cos(tt * 2.4))
-    else:
-        start, sweep = 0, max(0.0, min(1.0, frac))
+    start, sweep = chase() if busy else (0, max(0.0, min(1.0, frac)))
     img = _arc(r, width, start, sweep, t.accent, (255, 255, 255, 60), disc=(0, 0, 0, t.chip_a))
     s.blit(img, img.get_rect(center=center))
 
 
 def spinner(t, s, center, r, phase=0.0, width=None):
     width = width or max(3, r // 5)
-    img = _arc(r, width, (phase + _turn()) % 1, 0.75, t.accent, t.panel_hi)
+    start, sweep = chase(phase)
+    img = _arc(r, width, start, sweep, t.accent, t.panel_hi)
     s.blit(img, img.get_rect(center=center))
 
 

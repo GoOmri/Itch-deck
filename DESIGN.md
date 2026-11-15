@@ -1,137 +1,128 @@
-# scritch — design rules
+# SCRiTCH — design principles
 
 One graphic language, Steam Deck native, readable from the couch. Every value lives in
-`theme.py`; every shape comes from `ui/widgets.py`. If a screen needs something new, add it
-there first, then use it.
+`theme.py`; every shape comes from `ui/widgets.py`; phone pages share the same rules in
+`phonelink.py`. If a screen needs something new, add it there first, then use it.
 
-## 1. Colour = meaning
-- **The name is always SCRiTCH: every letter purple, the i white. Everywhere** — logo, titles,
-  dialog text, footers, tags, phone pages. Never lowercase, never one colour. It is enforced in
-  ONE place: `W.render_text` (all app text) and `phonelink.named` (HTML); tests/test_name.py.
-- **Purple** means *happening or yours*: progress, rings, spinners, the ✓ badge, Installed /
-  Recommended / Developer tags, the selected tab. Never focus, never decoration.
-- **One purple button per page: its main action** (like Steam, PS5, Xbox): Install (or Retry
-  install) when not installed, Play when installed, Update / Restart when an update is waiting.
-  While downloading there is none: the progress bar is the purple thing, Cancel stays grey.
-- **Green exists in ONE place only** (Omri, 15 Nov): the phone page's confirmed success (big ✓
-  "Connected"). Never in the app. Phone results use `phonelink.result()`: centred and lowered,
-  big icon (purple spinner = checking, green ✓, red ✗, grey ↻ expired), headline + one line.
-- **Red** means *error*, or an action that deletes or closes (Quit, Uninstall buttons in
-  their dialogs). Nothing else.
-- **Everything else is neutral.** Background: blue→purple gradient. Surfaces: cool navy greys
-  (`panel`, `panel_hi`).
-- **Three text colours only:** `text_c` (content), `dim` (secondary), `faint` (disabled only).
-
-## 2. Focus = light
-- Buttons, rows, fields: grey → lit (`focus_fill`), text dim → white. No outline, no colour.
-- Pictures (tiles, screenshots): grow 6% + thin light outline (`focus_line`).
-- Exactly one thing is focused, always visible.
-
-## 3. Type = 5 sizes
-TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCASE.
-- Every section header uses SECTION ("Screenshots" = "About this game" = "Comments").
-- LABEL is for the footer and tags only.
-- Sentence case everywhere else ("Change build", not "Change Build").
-
-## 4. Shape
-- One radius (`t.radius`) for every panel, button, row, image, dialog and toast.
-- Icons are drawn (`W.icon_draw`: play, check; footer ◀ ▶), never font characters.
-- Tags: `t.tag_r` (squarer, so they never look pressable).
-- Fully round: only progress bars, rings and pad glyphs.
-
-## 5. Components (only these)
-| Need | Use |
-|---|---|
-| Press something | `W.button_row` (a row) / `W.button` (one); `accent=True` only for the page's main action |
-| Label a fact | `W.tag(kind=neutral/accent/error/dark)` |
-| A list to pick from | `W.rows` |
-| Say something went wrong / is waiting | `W.notice(kind="error"/"busy")` |
-| Say something briefly | `W.toast` |
-| Ask yes / no | `W.modal` (body only — actions live in the footer) |
-| Show which buttons do what | `W.hint_bar` |
-
-## 5b. Where things go (Omri, 14 Nov)
-- **Game page:** ONE main button (Play / Install / Retry install; Cancel while downloading)
-  + a square **⚙ Options** button next to it. Everything else (Uninstall, Change build,
-  Controls) is in that menu; ☰ opens it too. ☰ on a game page = its Options, never Settings.
-- **Library:** tabs All · Installed · Recent (L1/R1) — no more tabs (Omri). **X = Sort &
-  filter**: Sort (A–Z / Recently added / Shortest first), Show (Everything / Playable here),
-  Genre (Any + the genres in the library), Length (Any / Under 2 h / 2–10 h / 10 h+, from
-  HowLongToBeat's main-story time; unknown games only show under Any, and sort last).
-  Remembered in config. Genre shows in the game's info line; time to beat gets its own dim
-  line under it ("Main story ~4 h · Completionist ~9 h"), and nothing at all when HLTB doesn't
-  know the game (strict title match: no time beats a wrong time).
-  In the menu: ◀ ▶ (or A) change the focused value, each filter value shows its game count,
-  the title shows the live total, "Clear filters" appears when something filters, and the top
-  bar shows the active filters ("Puzzle · 26 games").
-- **Settings:** grouped (Library · Storage · Games · App) under LABEL-style headings; the list
-  scrolls instead of squeezing rows. Settings is reached from the Library's ☰.
-- All small lists (Options, Sort & filter, build picker) are the same `W.menu`.
-
-## 5c. Buttons (app AND phone pages — one rule)
-- Button text is always **white**. A main (purple) button is **deep purple at rest** (#6846b8,
-  white 6.7:1) and **bright purple when focused (app) or pressed (phone)** (#9d6bff). Red
-  buttons (Quit, Uninstall) work the same with red. Grey = everything else.
-- Buttons are sized to their text with a minimum width (app `W.button_w`, phone `min-width:11rem`),
-  never stretched across the screen. Same height and text size everywhere.
-
-## 5d. Phone pages (`phonelink.py`)
-- Same look as the app: dark page, the name rule, the button rule above, grey notes #9a9ab0.
-- Content starts below the phone's notch / camera (safe-area top padding).
-- Results (checking / connected / rejected / expired) = `phonelink.result()`: centred on the
-  screen, big round icon drawn as SVG (never a text glyph), headline + one grey line, one button.
-
-## 6. Actions: footer, and buttons in dialogs
-Every pad action is in the footer: right-aligned, B always last. Empty states don't repeat
-them. Yes/no dialogs (Quit, Uninstall) DO show their buttons inside: [action, Cancel], the
-action focused first, ◀ ▶ to switch (Omri). Messages about a game go in ONE box under its
-buttons (`W.notice`: red for errors, neutral otherwise).
-- **Dialog text (Omri, 15 Nov): at most 2 short sentences, one per line, and it always wraps
-  inside the dialog. Text is never cut off or runs past the box.** `W.modal` wraps any body;
-  pass a list of short lines.
-- **Install progress = one module (Omri, 15 Nov):** everything about an install (Starting…,
-  Queued, Getting GE-Proton, Downloading %, Extracting…) shows in the progress module next to
-  Cancel. No boxes appear and disappear under it while it runs.
-
-## 7. Space = 5 steps
-XS 1u · S 2u · M 3u · L 5u · XL 8u, plus the page margin (6u).
-- Inside a component: XS / S between its parts, M as its padding.
-- Between items: M.
-- Between sections: L.
-- Around a page: margin.
-
-## 8. Width = 2 measures
-- **Read** (`read_w`, 80u): short text, dialogs, status boxes. Long reading (About,
-  comments) may go to 1.4× read.
-- **Page** (`page_w`, 110u): Setup and Settings columns.
-
-Full-width content (grid, screenshot strip) uses the margins.
-
-## 9. Motion = calm, one tempo
-- Every move uses `W.spring` with no overshoot (`SPRING_BACK` 0: slow start, smooth settle)
-  over `MOTION_MS` (240 ms). Omri: no bounce.
-- What moves: pages swipe in (from the right going deeper, from the left going back), the
-  Library content swipes when switching All/Installed, tiles and screenshots grow on focus,
-  toasts slide up, scrolling glides.
-- The ONE springy thing: the All/Installed underline (`TAB_BACK`). Omri likes it.
-- Buttons and rows never move: focus lights them up in place (a short fade). No sliding
-  highlight, no press dip.
-- Waiting should feel lively: the busy bar bounces end to end (`BUSY_SWEEP_S` 0.75 s),
-  stretching mid-flight; the tile ring spins and breathes.
-- No sound or vibration of our own (Omri, 14 Nov): Steam's own UI sounds/haptics are enough.
-- Mockups show the end state.
-
-## 10. Words
-- Short, plain, sentence case.
-- "…" means *in progress*.
-- No exit codes or jargon on screen; details go in the log.
-- Errors say what happened and what to do next.
-- Only text the player needs: no explanations of how things work ("installer runs silently",
-  "used for Windows games"). If it isn't needed to decide or act, it goes.
+Each principle says the rule and **why**. When a new case comes up, follow the why.
 
 ---
 
-## Audit log
-- 14 Nov: all 7 audit items fixed (spacing scale, 2 widths, W.notice, actions only in the
-  footer, 3 text colours, toast radius, drawn icons). Re-audit with:
-  `grep -n "t\.u \*" itch_deck/ui/scenes/*.py` — what's left should be sizes, not gaps.
+## 1. The name is the brand — always SCRiTCH
+Capitals, lowercase **i**; every letter purple, the i white. Everywhere: logo, titles,
+dialogs, footers, tags, toasts, phone pages. Never one colour, never lowercase.
+*Why:* it's the one thing people remember. A name that changes shape looks like two apps.
+*How it's kept:* ONE place draws it — `W.render_text` (all app text) and `phonelink.named`
+(HTML); `tests/test_name.py` fails if it breaks. (Only the OS window title can't be coloured.)
+
+## 2. Colour means something, or it isn't there
+- **Purple = happening or yours:** progress, rings, spinners, the ✓ badge, Installed /
+  Recommended / Developer tags, the selected tab — and the page's ONE main button
+  (Install / Retry install, Play, Update / Restart). While downloading the progress is the
+  purple thing; Cancel stays grey.
+- **Red = error, or an action that deletes or closes** (Quit, Uninstall in their dialogs).
+- **Green = one place only:** the phone page's confirmed "Connected". Never in the app.
+- **Everything else is neutral:** blue→purple gradient background, navy-grey surfaces
+  (`panel`, `panel_hi`), three text colours (`text_c` content, `dim` secondary, `faint` disabled).
+*Why:* if colour is decoration, it stops meaning anything. One purple button tells you what
+to do next (like Steam, PS5, Xbox); red is only scary when it's rare.
+
+## 3. Focus is light, not colour
+Buttons, rows, fields: grey → lit (`focus_fill`), text dim → white; no outline. Pictures
+(tiles, screenshots) grow 6% with a thin light line (`focus_line`). Exactly one thing is
+focused, always visible.
+*Why:* purple already means "main action". If focus were purple too, you couldn't tell
+"this is selected" from "this is the important one".
+
+## 4. Buttons: one style, sized by what they belong to
+- **Text is always white.** A main button is **deep purple at rest** (#6846b8, 6.7:1) and
+  **bright when focused (app) or pressed (phone)** (#9d6bff). Red buttons work the same way.
+  Grey for everything else. *Why:* white on bright purple fails contrast (3.5:1); deep at
+  rest reads, bright on focus shows it's live.
+- **A button is as wide as the block it belongs to.** Alone under a form or a full-width
+  field → full width of that block (phone "Send to your Deck"). In a row or a result →
+  sized to its text with a minimum width (`W.button_w`, phone `min-width:11rem`), never
+  stretched. Same height and text size everywhere. *Why:* width shows what the button acts
+  on; a lone button floating next to a wide field looks unfinished.
+- **A button that can't do anything yet is grey**, and turns purple the moment it can
+  (Send: grey until something is pasted). *Why:* it says "do this first", without words.
+
+## 5. Few parts, used the same way everywhere
+| Need | Use |
+|---|---|
+| Press something | `W.button_row` / `W.button`; `accent=True` only for the main action |
+| Label a fact | `W.tag(kind=neutral/accent/error/dark)` — squarer radius (`t.tag_r`) so it never looks pressable |
+| A list to pick from | `W.rows`; small menus (Options, Sort & filter, build picker) = `W.menu` |
+| Something went wrong / is waiting | `W.notice(kind="error"/"busy")` |
+| Say something briefly | `W.toast` |
+| Ask yes / no | `W.modal` with its buttons inside |
+| Show which pad buttons do what | `W.hint_bar` |
+| Phone result | `phonelink.result()` |
+Shape: one radius (`t.radius`) for panels, buttons, rows, images, dialogs, toasts. Fully
+round only for progress bars, rings and pad glyphs. Icons are drawn (`W.icon_draw`, phone
+SVG), never font characters.
+*Why:* every new part is something to learn. Same job → same part → nothing to learn twice.
+
+## 6. One place for each thing
+- **Game page:** ONE main button (Play / Install / Retry install; Cancel while downloading)
+  + a square **⚙ Options** next to it. Uninstall, Change build, Controls live in Options;
+  ☰ opens it too (on a game page ☰ = Options, never Settings).
+- **Install progress is one module** next to Cancel: Starting…, Queued, Getting GE-Proton,
+  Downloading %, Extracting…. No boxes appearing and disappearing under it.
+- **Messages about a game** go in ONE box under its buttons (`W.notice`). Never above.
+- **Pad actions** are in the footer: right-aligned, B always last; empty states don't repeat
+  them. **Yes/no dialogs** (Quit, Uninstall) show their buttons inside: [action, Cancel],
+  action focused first, ◀ ▶ to switch.
+- **Library:** tabs All · Installed · Recent (L1/R1) — no more tabs. **X = Sort & filter:**
+  Sort (A–Z / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
+  the library's genres), Length (Any / Under 2 h / 2–10 h / 10 h+ from HowLongToBeat main
+  story; unknown only under Any, sorted last). Remembered. ◀ ▶ or A change a value, each value
+  shows its count, the title the live total, "Clear filters" when filtering, the top bar the
+  active filters ("Puzzle · 26 games"). Genre goes in the info line; time to beat gets its own
+  dim line ("Main story ~4 h · Completionist ~9 h"), or nothing if HLTB doesn't know the game
+  (strict title match: no time beats a wrong time).
+- **Settings** (from the Library's ☰): grouped Library · Storage · Games · App under
+  LABEL-style headings; the list scrolls instead of squeezing.
+*Why:* when everything has one home, people stop searching. Buttons scattered over a page
+read as "too much".
+
+## 7. Type: five sizes
+TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCASE.
+Every section header is SECTION; LABEL is only for the footer, tags and Settings headings;
+sentence case everywhere else ("Change build").
+*Why:* fewer sizes = clear hierarchy from couch distance.
+
+## 8. Space and width: a scale, not numbers
+- Space: XS 1u · S 2u · M 3u · L 5u · XL 8u, page margin 6u. Inside a component XS/S, padding
+  M; between items M; between sections L.
+- Width: **read** (`read_w` 80u) for short text, dialogs, status (long reading up to 1.4×);
+  **page** (`page_w` 110u) for Setup and Settings; grid and screenshot strip use the margins.
+*Why:* consistent gaps make things line up without thinking about it. Re-check with
+`grep -n "t\.u \*" itch_deck/ui/scenes/*.py` — what's left should be sizes, not gaps.
+
+## 9. Motion is calm; waiting is alive
+- One tempo: `W.spring`, no overshoot (`SPRING_BACK` 0), `MOTION_MS` 240 ms. Pages swipe in
+  (from the right going deeper, left going back); Library content swipes between tabs;
+  tiles/screenshots grow on focus; toasts slide up; scrolling glides.
+- The ONE springy thing: the tab underline (`TAB_BACK`).
+- Buttons and rows never move — focus lights them in place.
+- Waiting: **the chasing arc** (`W.chase`, used by `W.spinner`, the tile busy ring and the
+  phone `.spin`): the front edge races ahead, the back edge catches up, the whole thing turns
+  slowly (`CHASE_S` 1.4 s). The indeterminate bar glides end to end (`BUSY_SWEEP_S` 0.75 s).
+- No sound or vibration of our own; Steam's are enough. Mockups show the end state.
+*Why:* moving things you're about to press feels unstable; still things that are working
+feel frozen. So: calm where you act, alive where you wait.
+
+## 10. Words: only what the player needs
+Short, plain, sentence case. "…" means in progress. No exit codes or jargon (details go to the
+log). Errors say what happened and what to do. No explanations of how things work
+("installer runs silently"): if it doesn't help decide or act, cut it.
+Dialogs: at most 2 short sentences, one per line, always wrapped inside the box (`W.modal`
+wraps; pass a list of lines). Text is never cut off.
+*Why:* every extra line is something to read with a controller in your hands.
+
+## Phone pages follow the same principles
+Dark page, the name rule, the button rule, grey notes #9a9ab0, content below the notch
+(safe-area top padding). Results (checking / connected / rejected / expired) are centred,
+with a big round SVG icon (chasing spinner, green ✓, red ✗, grey ↻), a headline, one grey
+line and one button.
