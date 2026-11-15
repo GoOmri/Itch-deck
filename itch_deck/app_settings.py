@@ -186,7 +186,7 @@ class SettingsMixin:
                 self.try_import(auto=True)
             elif label == "Disconnect itch":
                 self.confirm("Disconnect itch?",
-                             "scritch forgets your key; installed games stay and still play. To "
+                             "SCRiTCH forgets your key; installed games stay and still play. To "
                              "revoke the key too, delete it on itch.io → Settings → API keys.",
                              "Disconnect", self._disconnect_itch)
         elif not isinstance(act, tuple):

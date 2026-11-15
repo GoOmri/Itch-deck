@@ -5,10 +5,11 @@ One graphic language, Steam Deck native, readable from the couch. Every value li
 there first, then use it.
 
 ## 1. Colour = meaning
+- **The name is always SCRiTCH: every letter purple, the i white. Everywhere** — logo, titles,
+  dialog text, footers, tags, phone pages. Never lowercase, never one colour. It is enforced in
+  ONE place: `W.render_text` (all app text) and `phonelink.named` (HTML); tests/test_name.py.
 - **Purple** means *happening or yours*: progress, rings, spinners, the ✓ badge, Installed /
   Recommended / Developer tags, the selected tab. Never focus, never decoration.
-- The name is written SCRiTCH and is always purple (`W.text_named` in text). Only the logo
-  (`W.wordmark`) has the white i.
 - **One purple button per page: its main action** (like Steam, PS5, Xbox): Install (or Retry
   install) when not installed, Play when installed, Update / Restart when an update is waiting.
   While downloading there is none: the progress bar is the purple thing, Cancel stays grey.

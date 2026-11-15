@@ -248,6 +248,9 @@ Design pass (own session, Omri 14 Nov): one consistent graphic language. Audit o
   Lesson: test UI with --real data / App + /tmp copy of the cache, not only fake.py.
   Filters v2: Library.menu_open/menu_next(label, step), _count(), filter_summary(); W.rows arrows=.
   Library.queue_prefetch now also refetches page caches without "genre" (fills Genre/session in bg).
+  NAME RULE (Omri 15 Nov, repeated many times — get it right): SCRiTCH, letters purple, i WHITE,
+  EVERYWHERE. W.render_text() draws every on-screen string and applies it automatically (any case
+  in the source text); phone pages: phonelink.named(). Don't draw text any other way.
   Omri 14 Nov: name = "SCRiTCH" (W.APP_NAME), always purple in text (W.text_named); logo = purple letters, white i; scrolling = no overshoot (ease back=0).
   Gallery = before/ (v0.3.2) + after/ with a Before/After/Side-by-side switch (AFTER_LABEL in index).
 

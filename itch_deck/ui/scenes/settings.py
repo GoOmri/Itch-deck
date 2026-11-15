@@ -73,5 +73,5 @@ class Settings(Scene):
             W.rows(t, s, pg.Rect(x, yy, w, 0), rows, f, row_h, key="settings")
         s.set_clip(None)
         line = f"{W.APP_NAME} v{self.version}"         # the log path lives in NOTES, not on screen
-        W.text_named(t, s, line, x, t.h - t.hint_h - t.md - t.f_small.get_height(), t.f_small,
+        W.text(t, s, line, x, t.h - t.hint_h - t.md - t.f_small.get_height(), t.f_small,
                      color=t.dim, maxw=w)
