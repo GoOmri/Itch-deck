@@ -831,3 +831,9 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - "Use a new itch key" removed (Omri): sign out + sign in covers a revoked key and a different
   account, and itch now reads like Epic (one row). Rejected-key error: "Sign in to itch again".
 - A–Z strip slides in from the right while moving, out 1.5 s after the last move (`ABC_HOLD_S`).
+
+## Genre fix (15 Nov)
+- Genres were empty in v0.7.8: genre/inputs lived only in the saved page and were read back
+  only when a game page opened; start-up and every sync rebuilt games without them, and the
+  prefetch skips games whose page already has a genre. `_prep` now reads genre + inputs from
+  the saved page for every game (test: test_genre_survives_restart_and_sync).

@@ -161,7 +161,18 @@ class Library:
             break
         self._apply_install(g)
         g["ttb"] = self._ttb(g["id"])
+        self._page_filters(g)
         return g
+
+    def _page_filters(self, g):
+        """Genre + inputs from the saved page, at start and after every sync: the filters need
+        them for every game, not just the ones whose page was opened."""
+        try:
+            d = json.loads(self._page_file(g).read_text())
+        except (OSError, ValueError):
+            return
+        g["genre"] = (d.get("genre") or [""])[0]
+        g["inputs"] = d.get("inputs") or []
 
     def _apply_install(self, g):
         inst = self.installs.get(g["id"])

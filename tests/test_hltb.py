@@ -110,3 +110,13 @@ def test_token_only_init_still_sends_token(monkeypatch):
     c = hltb.Client()
     assert c.lookup("Celeste")["main"] == 8.0 and c.endpoint == "api/s"
     assert seen["x-auth-token"] == "T" and "x-hp-key" not in seen
+
+
+def test_genre_survives_restart_and_sync(tmp_path):
+    """Genre lives in the saved page; every game gets it at start, not only opened ones."""
+    paths.use_root(tmp_path)
+    paths.PAGES.mkdir(parents=True, exist_ok=True)
+    (paths.PAGES / "g1.json").write_text('{"fetched": "2026-11-15T10:00:00", "genre": ["Puzzle"],'
+                                         ' "inputs": ["Gamepad"]}')
+    g = library.Library(None)._prep({"id": "g1", "title": "Circa", "platforms": ["windows"]})
+    assert g["genre"] == "Puzzle" and g["inputs"] == ["Gamepad"]
