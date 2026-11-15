@@ -13,6 +13,9 @@ there first, then use it.
 - **One purple button per page: its main action** (like Steam, PS5, Xbox): Install (or Retry
   install) when not installed, Play when installed, Update / Restart when an update is waiting.
   While downloading there is none: the progress bar is the purple thing, Cancel stays grey.
+- **Green exists in ONE place only** (Omri, 15 Nov): the phone page's confirmed success (big ✓
+  "Connected"). Never in the app. Phone results use `phonelink.result()`: centred and lowered,
+  big icon (purple spinner = checking, green ✓, red ✗, grey ↻ expired), headline + one line.
 - **Red** means *error*, or an action that deletes or closes (Quit, Uninstall buttons in
   their dialogs). Nothing else.
 - **Everything else is neutral.** Background: blue→purple gradient. Surfaces: cool navy greys

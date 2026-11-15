@@ -101,8 +101,7 @@ class PhoneLink:
                 u = urlparse(self.path)
                 t = (parse_qs(u.query).get("t") or [None])[0]
                 if not self._ok(t):
-                    return self._send(403, _page("This code has expired",
-                                                 "<p>Scan the QR code on your TV again.</p>"))
+                    return self._send(403, expired_page())
                 if u.path == "/status":
                     return self._send(200, json.dumps({"status": link.status()}),
                                       "application/json")
@@ -118,8 +117,7 @@ class PhoneLink:
                 form = parse_qs(self.rfile.read(n).decode(errors="replace"))
                 t = (form.get("t") or [None])[0]
                 if not self._ok(t):
-                    return self._send(403, _page("This code has expired",
-                                                 "<p>Scan the QR code on your TV again.</p>"))
+                    return self._send(403, expired_page())
                 text = (form.get("text") or [""])[0].strip()
                 if not text:
                     return self._send(200, form_page(link.purpose, link.token, "Nothing was pasted."))
@@ -180,8 +178,17 @@ background:#1d1f33;color:#fff;border:1px solid #3a3c58;border-radius:.6rem;paddi
 button{margin-top:.8rem;width:100%;padding:.9rem;border:0;border-radius:.6rem;background:#9d6bff;
 color:#141020;font:700 1.05rem system-ui,sans-serif}.err{color:#ff8a8a}
 .nm{color:#9d6bff}.nm i{color:#fff;font-style:normal}.note{color:#9a9ab0;font-size:.85rem}
-.big{font-size:1.5rem;font-weight:700;margin:1.2rem 0}.ok{color:#5fd38a}.bad{color:#ff8a8a}
-.wide{display:block;text-align:center}"""
+.wide{display:block;text-align:center}
+.res{min-height:72vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
+text-align:center;padding-top:6vh}.res[hidden]{display:none}
+.ico{width:6.5rem;height:6.5rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
+font:800 3.4rem/1 system-ui,sans-serif;margin-bottom:1.4rem}
+.ico.ok{background:rgba(95,211,138,.16);color:#5fd38a}.ico.bad{background:rgba(255,138,138,.16);color:#ff8a8a}
+.ico.old{background:#1d1f33;color:#9a9ab0}
+.spin{width:4.6rem;height:4.6rem;border:.45rem solid #2c2e48;border-top-color:#9d6bff;border-radius:50%;
+animation:r .9s linear infinite;margin:1rem 0 2.3rem}@keyframes r{to{transform:rotate(360deg)}}
+.res h2{font-size:1.75rem;line-height:1.2;margin:0 0 .5rem}.res p{color:#9a9ab0;margin:0 0 1.8rem;max-width:20rem}
+.res .btn,.res button{width:100%;max-width:20rem;box-sizing:border-box;margin:0}"""
 
 
 NAME_HTML = '<span class="nm">SCR<i>i</i>TCH</span>'   # the name rule: purple, white i
@@ -192,10 +199,25 @@ def named(text):
     return re.sub("scritch", NAME_HTML, html.escape(text), flags=re.I)
 
 
-def _page(title, body):
+def result(kind, head, line, action=""):
+    """THE phone result block (Omri): centred and lowered, big icon + headline + one line.
+    kind: wait (purple spinner) | ok (green ✓ — the ONLY green, phone pages only) |
+    bad (red ✗) | old (grey ↻)."""
+    icon = {"wait": '<div class="spin"></div>', "ok": '<div class="ico ok">&#10003;</div>',
+            "bad": '<div class="ico bad">&#10007;</div>', "old": '<div class="ico old">&#8635;</div>'}
+    return (f'<div class="res" id="{kind}">{icon[kind]}<h2 id="{kind}h">{named(head)}</h2>'
+            f'<p id="{kind}p">{named(line)}</p>{action}</div>')
+
+
+def expired_page():
+    return _page("This code has expired", result("old", "This code has expired",
+                                                  "Scan the QR code on your TV again."), heading=False)
+
+
+def _page(title, body, heading=True):
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" '
             f'content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
-            f'<style>{CSS}</style></head><body><main><h1>{named(title)}</h1>{body}</main>'
+            f'<style>{CSS}</style></head><body><main>{f"<h1>{named(title)}</h1>" if heading else ""}{body}</main>'
             f'</body></html>')
 
 
@@ -212,22 +234,36 @@ autocapitalize="off" spellcheck="false"></textarea><button>Send to your Deck</bu
 only there.</p>""")
 
 
-def sent_page(token):
-    """After Send: waits for the Deck's answer, then a clear result (green / red)."""
+def split_status(s):
+    """'Key rejected by itch. Generate a new one…' -> ('Key rejected by itch', 'Generate…')."""
+    head, _, rest = s.partition(". ")
+    return head.rstrip("."), rest
+
+
+def sent_page(token, preview=None):
+    """After Send: a big centred result. preview=(kind, status) renders one state without the
+    script's help (mockups); normally the script polls the Deck and switches states."""
     t = json.dumps(token)
-    return _page("Sent", f"""<div id="wait"><p class="note">Checking it on your Deck…</p></div>
-<div id="ok" hidden><p class="big ok">&#10003; <span id="okt"></span></p>
-<button onclick="closeTab()">Close this tab</button>
-<p class="note" id="closed" hidden>You can close this tab now.</p></div>
-<div id="bad" hidden><p class="big bad">&#10007; <span id="badt"></span></p>
-<a class="btn wide" href="/?t={html.escape(token)}">Try another key</a></div>
+    kind, status = preview or ("wait", "")
+    ok_h, ok_p = split_status(status) if kind == "ok" else ("", "")
+    bad_h, bad_p = split_status(status) if kind == "bad" else ("", "")
+    hide = lambda k: "" if k == kind else " hidden"           # noqa: E731
+    body = (result("wait", "Checking your key…", "Checking it on your Deck…").replace(
+                '<div class="res"', f'<div class="res"{hide("wait")}', 1)
+            + result("ok", ok_h, ok_p, '<button onclick="closeTab()">Close this tab</button>'
+                     '<p class="note" id="closed" hidden>You can close this tab now.</p>'
+                     ).replace('<div class="res"', f'<div class="res"{hide("ok")}', 1)
+            + result("bad", bad_h, bad_p, f'<a class="btn wide" href="/?t={html.escape(token)}">'
+                     'Try another key</a>').replace('<div class="res"', f'<div class="res"{hide("bad")}', 1))
+    return _page("Sent", body + f"""
 <script>const t={t};let n=0;
-function show(id,txt){{for(const k of ['wait','ok','bad'])document.getElementById(k).hidden=k!==id;
- if(txt)document.getElementById(id+'t').textContent=txt;}}
+function show(id,s){{for(const k of ['wait','ok','bad'])document.getElementById(k).hidden=k!==id;
+ const i=s.indexOf('. ');document.getElementById(id+'h').textContent=(i<0?s:s.slice(0,i)).replace(/\.$/,'');
+ document.getElementById(id+'p').textContent=i<0?'':s.slice(i+2);}}
 function closeTab(){{window.close();setTimeout(()=>{{document.getElementById('closed').hidden=false}},300)}}
 function poll(){{fetch('/status?t='+encodeURIComponent(t)).then(r=>r.ok?r.json():null).then(j=>{{
  const s=(j&&j.status)||'';
- if(/^Connected/.test(s))return show('ok',s.split(' Look at')[0]);
+ if(/^Connected/.test(s))return show('ok',s);
  if(/rejected|can't reach/i.test(s))return show('bad',s);
  if(++n<40)setTimeout(poll,1500);}}).catch(()=>{{if(++n<40)setTimeout(poll,1500)}})}}
-poll()</script>""")
+poll()</script>""", heading=False)
