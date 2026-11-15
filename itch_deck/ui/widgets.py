@@ -900,6 +900,7 @@ def progress(t, s, rect, frac=None, phase=0.3):
 
 
 BUSY_SWEEP_S = 0.75   # one end-to-end bounce of the indeterminate bar
+FILL_MS = 900         # progress fills glide to each new value (updates arrive in chunks)
 
 
 # --- tiles ------------------------------------------------------------------
@@ -1011,7 +1012,7 @@ def _badges(t, s, game, r, playable):
             icon_draw(s, "check", c, max(1, int(t.u * 1.4 * k)), t.on_accent)
     elif st == "downloading":
         ring(t, s, (int(r.right - pad - t.u * 1.6), int(r.y + pad + t.u * 1.6)), int(t.u * 1.6),
-             game.get("progress", 0),
+             anim(("ring", game["id"]), game.get("progress", 0), ms=FILL_MS),   # glides
              busy=game.get("phase") in ("extract", "installing") or not game.get("progress"))
     elif st == "queued":
         tag(t, s, "Queued", r.right - pad, r.y + pad, kind="dark", anchor="topright")

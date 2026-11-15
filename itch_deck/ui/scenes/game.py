@@ -169,7 +169,7 @@ class Game(Scene):
                W.frame_tick() if W.animating() and self.section == "shots" else 0,
                getattr(self, "_end", 0))
         if getattr(self, "_page_key", None) != key:   # re-layout only when something changed
-            self._live_bar = None
+            self._live_bar = self._live_fill = None
             need = max(int(t.h * 2.6), getattr(self, "_end", 0) + t.h)
             canvas = pg.Surface((t.w, need), pg.SRCALPHA)  # transparent: gradient shows through
             about_y = self._top(canvas)
@@ -191,6 +191,13 @@ class Game(Scene):
             bx, by, items = self._buttons
             on = self.section == "actions" and not self.overlay
             W.button_row(t, s, bx, by - int(self._sy[0]), items, self.focus if on and items else None)
+        if getattr(self, "_live_fill", None):    # download %: eases toward each new value
+            bar, p = self._live_fill
+            if p < getattr(self, "_fill_last", 0):  # a new download / retry: start from there
+                self._fill = None
+            self._fill_last = p
+            self._fill = W.ease(getattr(self, "_fill", None), p * 1000, W.FILL_MS, 0)
+            W.progress(t, s, bar.move(0, -int(self._sy[0])), self._fill[0] / 1000)
         if self._live_bar:                       # indeterminate bar: cheap per-frame overlay
             W.progress(t, s, self._live_bar.move(0, -int(self._sy[0])), None, phase=0.35)
 
@@ -410,13 +417,15 @@ class Game(Scene):
             p = g.get("progress", 0)
             label = f"Getting GE-Proton  {int(p * 100)}%"
             info = f"One time only  ·  {g.get('speed_mbs', 0):.1f} MB/s"
-            W.progress(t, s, bar, p)
+            W.progress(t, s, bar, 0)
+            self._live_fill = (bar, p)            # fill glides live (draw_page), never jumps
         elif self.phase == "download":
             p = g.get("progress", 0)
             label = f"Downloading  {int(p * 100)}%"
             info = (f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}  ·  "
                     f"{g.get('speed_mbs', 0):.1f} MB/s")
-            W.progress(t, s, bar, p)
+            W.progress(t, s, bar, 0)
+            self._live_fill = (bar, p)
         else:
             label, info = {"extract": "Extracting…", "installing": "Installing…",
                            "proton": "Preparing Proton…", "umu": "Getting umu-launcher…",
