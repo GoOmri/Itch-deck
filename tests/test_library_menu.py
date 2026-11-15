@@ -93,3 +93,19 @@ def test_l2_r2_jump_by_letter_in_az():
     assert seen == sorted(set(seen)) and len(set(seen)) == 4          # one new letter per press
     lib.handle(L2)
     assert letter(lib.shown[lib.focus]["title"]) == seen[2]
+
+
+def test_install_done_toast_and_pop_even_on_the_game_page():
+    """Omri waited on the game page and saw no toast and no ✓ pop (v0.8.0)."""
+    from types import SimpleNamespace
+    from itch_deck import app as A
+    from itch_deck.ui import widgets as W
+    a = A.App.__new__(A.App)
+    said = []
+    a.say = lambda msg, error=False: said.append((msg, error))
+    a.kind, a.scene = "game", SimpleNamespace(g={"id": "5"})
+    a.inst = SimpleNamespace(events=[("done", "5", "Bleed 2 is ready to play."),
+                                     ("failed", "5", "Couldn't install.")])
+    a._install_events()
+    assert said == [("Bleed 2 is ready to play.", False)]    # failure: the page itself shows it
+    assert "5" in W._WAS_BUSY                                 # ✓ pops next time the tile is drawn
