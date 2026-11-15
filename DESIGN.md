@@ -85,18 +85,20 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
   the library's genres), Length (Any / Under 2 h / 2–10 h / 10 h+ from HowLongToBeat main
   story; unknown only under Any, sorted last). Remembered per tab. ◀ ▶ or A change a value, each value
-  shows its count, the title the live total, "Clear filters" when filtering, the top bar the
-  active filters ("Puzzle · 26 games"). **Each tab keeps its own Sort & filter** (Omri 15 Nov): a filter set on All never hides games on Installed; Installed starts unfiltered. Genre goes in the info line; time to beat gets its own
+  shows its count, the title the live total, "Clear filters" when filtering; the top bar shows only the
+  game count (Omri: the filter summary up there was noise). **Each tab keeps its own Sort & filter** (Omri 15 Nov): a filter set on All never hides games on Installed; Installed starts unfiltered. Genre goes in the info line; time to beat gets its own
   dim line ("Main story ~4 h · Completionist ~9 h"), or nothing if HLTB doesn't know the game
   (strict title match: no time beats a wrong time).
 - **Launch:** no splash. The first frame is the plain background, then the library at once
   (Omri 15 Nov: start is so quick a logo only flashed). Steam's own logo shows before our window.
-- **Settings** (from the Library's ☰): a sidebar of categories (App · Account · Storage · Games ·
-  Controls), the chosen one's settings on the right, like the Deck's own Settings. ▲▼ picks a
-  category (its settings show right away), A / ▶ goes in, B / ◀ comes back. App is first: one
-  card with the version and the update button; a purple dot on App when an update waits. Plain
-  names ("Use a new itch key", "Sign out", "Install games to", "Old save data", "Windows
-  support"). New platforms or options = a new category, not a longer list.
+- **Settings** (from the Library's ☰): a sidebar of categories (App · Accounts · Storage ·
+  Games & controls), the chosen one's settings on the right, like the Deck's own Settings. ▲▼
+  picks a category (its settings show right away), A / ▶ goes in, B / ◀ comes back. App is
+  first: the version + update card, then Refresh library (it syncs every store); a purple dot
+  on App when an update waits. Accounts: every store reads the same, "Sign in to X" /
+  "Sign out of X" with the account name on the right. Plain names ("Install games to", "Old
+  save data", "Windows support"). New stores or options = rows in an existing category first,
+  a new category only when one gets long.
 *Why:* when everything has one home, people stop searching. Buttons scattered over a page
 read as "too much".
 

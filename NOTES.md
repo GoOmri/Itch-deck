@@ -759,3 +759,11 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   jumps into that category. `side` = focus on the category list; app_settings routes A/B to
   the scene while on the sidebar / to leave a category.
 - Shown names differ from internal labels (`settings.SHOWN`); the app still acts on the old ones.
+
+## Settings regroup for Epic (15 Nov, Omri)
+- App = update card + Refresh library (syncs every store). Accounts = per store, same words:
+  "Sign out of itch" / "Use a new itch key" / "Sign in to Epic" or "Sign out of Epic" (name on
+  the right). Games and Controls merged into "Games & controls". Epic dialog: "Sign out of Epic?".
+- Expect more moves while Epic lands; categories are cheap to reshuffle in `Settings.groups()`
+  (app acts on internal labels, `shown()` makes the words).
+- Library top bar: filter summary removed (count only).

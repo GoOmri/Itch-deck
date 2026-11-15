@@ -270,8 +270,6 @@ class Library(Scene):
         if self.offline_since:
             right = W.offline_mark(t, s, right, base, self.offline_since)
         count = f"{n} game{'s' if n != 1 else ''}"
-        if self.filtered():                     # never forget the list is filtered
-            count = f"{self.filter_summary()}  ·  {count}"
         rr = W.text(t, s, count, right, base, t.f_small, color=t.dim, anchor="baseright")
         act = self.activity or ("Refreshing library" if self.syncing == "bg" else None)
         if act:                         # background work, hidden when done
