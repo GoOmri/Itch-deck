@@ -850,3 +850,6 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   only when a game page opened; start-up and every sync rebuilt games without them, and the
   prefetch skips games whose page already has a genre. `_prep` now reads genre + inputs from
   the saved page for every game (test: test_genre_survives_restart_and_sync).
+- Sort & filter keeps one size: Clear filters is always there (`W.OFF_ROW` = faint, skipped
+  by ▲▼, until a filter is on). Empty-state lines draw pad glyphs inline (`W.text_glyphs`,
+  "Press {X} to change it.").
