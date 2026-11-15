@@ -737,7 +737,7 @@ v0.8.2 RELEASED 15 Nov (Omri "push"; branch rename-scritch) = ROADMAP 1, folder 
     users; Epic games live there too). Python package itch_deck + GitHub repo name: unchanged
     (package rename = conflicts with the design chat; repo rename maybe at ROADMAP 3).
   - Logger name "scritch" everywhere, net UA "scritch (+repo)", argparse prog, README paths.
-  - Checked: pytest 3.13 + 3.11 (118), selftest 3.13 + 3.11 (also run with old-layout XDG dirs:
+  - Checked: pytest 3.13 + 3.11 (117), selftest 3.13 + 3.11 (also run with old-layout XDG dirs:
     moved + links), selftest with itch rejecting every key, mockups (only the version number
     changed: 21, 21d, 21g -> gallery not republished). Real PyInstaller build run as Omri's Deck:
     v0.8.1-style ~/Applications/itch-deck/{itch-deck, app/itch-deck} + old XDG dirs -> new file
