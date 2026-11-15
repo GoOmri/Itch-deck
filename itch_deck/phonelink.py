@@ -267,8 +267,7 @@ def sent_page(token, preview=None):
     hide = lambda k: "" if k == kind else " hidden"           # noqa: E731
     body = (result("wait", "Checking your key…", "Checking it on your Deck…").replace(
                 '<div class="res"', f'<div class="res"{hide("wait")}', 1)
-            + result("ok", ok_h, ok_p, '<button onclick="closeTab()">Close this tab</button>'
-                     '<p class="note" id="closed" hidden>You can close this tab now.</p>'
+            + result("ok", ok_h, ok_p, '<p class="note">You can close this tab.</p>'
                      ).replace('<div class="res"', f'<div class="res"{hide("ok")}', 1)
             + result("bad", bad_h, bad_p, f'<a class="btn pri" href="/?t={html.escape(token)}">'
                      'Try another key</a>').replace('<div class="res"', f'<div class="res"{hide("bad")}', 1))
@@ -277,7 +276,6 @@ def sent_page(token, preview=None):
 function show(id,s){{for(const k of ['wait','ok','bad'])document.getElementById(k).hidden=k!==id;
  const i=s.indexOf('. ');document.getElementById(id+'h').textContent=(i<0?s:s.slice(0,i)).replace(/\.$/,'');
  document.getElementById(id+'p').textContent=i<0?'':s.slice(i+2);}}
-function closeTab(){{window.close();setTimeout(()=>{{document.getElementById('closed').hidden=false}},300)}}
 function poll(){{fetch('/status?t='+encodeURIComponent(t)).then(r=>r.ok?r.json():null).then(j=>{{
  const s=(j&&j.status)||'';
  if(/^Connected/.test(s))return show('ok',s);
