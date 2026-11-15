@@ -9,7 +9,9 @@ from .installer import slug_of
 log = logging.getLogger("itch-deck")
 
 
-QUIT_HINT = "To quit a game: hold View + Menu (Create + Options) for 2 seconds"
+# To quit a game: hold the pad's View + Menu (DualSense: Create + Options) 2 s (mouse.QuitCombo).
+# Drawn with the glyphs of the pad in use (W.glyph_line), so it names the buttons you hold.
+QUIT_HINT = ["To quit a game: hold", ("BACK",), "+", ("START",), "for 2 seconds"]
 
 
 class PlayMixin:
@@ -114,9 +116,5 @@ class PlayMixin:
         """One plain frame while the screen changes hands (less of Steam's UI flickers through)."""
         from .ui import widgets as W
         t = self.t
-        self.screen.blit(W.backdrop(t), (0, 0))
-        W.text(t, self.screen, msg, t.cx, t.h / 2, t.f_h2, anchor="center")
-        if sub:
-            W.text(t, self.screen, sub, t.cx, t.h / 2 + t.u * 6, t.f_body, color=t.dim,
-                   anchor="center")
+        W.splash(t, self.screen, msg, sub)
         self.pg.display.flip()

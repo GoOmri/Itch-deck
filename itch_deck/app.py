@@ -7,7 +7,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, paths, runner, theme
+from . import config, pads, paths, runner, theme
 from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1)
 from .installer import Installer, slug_of
 from .library import Library
@@ -280,8 +280,14 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
                 self.lib.apply_installs()
                 return
 
+    def pad_kind(self):
+        """Glyph set to show: Settings → Button symbols, or (Auto) the pad pressed last."""
+        want = self.cfg.get("button_symbols", "auto")
+        return want if want in pads.KINDS else self.inp.kind()
+
     def update(self):
         now = time.time()
+        pads.set_current(self.pad_kind())
         if self.toast_until and now > self.toast_until:
             self.scene.toast, self.toast_until = None, 0
         if self.key_result and self.kind == "setup":
@@ -307,6 +313,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         elif self.kind == "settings":
             self.scene.v["update"] = self.updater.row_value()
             self.scene.v["prefix_size"] = self._saves_label()
+            self.scene.v["symbols"] = self._symbols_label()
             ge = self._ge_row()
             if ge:
                 self.scene.v["proton"] = ge
@@ -434,6 +441,16 @@ def selftest(screenshot=None):
         app.scene.focus = labels.index(lab)
         app.handle(A)
         assert app.scene.toast != LATER, lab
+    # Button symbols: Auto -> Steam Deck -> PlayStation -> Xbox -> Auto; glyphs follow
+    from . import pads as P
+    app.scene.focus = labels.index("Button symbols")
+    seen = []
+    for _ in range(4):
+        app.handle(A)
+        app.update()
+        seen.append((app.scene.v["symbols"], P.current))
+    assert [v for v, _ in seen[:3]] == ["Steam Deck", "PlayStation", "Xbox"], seen
+    assert seen[1][1] == "ps" and seen[3][0].startswith("Auto"), seen
     app.scene.focus = labels.index("Saves of uninstalled games")
     assert app.scene.hints()[0] == ("A", "Delete")
     app.handle(A)

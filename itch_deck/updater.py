@@ -7,7 +7,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import net
+from . import net, pads
 
 log = logging.getLogger("itch-deck")
 LATEST = "https://api.github.com/repos/GoOmri/Itch-deck/releases/latest"
@@ -30,13 +30,13 @@ class Updater:
     def label(self):
         v = self.version
         return {
-            "idle": f"v{v} · A to check",
+            "idle": f"v{v} · {pads.name('A')} to check",
             "checking": f"v{v} · checking…",
             "latest": f"v{v} · up to date",
-            "available": f"v{self.new_version} available · A to download",
+            "available": f"v{self.new_version} available · {pads.name('A')} to download",
             "downloading": f"Downloading v{self.new_version} · {int(self.frac * 100)}%",
-            "ready": f"v{self.new_version} installed · A to restart",
-            "error": f"v{v} · {self.error or 'update failed'} · A to retry",
+            "ready": f"v{self.new_version} installed · {pads.name('A')} to restart",
+            "error": f"v{v} · {self.error or 'update failed'} · {pads.name('A')} to retry",
             "source": f"v{v} · running from source",
         }[self.state]
 

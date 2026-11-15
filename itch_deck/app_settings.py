@@ -5,7 +5,7 @@ import shutil
 import threading
 from pathlib import Path
 
-from . import config, proton
+from . import config, pads, proton
 from .input import (A, B, START)
 from .library import short_date
 from .app_common import _gb
@@ -27,7 +27,7 @@ class SettingsMixin:
         protons = config.proton_versions()
         want = self.cfg.get("proton")
         proton_v = (want if want in protons else f"Auto · {protons[0]}") if protons else \
-            "Not installed · A to download"
+            f"Not installed · {pads.name('A')} to download"
         label = "SD card" if config.on_card(root) else "Internal storage"
         self._scan_saves()
         return {
@@ -37,7 +37,14 @@ class SettingsMixin:
             "itch_user": self.cfg.get("itch_user") or "",
             "update": self.updater.row_value(),
             "pointer": self.cfg.get("pointer_speed", "normal").capitalize(),
+            "symbols": self._symbols_label(),
         }
+
+    def _symbols_label(self):
+        want = self.cfg.get("button_symbols", "auto")
+        if want in pads.KINDS:
+            return pads.LABEL[want]
+        return f"Auto · {pads.LABEL[self.inp.kind()]}"
 
     def _disconnect_itch(self):
         self.cfg.pop("api_key", None)
@@ -181,6 +188,14 @@ class SettingsMixin:
                 self.cfg["pointer_speed"] = order[(order.index(cur) + 1) % 3] if cur in order else "normal"
                 config.save(self.cfg)
                 sc.v["pointer"] = self.cfg["pointer_speed"].capitalize()
+            elif label == "Button symbols":
+                order = pads.CHOICES
+                cur = self.cfg.get("button_symbols", "auto")
+                self.cfg["button_symbols"] = order[(order.index(cur) + 1) % len(order)] \
+                    if cur in order else "auto"
+                config.save(self.cfg)
+                pads.set_current(self.pad_kind())
+                sc.v["symbols"] = self._symbols_label()
             elif label == "Re-import API key":
                 self.go_setup("waiting", back=True)
                 self.try_import(auto=True)

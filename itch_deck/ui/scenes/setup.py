@@ -4,6 +4,12 @@ import pygame as pg
 from ...input import LEFT, RIGHT
 from .. import widgets as W
 from .base import Scene
+from ... import pads
+
+
+def KEYBOARD():
+    """Steam's on-screen keyboard chord on the pad in use: Steam + X / PS + Square / Xbox + X."""
+    return f"{pads.name('GUIDE')} + {pads.name('X')}"
 
 STATUS = {
     "waiting": (False, "Waiting for itch_key.txt in ~/Downloads"),
@@ -72,9 +78,9 @@ class Setup(Scene):
             return self._field(s, x, y, w)
         W.button_row(t, s, x, y, [(lb, None, True, False) for lb in self.buttons()],
                      self.focus, key=("plate", "setup"))
-        W.text(t, s, "No phone? Import file (itch_key.txt via Warpinator) or Type key (Steam + X)."
+        W.text(t, s, f"No phone? Import file (itch_key.txt via Warpinator) or Type key ({KEYBOARD()})."
                if self.qr else
-               "Type key opens a field — press Steam + X for the on-screen keyboard.",
+               f"Type key opens a field — press {KEYBOARD()} for the on-screen keyboard.",
                x, y + t.btn_h + t.md, t.f_small, color=t.dim, maxw=w)
 
     def _steps(self, s, steps, x, y, w):
@@ -117,5 +123,5 @@ class Setup(Scene):
         pg.draw.line(s, t.text_c, (tr.right + 3, r.y + t.sm), (tr.right + 3, r.bottom - t.sm), 2)
         W.text(t, s, f"{len(k)} characters", r.right - t.md, r.centery, t.f_small, color=t.dim,
                anchor="midright")
-        W.text(t, s, "Press Steam + X for the on-screen keyboard, or paste with Ctrl+V (RustDesk).",
+        W.text(t, s, f"Press {KEYBOARD()} for the on-screen keyboard, or paste with Ctrl+V (RustDesk).",
                x, r.bottom + t.md, t.f_small, color=t.dim, maxw=w)

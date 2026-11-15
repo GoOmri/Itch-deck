@@ -56,12 +56,17 @@ focused, always visible.
 | Something went wrong / is waiting | `W.notice(kind="error"/"busy")` |
 | Say something briefly | `W.toast` |
 | Ask yes / no | `W.modal` with its buttons inside |
-| Show which pad buttons do what | `W.hint_bar` |
+| Show which pad buttons do what | `W.hint_bar`; in a sentence with glyphs `W.glyph_line`; in plain text `pads.name("A")` |
 | Phone result | `phonelink.result()` |
 Shape: one radius (`t.radius`) for panels, buttons, rows, images, dialogs, toasts. Fully
 round only for progress bars, rings and pad glyphs. Icons are drawn (`W.icon_draw`, phone
 SVG), never font characters.
 *Why:* every new part is something to learn. Same job → same part → nothing to learn twice.
+
+**Glyphs speak the pad in your hands.** Footer, dialogs and sentences show the buttons of the
+pad pressed last (Settings → Button symbols overrides): Deck = A B X Y + ⧉ ☰, DualSense =
+✕ ○ □ △ + CREATE / OPTIONS pills, Xbox = A B X Y + LB RB LT RT. Texts never hard-code a button
+("A to check" → `pads.name("A")`). *Why:* "press A" on a DualSense is a riddle.
 
 ## 6. One place for each thing
 - **Game page:** ONE main button (Play / Install / Retry install; Cancel while downloading)

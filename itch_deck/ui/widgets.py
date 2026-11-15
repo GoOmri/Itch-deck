@@ -5,6 +5,8 @@ import zlib
 
 import pygame as pg
 
+from .. import pads
+
 _cover_cache = {}
 LIVE = False   # True in the running app: animate. False for mockups: draw the end state.
 
@@ -335,15 +337,77 @@ def screenshot(t, game, i, size, contain=False):
 
 
 # --- pad glyphs and hint bar ------------------------------------------------
-def glyph(t, s, btn, x, cy, ink=None):
+PS_SHAPE = {"A": "cross", "B": "circle", "X": "square", "Y": "triangle"}   # SDL A = south = ✕
+_shape_cache = {}
+
+
+def _shape(name, d, ink):
+    """DualSense face symbol (or the ⧉ View icon) as a d×d ink image, drawn 4× and scaled down
+    so the strokes stay smooth. Outlines = filled shape minus a transparent inner shape."""
+    key = (name, d, tuple(ink))
+    if key in _shape_cache:
+        return _shape_cache[key]
+    k = 4
+    D = d * k
+    img = pg.Surface((D, D), pg.SRCALPHA)
+    c, w, clear = D / 2, max(k * 2, D * 0.085), (0, 0, 0, 0)
+    if name == "cross":
+        a = D * 0.19
+        for sx in (1, -1):
+            pg.draw.line(img, ink, (c - a, c - sx * a), (c + a, c + sx * a), int(w * 1.15))
+    elif name == "circle":
+        pg.draw.circle(img, ink, (c, c), D * 0.22)
+        pg.draw.circle(img, clear, (c, c), D * 0.22 - w)
+    elif name == "square":
+        a = D * 0.2
+        pg.draw.rect(img, ink, (c - a, c - a, 2 * a, 2 * a))
+        pg.draw.rect(img, clear, (c - a + w, c - a + w, 2 * (a - w), 2 * (a - w)))
+    elif name == "triangle":
+        r, cy = D * 0.25, c + D * 0.03          # a bit low: optically centred in the circle
+        pts = [(c + r * math.cos(math.radians(a)), cy + r * math.sin(math.radians(a)))
+               for a in (-90, 30, 150)]
+        pg.draw.polygon(img, ink, pts)
+        ri = r - 2 * w                          # inner triangle: same centre, stroke w all round
+        pg.draw.polygon(img, clear, [(c + ri * math.cos(math.radians(a)),
+                                      cy + ri * math.sin(math.radians(a))) for a in (-90, 30, 150)])
+    elif name == "view":                         # ⧉: back square outlined, front square solid
+        a, o, w = D * 0.21, D * 0.1, max(k * 2, D * 0.1)
+        bx, by = c - a - o, c - a - o
+        pg.draw.rect(img, ink, (bx, by, 2 * a, 2 * a), border_radius=int(D * 0.04))
+        pg.draw.rect(img, clear, (bx + w, by + w, 2 * a - 2 * w, 2 * a - 2 * w),
+                     border_radius=int(D * 0.02))
+        pg.draw.rect(img, ink, (c - a + o, c - a + o, 2 * a, 2 * a), border_radius=int(D * 0.04))
+    out = pg.transform.smoothscale(img, (d, d))
+    _shape_cache[key] = out
+    return out
+
+
+def glyph(t, s, btn, x, cy, ink=None, kind=None):
     """Steam-style button glyph: solid white shape, label knocked out in the dark ink colour.
-    A B X Y / ◀ ▶ = circle; L1 R1 L2 R2 = small rounded square; MENU = pill with ☰.
-    Left edge at x, centred on cy. Returns width. Labels centre on their own bounds."""
+    Follows the pad in use (pads.current, or kind=):
+      Deck / Xbox: A B X Y letters in a circle; ☰ MENU and ⧉ BACK pills; L1 R1 L2 R2 squares
+                   (Xbox: LB RB LT RT).
+      DualSense:   ✕ ○ □ △ drawn in the circle; CREATE / OPTIONS pills; L1 R1 L2 R2.
+    ◀ ▶ = circle. Left edge at x, centred on cy. Returns width. Labels centre on their bounds."""
+    kind = kind or pads.current
     d = int(t.u * 3.0)
     c, ink = t.glyph_c, ink or t.glyph_ink
-    if btn == "MENU":
+    if btn == "START":
+        btn = "MENU"
+    if kind == "ps" and btn in ("MENU", "BACK"):    # words, like the print on the pad
+        img = t.f_glyph.render(pads.name(btn, kind).upper(), True, ink)
+        img = img.subsurface(img.get_bounding_rect())
+        r = pg.Rect(int(x), int(cy - d * 0.42), img.get_width() + int(d * 0.7), int(d * 0.84))
+        pg.draw.rect(s, c, r, border_radius=r.h // 2)
+        s.blit(img, img.get_rect(center=r.center))
+        return r.w
+    if btn in ("MENU", "BACK"):
         r = pg.Rect(int(x), int(cy - d * 0.42), int(d * 1.45), int(d * 0.84))
         pg.draw.rect(s, c, r, border_radius=r.h // 2)
+        if btn == "BACK":
+            img = _shape("view", r.h, ink)
+            s.blit(img, img.get_rect(center=r.center))
+            return r.w
         bw, gap, lw = int(d * 0.5), max(2, int(d * 0.16)), max(2, round(d * 0.08))
         for k in (-1, 0, 1):
             yy = r.centery + k * gap
@@ -360,9 +424,17 @@ def glyph(t, s, btn, x, cy, ink=None):
         pg.draw.polygon(s, ink, pts)
         pg.draw.aalines(s, ink, True, pts)
         return d
-    img = t.f_glyph.render(btn, True, ink)
+    if kind == "ps" and btn in PS_SHAPE:
+        ctr = (int(x + d / 2), int(cy))
+        pg.draw.aacircle(s, c, ctr, d // 2)
+        pg.draw.circle(s, c, ctr, d // 2 - 1)
+        img = _shape(PS_SHAPE[btn], d, ink)
+        s.blit(img, img.get_rect(center=ctr))
+        return d
+    label = pads.name(btn, kind) if btn in pads.NAMES[kind] else btn
+    img = t.f_glyph.render(label, True, ink)
     img = img.subsurface(img.get_bounding_rect())
-    if len(btn) == 1:
+    if len(label) == 1:
         ctr = (int(x + d / 2), int(cy))
         pg.draw.aacircle(s, c, ctr, d // 2)
         pg.draw.circle(s, c, ctr, d // 2 - 1)
@@ -372,6 +444,40 @@ def glyph(t, s, btn, x, cy, ink=None):
     pg.draw.rect(s, c, r, border_radius=max(2, int(d * 0.18)))
     s.blit(img, img.get_rect(center=r.center))
     return r.w
+
+
+def splash(t, s, msg, sub=None):
+    """The plain "Starting… / Returning…" frame. sub = text, or a glyph_line parts list."""
+    s.blit(backdrop(t), (0, 0))
+    text(t, s, msg, t.cx, t.h / 2, t.f_h2, anchor="center")
+    if isinstance(sub, list):                 # words + pad glyphs (the quit hint)
+        glyph_line(t, s, sub, t.cx, t.h / 2 + t.u * 6 - t.f_body.get_height() / 2, t.f_body,
+                   color=t.dim)
+    elif sub:
+        text(t, s, sub, t.cx, t.h / 2 + t.u * 6, t.f_body, color=t.dim, anchor="center")
+
+
+def glyph_line(t, s, parts, cx, y, font, color=None):
+    """One centred line mixing words and pad glyphs: ["To quit: hold", ("BACK",), "+", ...].
+    Glyphs follow the pad in use, so the sentence always names the buttons you hold."""
+    gap = font.size(" ")[0]
+    items = []
+    for p in parts:
+        if isinstance(p, tuple):
+            items.append(("g", p[0], glyph(t, pg.Surface((1, 1)), p[0], 0, 0)))
+        else:
+            img = render_text(t, font, p, color or t.text_c)
+            items.append(("t", img, img.get_width()))
+    total = sum(w for *_, w in items) + gap * (len(items) - 1)
+    x = cx - total / 2
+    mid = y + font.get_ascent() - font.metrics("H")[0][3] / 2   # glyphs centre on the capitals
+    for kind, what, w in items:
+        if kind == "g":
+            glyph(t, s, what, x, mid)
+        else:
+            s.blit(what, (int(x), int(y)))
+        x += w + gap
+    return pg.Rect(int(cx - total / 2), int(y), int(total), font.get_height())
 
 
 def hint_bar(t, s, items):

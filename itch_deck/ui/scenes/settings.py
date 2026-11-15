@@ -22,7 +22,8 @@ class Settings(Scene):
                          ("Saves of uninstalled games", v["prefix_size"], "")]),
             ("Games", [("Proton version", v["proton"], ""),
                        ("Pointer speed", v.get("pointer", "Normal"), "")]),
-            ("App", [("Update app", v["update"], "")]),
+            ("App", [("Button symbols", v.get("symbols", "Auto"), ""),   # glyphs + button names
+                     ("Update app", v["update"], "")]),
         ]
 
     def items(self):
@@ -36,7 +37,8 @@ class Settings(Scene):
 
     ACTION = {"Refresh library": "Refresh", "Re-import API key": "Import", "Install location": "Change",
               "Saves of uninstalled games": "Delete", "Proton version": "Change",
-              "Pointer speed": "Change", "Update app": "Check", "Disconnect itch": "Disconnect"}
+              "Pointer speed": "Change", "Update app": "Check", "Disconnect itch": "Disconnect",
+              "Button symbols": "Change"}
 
     def hints(self):
         label = self.items()[self.focus][0] if self.items() else ""

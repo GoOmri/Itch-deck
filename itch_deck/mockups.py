@@ -62,7 +62,9 @@ def _note(scene, text):
 
 
 def _shots(t, version):
-    from . import fake
+    from . import fake, pads
+    from .app_play import QUIT_HINT
+    from .ui import widgets as W
     from .ui.scenes.game import Game
     from .ui.scenes.library import Library
     from .ui.scenes.settings import Settings
@@ -103,7 +105,7 @@ def _shots(t, version):
     settings_vals = {
         "install_label": "SD card", "install_path": "/run/media/deck/SD/itch", "free": "112 GB",
         "proton": "Auto · GE-Proton9-20", "prefix_size": "2 games · 1.2 GB", "last_sync": "today 11:02", "itch_user": "omri",
-        "update": (f"v{version[:-1]}9 available", "Update"),
+        "update": (f"v{version[:-1]}9 available", "Update"), "symbols": "Auto · Steam Deck",
     }
     picker = ("picker", "Choose a build",
               "Recommended: native Linux first, then a plain Windows zip.",
@@ -115,7 +117,27 @@ def _shots(t, version):
         scene.overlay = ov
         return scene
 
+    class Splash:                      # App._splash frame, for the quit-hint glyphs
+        def __init__(self, msg, sub):
+            self.msg, self.sub = msg, sub
+
+        def draw(self, s):
+            W.splash(t, s, self.msg, self.sub)
+
+    if pads.current == "ps":           # DualSense set: the screens where its glyphs show
+        return [
+            ("ps_04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
+            ("ps_09_library_quit", with_overlay(Library(t, lib, focus=0), quit_dlg)),
+            ("ps_15_game_installed", game("Moss & Rivets",
+                                          install_path="/run/media/deck/SD/itch/moss-and-rivets")),
+            ("ps_21_settings", Settings(t, dict(settings_vals, symbols="Auto · PlayStation"),
+                                        version, "~/.local/state/itch-deck/logs/app.log",
+                                        focus=7)),        # Button symbols
+            ("ps_25_starting", Splash("Starting Moss & Rivets…", QUIT_HINT)),
+            ("ps_02b_setup_typing", Setup(t, "waiting", typing=True, typed="Xk3vQ2b7f19aa0c4d6e8")),
+        ]
     return [
+        ("25_starting", Splash("Starting Moss & Rivets…", QUIT_HINT)),
         ("01_setup_waiting", Setup(t, "waiting", qr=_qr(), url=PHONE_URL)),
         ("01b_setup_no_network", Setup(t, "waiting")),
         ("02_setup_rejected", Setup(t, "rejected", qr=_qr(), url=PHONE_URL)),
@@ -169,7 +191,7 @@ def _shots(t, version):
              ("MossAndRivets-DX11.exe", "", "bin")], 0))),
         ("24_game_picker_with_program", with_overlay(game("Moss & Rivets"), (
             "picker", "Choose a build", "A installs it. Saves of Windows builds are kept separately.",
-            [("Program to run", "MossAndRivets.exe", "3 programs found · A to choose")] +
+            [("Program to run", "MossAndRivets.exe", f"3 programs found · {pads.name('A')} to choose")] +
             [(n, "Installed" if i == 0 else "", sub) for i, (n, sub, _r) in enumerate(fake.uploads())],
             0))),
         ("21_settings", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log")),
@@ -193,13 +215,17 @@ def render(outdir, version, real=None):
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     files = []
-    for size in SIZES:
-        t = Theme(pg, size)
-        for name, scene in _shots(t, version):
-            s = pg.Surface(size)
-            scene.draw(s)
-            f = out / f"{size[0]}x{size[1]}_{name}.png"
-            pg.image.save(s, str(f))
-            files.append(f)
+    from . import pads
+    for kind in ("deck", "ps"):        # every screen with Deck glyphs + a DualSense set
+        pads.set_current(kind)
+        for size in SIZES:
+            t = Theme(pg, size)
+            for name, scene in _shots(t, version):
+                s = pg.Surface(size)
+                scene.draw(s)
+                f = out / f"{size[0]}x{size[1]}_{name}.png"
+                pg.image.save(s, str(f))
+                files.append(f)
+    pads.set_current("deck")
     pg.quit()
     return files

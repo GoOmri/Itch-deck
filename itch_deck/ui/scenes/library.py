@@ -4,7 +4,7 @@ import pygame as pg
 from ...input import UP, DOWN, LEFT, RIGHT, X, L2, R2
 from .. import widgets as W
 from .base import Scene
-from ... import hltb
+from ... import hltb, pads
 
 
 TABS = (("all", "All"), ("installed", "Installed"), ("recent", "Recent"))
@@ -187,7 +187,7 @@ class Library(Scene):
                                         "Games you play show up here, newest first.")
             if self.offline:
                 return self._center_msg(s, y, "Can't reach itch.io.",
-                                        "Check Wi-Fi, then press Y to try again.", refresh=True)
+                                        f"Check Wi-Fi, then press {pads.name('Y')} to try again.", refresh=True)
             return self._center_msg(s, y, "No games yet.",
                                     "Games you buy or claim on itch show up here.", refresh=True)
         self._grid(s, y)

@@ -468,11 +468,41 @@ v0.7.1 (branch v071-fixes, NOT released):
   Deck checklist +6: library X -> Length / Shortest first fill in after a minute; game page shows
     the time line for a known game (Circa Infinity), nothing for an obscure one.
 v0.7.1 RELEASED 15 Nov (main cbc5e2d; first build failed on Python 3.11 f-string backslashes).
-NEXT (not started, Omri asked): per-controller button glyphs. Detect the last-used pad (name /
-  GUID vendor: 054c = Sony, 28de = Valve/Deck), draw DualSense shapes ✕ ○ □ △ + Create/Options,
-  Deck ⧉ + ☰, Xbox letters; texts too (quit hint "hold ⧉ + ☰" / "hold Create + Options").
-  Unknown: under Steam the DualSense may show up as a Steam virtual (Xbox-like) pad -> first get
-  Omri's app.log "pad added: <name> guid=..." lines with the DualSense connected. Size it, ask, build.
+Per-controller glyphs (branch pad-glyphs, 15 Nov, NOT released - Omri: no release until he says):
+  Deck log answered the open question: under Steam BOTH pads are Valve virtual pads (GUID vendor
+  28de: Deck 030079f6de28..., DualSense 0300b836de28...), so GUIDs are useless. NAMES work:
+  "Steam Deck Controller" / "DualSense Wireless Controller"; a pad hot-plugged while we run is
+  sometimes "Steam Virtual Gamepad" -> Steam's virtualgamepadinfo.txt ([slot N] type=steam/ps5)
+  says which kinds exist; generic pads take the kinds no named pad has (pads.resolve).
+  - pads.py: kind_from_name, steam_slots, resolve (known kinds stick: removing the Deck pad must
+    not hand its slot to the DualSense; "xbox" fallbacks are re-asked on rescan), pick (last pad
+    pressed; before any press, a non-Deck pad), NAMES per kind, name(btn), current (set by
+    App.update every frame from App.pad_kind()).
+  - input.py: Input.kinds / last_pad (button down or stick/trigger past DEADZONE), kind();
+    log "pad added: ... -> ps", "pad in use: ...".
+  - widgets.glyph(kind=): DualSense ✕ ○ □ △ drawn (4x supersampled, widgets._shape), CREATE /
+    OPTIONS word pills; Deck/Xbox ⧉ View pill (BACK) + ☰ (MENU/START); Xbox LB RB LT RT.
+    W.glyph_line = sentence with glyphs; W.splash = the Starting/Returning frame (App._splash +
+    mockups). QUIT_HINT is a parts list: "To quit a game: hold [⧉] + [☰] for 2 seconds".
+  - Texts: updater "A to check", program picker, offline "press Y", Setup "Steam + X" (PS: "PS +
+    Square") all via pads.name. Settings → App → "Button symbols": Auto · <detected> / Steam Deck
+    / PlayStation / Xbox (cfg button_symbols). Kept 4 Settings groups (row went into App).
+  - Mockups: every screen renders with Deck glyphs + a ps_* set (library, quit, game, settings
+    focused on Button symbols, starting splash, setup typing); 25_starting = quit hint.
+  Deck checklist: 1 Start with only the Deck: footer A B X Y, ☰; Starting… shows hold ⧉ + ☰.
+    2 Connect the DualSense while SCRiTCH runs, press a button on it: footer turns ✕ ○ □ △ /
+    OPTIONS within a press (app.log "pad ... = ps (Steam's slot list)" if it came in generic).
+    3 Press a Deck button: back to Deck glyphs. 4 Start a game with the DualSense: splash says
+    hold CREATE + OPTIONS. 5 Settings → Button symbols cycles; Auto shows what's detected.
+    If wrong: send app.log lines "pad added", "pad in use", "pad ... = ".
+Two copies bug (branch single-instance, 15 Nov, NOT released): v0.7.1 Deck log shows two app
+  copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
+  HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
+  after the execve restart). Fix: paths.lock_instance() (flock DATA/scritch.lock, freed on
+  exit/exec; 2nd copy logs "another copy is already running (pid N), quitting"), paths.tmp_for()
+  per process/thread temp names (library._write_json, config.save). tests/test_instance.py.
+  Deck check after release: update app -> app.log shows ONE "start" after "restarting into", or
+  the "another copy" line; no hltb.tmp errors.
 
 ## Epic decision (Omri 15 Nov): ONE codebase, no fork, no second build. Epic is (1) opt-in: the
   Epic tab only exists after Settings -> Connect Epic; until then scritch = itch only, exactly as
@@ -542,8 +572,7 @@ NEXT (not started, Omri asked): per-controller button glyphs. Detect the last-us
   shapes with the label knocked out in dark ink (glyph_c / glyph_ink). A B X Y = circle, L1 R1 L2 R2 =
   small rounded square, ☰ (hint key MENU) = white pill. Footer: actions RIGHT-aligned, labels white
   BOLD UPPERCASE (f_hint); order = extra actions first, then A, B always last. Bumpers are L1/R1.
-- Open: glyph labels Auto/Xbox/PlayStation — M2 logs pad names/GUIDs + SteamVirtualGamepadInfo;
-  read them from the Deck log, then add a Settings override.
+- DONE (pad-glyphs): glyphs follow the pad in use (pads.py); Settings → Button symbols override.
 - M2 input: L1/R1 (prev/next game), L2/R2 (triggers, page up/down), Back mapped. Keyboard in
   --windowed: arrows, Enter=A, Esc=B, x/y, m=Start, q/e=L1/R1, PgUp/PgDn=L2/R2.
 - Key entry: Warpinator file is auto-picked up (polled every 2 s on Setup); "Type key" field takes

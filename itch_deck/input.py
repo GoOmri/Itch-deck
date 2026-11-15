@@ -2,6 +2,8 @@
 import logging
 import os
 
+from . import pads as PADS
+
 UP, DOWN, LEFT, RIGHT, A, B, X, Y, START = "UP", "DOWN", "LEFT", "RIGHT", "A", "B", "X", "Y", "START"
 L1, R1, L2, R2, BACK = "L1", "R1", "L2", "R2", "BACK"
 TEXT, BKSP, ENTER, PASTE = "TEXT", "BKSP", "ENTER", "PASTE"   # text-entry mode only
@@ -14,12 +16,17 @@ FAST_MS = (300, 85)     # L2/R2 held: page jumps repeat at the old fast speed
 
 
 class Input:
+    kinds, _guessed, last_pad = {}, frozenset(), None   # defaults; __init__/_kinds replace them
+
     def __init__(self, pg):
         self.pg = pg
         from pygame._sdl2 import controller
         self.ctl = controller
         controller.init()
         self.pads = {}
+        self.kinds = {}            # instance id -> "deck" / "ps" / "xbox" (pads.resolve)
+        self._guessed = set()      # ids that fell back to "xbox": asked again on rescan
+        self.last_pad = None       # instance id of the pad pressed last (glyphs follow it)
         for i in range(controller.get_count()):
             self._add(i)
         self.stick_dir = None
@@ -56,11 +63,33 @@ class Input:
                     guid = self.pg.joystick.Joystick(index).get_guid()
                 except Exception:  # noqa: BLE001
                     pass
-                log.info("pad added: %r guid=%s", c.name, guid)
+                self._kinds()
+                log.info("pad added: %r guid=%s -> %s", c.name, guid, self.kinds.get(iid))
             else:
                 log.info("joystick %d is not a game controller, ignored", index)
         except Exception as e:  # noqa: BLE001
             log.warning("pad %d could not be opened: %s", index, e)
+
+    def _kinds(self):
+        """Re-work out every pad's kind (a hot-plugged pad can be the generic "Steam Virtual
+        Gamepad"; Steam's slot file says what it really is)."""
+        names = [(iid, c.name) for iid, c in self.pads.items()]
+        known = {i: k for i, k in self.kinds.items() if i in self.pads and i not in self._guessed}
+        unsure = [i for i, n in names if i not in known and PADS.kind_from_name(n) is None]
+        self._guessed = set()
+        self.kinds = PADS.resolve(names, PADS.steam_slots() if unsure else [], known, self._guessed)
+        for i in unsure:
+            if i not in self._guessed:
+                log.info("pad %r = %s (Steam's slot list)", self.pads[i].name, self.kinds[i])
+
+    def kind(self):
+        """Kind of pad to show glyphs for: the last one pressed (pads.pick)."""
+        return PADS.pick(self.kinds, self.last_pad)
+
+    def _used(self, iid):
+        if iid != self.last_pad and iid in self.pads:
+            self.last_pad = iid
+            log.info("pad in use: %r (%s)", self.pads[iid].name, self.kinds.get(iid))
 
     def rescan(self):
         """Backstop for missed hotplug events: open any pad we don't have yet."""
@@ -70,6 +99,8 @@ class Input:
             return
         for i in range(n):
             self._add(i)
+        if self._guessed & set(self.pads):
+            self._kinds()          # Steam may write its slot file after the pad appeared
 
     def pad_names(self):
         return [c.name for c in self.pads.values()]
@@ -127,6 +158,8 @@ class Input:
             elif e.type == pg.KEYUP and self.keymap.get(e.key) == self.page_held:
                 self.page_held = None
             elif e.type == pg.CONTROLLERAXISMOTION:
+                if abs(e.value) > DEADZONE:
+                    self._used(e.instance_id)
                 a = self._trigger(e)
                 if a:
                     out.append(a)
@@ -134,8 +167,11 @@ class Input:
                 self._add(e.device_index)
             elif e.type == pg.CONTROLLERDEVICEREMOVED:
                 self.pads.pop(e.instance_id, None)
-            elif e.type == pg.CONTROLLERBUTTONDOWN and e.button in self.btnmap:
-                out.append(self._press(self.btnmap[e.button]))
+                self._kinds()
+            elif e.type == pg.CONTROLLERBUTTONDOWN:
+                self._used(e.instance_id)
+                if e.button in self.btnmap:
+                    out.append(self._press(self.btnmap[e.button]))
             elif e.type == pg.CONTROLLERBUTTONUP and self.btnmap.get(e.button) == self.btn_dir:
                 self.btn_dir = None
         now = pg.time.get_ticks()

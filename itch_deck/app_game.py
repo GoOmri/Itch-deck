@@ -4,7 +4,7 @@ import logging
 import threading
 from pathlib import Path
 
-from . import config, mouse
+from . import config, mouse, pads
 from .input import (A, B, START, L1, R1)
 from .app_common import LATER
 
@@ -117,7 +117,7 @@ class GameMixin:
         items, progs = [], self.inst.programs(gid)
         if len(progs) > 1:                 # first row: which file starts the game
             items.append(("Program to run", Path(progs[0]).name,
-                          f"{len(progs)} programs found · A to choose"))
+                          f"{len(progs)} programs found · {pads.name('A')} to choose"))
         extra = len(items)
         for b in order:
             kind = "Linux" if b["linux"] else "Windows"
