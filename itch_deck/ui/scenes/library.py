@@ -43,6 +43,12 @@ def genres(games):
     return [x for x, _ in Counter(g["genre"] for g in games if g.get("genre")).most_common()]
 
 
+def letter(title):
+    """A–Z bucket of a title ('#' for digits and symbols)."""
+    c = title.strip()[:1].upper()
+    return c if "A" <= c <= "Z" else "#"
+
+
 def visible(games, filt="all", sort="az", show="all", genre="any", length="any"):
     """The games a tab shows, in order (the app uses it too, for L1/R1 on the game page)."""
     gs = [g for g in games if playable(g)] if show == "playable" else list(games)
@@ -284,6 +290,19 @@ class Library(Scene):
     def footer_status(self):
         return self.activity or ("Refreshing library" if self.syncing == "bg" else None), self.notice
 
+    def _letters(self, s, area):
+        """A–Z strip in the right margin: the focused game's letter in purple, letters with
+        games dim, the rest faint. Shows only; L2/R2 still page."""
+        t = self.t
+        have = {letter(g.get("title", "")) for g in self.shown}
+        cur = letter(self.shown[self.focus].get("title", "")) if self.shown else ""
+        abc = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        top, step = area.y + t.sm, (area.h - 2 * t.sm) / len(abc)
+        x = t.w - t.m // 2
+        for i, ch in enumerate(abc):
+            col = t.accent if ch == cur else (t.dim if ch in have else t.faint)
+            W.text(t, s, ch, x, int(top + step * (i + 0.5)), t.f_hint, color=col, anchor="center")
+
     def _center_msg(self, s, y, title, sub, spinner=False, refresh=False):
         t = self.t
         cy = (y + t.h - t.hint_h) / 2
@@ -306,7 +325,9 @@ class Library(Scene):
         first = getattr(self, "_first", 0)          # scroll only when focus leaves the view
         first = min(max(first, frow - visible + 1), frow)
         self._first = first
-        self._sy = W.ease(getattr(self, "_sy", None), first * row_h, back=0)   # scroll: no bounce
+        rows = -(-len(self.shown) // cols)
+        end = max(0, rows * row_h - t.gap + 2 * pad - area.h)   # last row sits on the bottom edge:
+        self._sy = W.ease(getattr(self, "_sy", None), min(first * row_h, end), back=0)  # never a lone row
         sy = self._sy[0]
         r0 = int(sy // row_h)
         s.set_clip(area)
@@ -325,3 +346,5 @@ class Library(Scene):
                            int(tw), int(th))
             W.tile(t, s, self.shown[self.focus], rect, focused=True)
         s.set_clip(None)
+        if self.sort == "az" and rows * row_h > area.h:          # long A–Z list: where am I?
+            self._letters(s, area)

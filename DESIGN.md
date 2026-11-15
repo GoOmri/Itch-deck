@@ -85,6 +85,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
 - Pad actions: empty states don't repeat
   them. **Yes/no dialogs** (Quit, Uninstall) show their buttons inside: [action, Cancel],
   action focused first, ◀ ▶ to switch.
+- **Library grid** never scrolls past its last row, and a long A–Z list shows an A–Z strip in
+  the right margin (current letter purple).
 - **Library:** tabs All · Installed, plus one per store (itch · Epic) once a second store is
   connected (L1/R1) — no more tabs. **X = Sort & filter:**
   Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +

@@ -809,3 +809,6 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - Footer left = background work on every screen (spinner + text) or the update notice; the
   Library top bar keeps only filter tag, count and offline. `Scene.footer_status()`; the app
   sets `scene.activity` / `scene.notice` every frame.
+- Grid never scrolls past the last row (last row sits on the bottom edge; a tab that fits
+  doesn't scroll). A–Z strip in the right margin when sorted A–Z and the list scrolls: the
+  focused game's letter purple, letters with games dim, others faint. Indicator only.
