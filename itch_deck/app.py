@@ -44,6 +44,10 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         self.open_display()
         key = self.cfg.get("api_key")
         self.lib = Library(ItchStore(key) if key else None)
+        if self.cfg.get("epic"):                   # opt-in: Settings -> Account -> Epic
+            from .stores.epic import EpicStore
+            self.lib.epic = EpicStore()
+            self.lib.sync_epic()                   # local files: instant, never blocks itch
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
         self._pin_root()
         self.picker = None              # (gid, builds) behind an open Change build picker
@@ -128,7 +132,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
 
     def go_library(self):
         from .ui.scenes.library import Library as LibScene
-        sc = LibScene(self.t, self.lib.games, filt=self.filt, views=self._views())
+        sc = LibScene(self.t, self.lib.games, filt=self.filt, views=self._views(),
+                      stores=self._stores())
         self._set("library", sc)
         self._sync_library_scene()
         ids = [g["id"] for g in sc.shown]
@@ -159,6 +164,11 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         self.settings_back = self.kind
         self._set("settings", Settings(self.t, self.settings_values(), VERSION,
                                        str(paths.LOGS / "app.log")))
+
+    def _stores(self):
+        """Connected stores: with two, the library gets a tab per store (All · Installed ·
+        itch · Epic)."""
+        return ("itch", "epic") if self.lib.epic else ("itch",)
 
     def _views(self):
         """Sort & filter per library tab (cfg "library_views"). Before v0.7.5 there was one
@@ -217,7 +227,10 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         elif act == B:
             sc.overlay = QUIT_DLG
         elif act == Y:
-            if self.lib.start_sync():
+            started = self.lib.start_sync()
+            if self.lib.epic:
+                self.lib.sync_epic()
+            if started:
                 self.say("Refreshing library…")
         elif act == START:
             self.go_settings()

@@ -59,6 +59,8 @@ def _write_json(path, data):
 class Library:
     def __init__(self, store=None):
         self.store = store
+        self.epic = None               # EpicStore when connected (opt-in, read-only for now)
+        self.epic_error = None
         self.games, self.synced_at = [], None
         self.syncing = None            # None | "first" | "bg"
         self.page = 0
@@ -140,7 +142,7 @@ class Library:
 
     def save_cache(self):
         keep = ("id", "title", "author", "cover_url", "url", "short_text", "platforms",
-                "download_key_id", "classification", "source")
+                "download_key_id", "classification", "source", "store", "app_name")
         games = [{k: (sorted(g[k]) if k == "platforms" else g.get(k)) for k in keep} for g in self.games]
         _write_json(paths.LIBRARY, {"synced_at": self.synced_at, "games": games})
 
@@ -173,6 +175,7 @@ class Library:
                         g[k] = old[g["id"]][k]
                 self._apply_install(g)          # after the copy: install state wins
                 new.append(g)
+            new += [g for g in self.games if g.get("store", "itch") != "itch"]   # Epic stays
             new.sort(key=lambda g: g["title"].lower())
             self.games = new
             self.synced_at = _now().isoformat(timespec="seconds")
@@ -210,11 +213,37 @@ class Library:
             if not g.get("cover_file") and g.get("cover_url"):
                 self._put(1, "cover", g["id"])
 
+    # --- Epic (read-only, step 1) --------------------------------------------------
+    def sync_epic(self):
+        """Replace the Epic games with what Heroic's legendary knows. Reads local files only;
+        any failure is logged and leaves the itch library alone."""
+        if not self.epic:
+            return False
+        try:
+            raw = self.epic.sync()
+        except Exception as e:  # noqa: BLE001  - isolated: never breaks itch
+            log.warning("epic sync failed: %s", e)
+            self.epic_error = str(e)
+            return False
+        self.epic_error = None
+        fresh = [self._prep(g) for g in raw]
+        self.games = sorted([g for g in self.games if g.get("store", "itch") != "epic"] + fresh,
+                            key=lambda g: g["title"].lower())
+        self.save_cache()
+        self.queue_covers()
+        self.queue_hltb()
+        return True
+
+    def drop_epic(self):
+        self.epic = None
+        self.games = [g for g in self.games if g.get("store", "itch") != "epic"]
+        self.save_cache()
+
     def queue_prefetch(self):
         """Background page fetch: games never fetched, and caches from before Genre /
         Average session were read (so filters fill in without opening every game)."""
         for g in self.games:
-            if g["platforms"] & {"linux", "windows"} and not self._has_page_fields(g):
+            if g.get("url") and g["platforms"] & {"linux", "windows"} and not self._has_page_fields(g):
                 self._put(5, "page", g["id"])
 
     def _has_page_fields(self, g):

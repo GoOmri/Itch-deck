@@ -42,10 +42,15 @@ class Game(Scene):
     def playable(self):
         return bool(self.g["platforms"] & {"linux", "windows"})
 
+    @property
+    def read_only(self):
+        """Epic step 1: the game is listed, installing comes in step 2."""
+        return self.g.get("store") == "epic"
+
     def actions(self):
         """[(label, icon, enabled)]: ONE main button + the ⚙ Options button (Omri)."""
         st = self.g.get("state")
-        if not self.playable:
+        if not self.playable or self.read_only:
             main = []
         elif st == "installed" and self.g.get("update"):   # Play · Update · ⚙ (Omri)
             main = [("Play", "play", True), ("Update", None, True)]
@@ -68,7 +73,7 @@ class Game(Scene):
     def options(self):
         """⚙ / ☰ Options: everything that isn't the main action."""
         g, st = self.g, self.g.get("state")
-        if not self.playable:
+        if not self.playable or self.read_only:
             return []
         if st == "installed":
             return ["Uninstall", "Change build", "Controls"]
@@ -358,6 +363,8 @@ class Game(Scene):
             if "html" in g["platforms"]:
                 return ("info", "Browser game", "Play it on itch.io.")
             return ("info", "Can't be played here", None)
+        if self.read_only:
+            return ("info", "Coming soon", "Installing Epic games is next.")
         st = g.get("state")
         if self.card_out and st in (None, "failed"):
             return ("info", "SD card missing", "Insert it to install.")

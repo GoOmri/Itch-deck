@@ -591,6 +591,32 @@ v0.7.5 RELEASED 15 Nov (Omri "push"; branch v075-tabs-splash):
 v0.7.5 Deck test (15 Nov): all ✓. Omri: the launch logo only flashes (start too quick) -> removed
   on branch v076-no-splash (first frame = plain background, no fade; W.launch_splash, mockup 00
   and DESIGN line gone). NOT released.
+Epic step 1 (branch epic-tab, built on v076-no-splash; NOT released - Omri 15 Nov "go ahead with
+  step 1"): read-only Epic tab from Heroic's legendary files, no network, no legendary download.
+  - stores/epic.py: legendary_dir() = first of ~/.var/app/com.heroicgameslauncher.hgl/config/heroic/
+    legendaryConfig/legendary (flatpak) or ~/.config/heroic/legendaryConfig/legendary with a
+    user.json; user_name() = displayName (tokens never read/copied); sync() = metadata/<app>.json
+    (legendary's Game.__dict__: app_name, app_title, asset_infos{Platform: ...}, metadata = Epic
+    catalog item). DLC (metadata.mainGameItem) skipped; Ubisoft/EA (customAttributes
+    ThirdPartyManagedApp/Provider) -> platforms ["other"] (dimmed); old "asset_info" = Windows.
+    Ids "epic-<app_name>", store "epic", cover = DieselGameBox (landscape) first.
+  - Library.epic / sync_epic() / drop_epic(): Epic games merged into lib.games; itch _sync keeps
+    non-itch games; any Epic error logged ("epic sync failed") and itch untouched. Cache keeps
+    "store" + "app_name". queue_prefetch skips games without an itch url. HLTB works by title.
+  - App: cfg "epic": true -> EpicStore at start; Library tabs All · Installed · itch · Epic
+    (App._stores); Y refresh re-reads Epic too. Settings → Account → "Epic Games" row: Connect
+    (Heroic signed in) / Disconnect (confirm; Heroic stays signed in) / "Sign in with Heroic
+    first" (A = check again). Game page for Epic = no buttons, info "Coming soon · Installing
+    Epic games is next." (Game.read_only).
+  - Mockups 06e (two stores), 06f (Epic tab), 15d (Epic game), 21e (Settings Epic row);
+    21c focus moved to 5. tests/test_epic.py.
+  Freshness: as fresh as Heroic's last library refresh (open Heroic once to update). Step 2 =
+  legendary for install/launch (download on demand, LEGENDARY_CONFIG_PATH = Heroic's dir).
+  Deck checklist (Epic step 1): 1 Heroic signed in to Epic (open it once). 2 SCRiTCH Settings →
+  Account → Epic Games → A Connect: toast "Epic connected · N games". 3 Tabs All · Installed ·
+  itch · Epic; Epic covers load. 4 An Epic game page: "Coming soon". 5 Y refresh: itch + Epic
+  both still there. 6 Disconnect: Epic tab and games gone, itch untouched, Heroic still signed in.
+  If wrong: app.log "epic sync".
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

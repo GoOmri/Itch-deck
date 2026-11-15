@@ -7,7 +7,8 @@ from .. import widgets as W
 from .base import Scene
 
 # What the player reads. The app still acts on the internal labels (left).
-SHOWN = {"Re-import API key": "Use a new itch key", "Disconnect itch": "Sign out",
+SHOWN = {"Re-import API key": "Use a new itch key", "Disconnect itch": "Sign out of itch",
+         "Epic": "Epic Games",
          "Install location": "Install games to", "Saves of uninstalled games": "Old save data",
          "Proton version": "Windows support"}
 
@@ -24,10 +25,11 @@ class Settings(Scene):
         v = self.v
         return [
             ("App", "Updates and what you're running.", [("Update app", v["update"], "")]),
-            ("Account", "Your itch account and library.",
+            ("Account", "Your stores and library.",
              [("Refresh library", "", f"Last synced {v['last_sync']}"),
               ("Re-import API key", "", ""),
-              ("Disconnect itch", v.get("itch_user", ""), "")]),
+              ("Disconnect itch", v.get("itch_user", ""), ""),
+              ("Epic", v.get("epic", ""), "")]),
             ("Storage", "Where games go and what they leave behind.",
              [("Install location", v["install_label"], ""),          # SD card / Internal storage
               ("Saves of uninstalled games", v["prefix_size"], "")]),
@@ -82,6 +84,10 @@ class Settings(Scene):
             return [("A", "Open"), ("B", "Back")]
         label, value, _ = self.items()[self.focus]
         act = self.ACTION.get(label, "Select")
+        if label == "Epic":
+            val = str(value)
+            act = "Disconnect" if val.startswith("Connected") else \
+                "Connect" if val == "Not connected" else "Check"
         if label == "Proton version" and str(self.v.get("proton", "")).startswith("Not installed"):
             act = "Download"
         if label == "Update app" and isinstance(value, tuple):

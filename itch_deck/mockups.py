@@ -106,7 +106,15 @@ def _shots(t, version):
         "install_label": "SD card", "install_path": "/run/media/deck/SD/itch", "free": "112 GB",
         "proton": "Auto · GE-Proton9-20", "prefix_size": "2 games · 1.2 GB", "last_sync": "today 11:02", "itch_user": "omri",
         "update": (f"v{version[:-1]}9 available", "Update"), "symbols": "Auto · Steam Deck",
+        "epic": "Connected as omri",
     }
+    # Epic step 1 (read-only): a few sample games marked as Epic, sorted in with itch's
+    epic_titles = ["Lantern Keep", "Orbit Orchard", "Salt & Signal", "Tidewright", "Velvet Vault",
+                   "Wren Station"]
+    epic_games = [dict(g, id="epic-" + g["id"], title=title, store="epic", state=None, url=None,
+                       screens=0, size_mb=0, ttb=None)
+                  for g, title in zip(lib[:: max(1, n // 6)], epic_titles)]
+    both = sorted(lib + epic_games, key=lambda g: g["title"].lower())
     picker = ("picker", "Choose a build",
               "Recommended: native Linux first, then a plain Windows zip.",
               [(name, "Recommended" if rec else "", sub) for name, sub, rec in fake.uploads()], 0)
@@ -200,7 +208,11 @@ def _shots(t, version):
             0))),
         ("21_settings", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log")),
         ("21a_settings_account", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=1)),
-        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
+        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=5)),
+        ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
+        ("06e_library_two_stores", Library(t, both, focus=1, stores=("itch", "epic"))),
+        ("06f_library_epic_tab", Library(t, both, filt="epic", focus=0, stores=("itch", "epic"))),
+        ("15d_game_epic", Game(t, epic_games[1], pos=(2, len(epic_games)))),
         ("21d_settings_update", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=0)),
         ("21b_settings_disconnect", with_overlay(
             Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=3), (
