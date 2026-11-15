@@ -118,32 +118,52 @@ def wrap(t, s, txt, x, y, font, maxw, color=None, max_lines=None):
     return y
 
 
+NAME_RE = None
+
+
+def name_runs(txt, color, accent, white):
+    """THE name rule (DESIGN rule 1), in one place: wherever the app name appears in txt
+    (any capitalisation), it is spelled SCRiTCH with every letter purple and the i white.
+    Returns [(text, colour)] runs to draw left to right."""
+    global NAME_RE
+    import re
+    if NAME_RE is None:
+        NAME_RE = re.compile(re.escape(APP_NAME), re.I)
+    runs, pos = [], 0
+    for m in NAME_RE.finditer(txt):
+        if m.start() > pos:
+            runs.append((txt[pos:m.start()], color))
+        runs += [("SCR", accent), ("i", white), ("TCH", accent)]
+        pos = m.end()
+    if pos < len(txt):
+        runs.append((txt[pos:], color))
+    return runs
+
+
+def render_text(t, font, txt, color):
+    """Every piece of on-screen text is rendered here, so the name is always right."""
+    color = color or t.text_c
+    if APP_NAME.lower() not in txt.lower():
+        return font.render(txt, True, color)
+    runs = name_runs(txt, color, t.accent, t.text_c)
+    full = "".join(r for r, _ in runs)
+    img = pg.Surface((font.size(full)[0], font.get_height()), pg.SRCALPHA)
+    done = ""
+    for part, col in runs:
+        img.blit(font.render(part, True, col), (font.size(done)[0], 0))   # advance by the text
+        done += part                                                       # so far: kerning
+    return img
+
+
 def text(t, s, txt, x, y, font, color=None, anchor="topleft", maxw=None):
     if maxw:
         txt = fit(font, txt, maxw)
-    img = font.render(txt, True, color or t.text_c)
+    img = render_text(t, font, txt, color)
     if anchor in ("baseleft", "baseright"):   # sit on a shared baseline (mixed font sizes)
         anchor, y = ("topleft" if anchor == "baseleft" else "topright"), y - font.get_ascent()
     r = img.get_rect(**{anchor: (int(x), int(y))})
     s.blit(img, r)
     return r
-
-
-def text_named(t, s, txt, x, y, font, color=None, maxw=None):
-    """Like text() (topleft), but the app name inside txt is drawn purple (every letter;
-    only the logo has the white i). Returns the rect of the whole line."""
-    if maxw:
-        txt = fit(font, txt, maxw)
-    i = txt.find(APP_NAME)
-    if i < 0:
-        return text(t, s, txt, x, y, font, color)
-    parts = [(txt[:i], color or t.text_c), (APP_NAME, t.accent), (txt[i + len(APP_NAME):], color or t.text_c)]
-    cx = x
-    for part, col in parts:
-        if part:
-            s.blit(font.render(part, True, col), (int(cx), int(y)))
-        cx += font.size(part)[0]
-    return pg.Rect(int(x), int(y), font.size(txt)[0], font.get_height())
 
 
 def cap_gap(font):
@@ -484,7 +504,7 @@ def tag(t, s, label, x, y, kind="neutral", anchor="topleft", icon_name=None):
     error (Failed), dark (on top of images, e.g. '+2 more')."""
     fill_k, col_k = TAG_KINDS[kind]
     col = getattr(t, col_k)
-    img = t.f_hint.render(label.upper(), True, col)
+    img = render_text(t, t.f_hint, label.upper(), col)      # name rule holds in tags too
     ih = int(t.f_hint.get_height() * 0.5)
     iw = int(ih * 0.9) + t.xs if icon_name else 0
     r = pg.Rect(0, 0, img.get_width() + iw + t.u * 1.6, int(t.f_hint.get_height() + t.u * 0.7))
@@ -509,15 +529,13 @@ def wordmark(t, s, x, y, anchor="topleft"):
         anchor, y = ("topleft" if anchor == "baseleft" else "topright"), y - f.get_ascent()
     box = pg.Rect(0, 0, f.size(APP_NAME)[0], f.get_height())
     setattr(box, anchor, (int(x), int(y)))
-    for i, ch in enumerate(APP_NAME):
-        col = t.text_c if ch == "i" else t.accent
-        s.blit(f.render(ch, True, col), (box.x + f.size(APP_NAME[:i])[0], box.y))
+    s.blit(render_text(t, f, APP_NAME, None), box)      # same name rule as all text
     return box
 
 
 def pill(t, s, label, x, y, fill=None, color=None, font=None, anchor="topleft"):
     font = font or t.f_small
-    img = font.render(label, True, color or t.text_c)
+    img = render_text(t, font, label, color)
     r = pg.Rect(0, 0, img.get_width() + t.u * 1.8, img.get_height() + t.u * 0.6)
     setattr(r, anchor, (int(x), int(y)))
     pg.draw.rect(s, fill or (0, 0, 0), r, border_radius=r.h // 2)
@@ -690,7 +708,7 @@ def modal(t, s, title, body, buttons=None, focus=0):
     r = pg.Rect(0, 0, w, h)
     r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
     panel(t, s, r)
-    y = text_named(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom + t.sm
+    y = text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom + t.sm
     for ln in lines:
         y = text(t, s, ln, r.x + pad, y, t.f_body, color=t.dim).bottom
     if buttons:
@@ -723,7 +741,7 @@ def menu(t, s, title, sub, items, focus, arrows=False):
 
 def toast(t, s, msg, error=False):
     k = anim(("toast", msg), 1.0, start=0.0)       # slides up + fades in once
-    img = t.f_body.render(msg, True, t.text_c)
+    img = render_text(t, t.f_body, msg, None)
     dot = t.u * 0.7 if error else 0                 # red dot = this toast is an error
     r = pg.Rect(0, 0, img.get_width() + t.md * 2 + (dot * 2 + t.sm if error else 0),
                 img.get_height() + t.sm * 2)

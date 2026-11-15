@@ -176,7 +176,7 @@ def _shots(t, version):
         ("21b_settings_disconnect", with_overlay(
             Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log"), (
                 "confirm", "Disconnect itch?",
-                ["scritch forgets the key. Installed games still play.",
+                ["SCRiTCH forgets the key. Installed games still play.",
                  "To revoke it: itch.io → Settings → API keys."],
                 [("A", "Disconnect"), ("B", "Cancel")]))),
     ]

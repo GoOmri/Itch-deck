@@ -6,6 +6,7 @@ password (wrong or missing -> 403), a password is good for TTL seconds and is re
 key was accepted, bodies are capped, and nothing but the posted text reaches the app.
 Plain HTTP on the local network: fine at home, the QR screen says not to use public Wi-Fi."""
 import html
+import re
 import json
 import logging
 import secrets
@@ -177,15 +178,24 @@ ol{padding-left:1.2rem}li{margin:.7rem 0}small{color:#9a9ab0}
 text-decoration:none;font-weight:600}textarea{width:100%;box-sizing:border-box;min-height:6rem;
 background:#1d1f33;color:#fff;border:1px solid #3a3c58;border-radius:.6rem;padding:.7rem;font:inherit}
 button{margin-top:.8rem;width:100%;padding:.9rem;border:0;border-radius:.6rem;background:#9d6bff;
-color:#141020;font:700 1.05rem system-ui,sans-serif}.err{color:#ff8a8a}.note{color:#9a9ab0;font-size:.85rem}
+color:#141020;font:700 1.05rem system-ui,sans-serif}.err{color:#ff8a8a}
+.nm{color:#9d6bff}.nm i{color:#fff;font-style:normal}.note{color:#9a9ab0;font-size:.85rem}
 .big{font-size:1.5rem;font-weight:700;margin:1.2rem 0}.ok{color:#5fd38a}.bad{color:#ff8a8a}
 .wide{display:block;text-align:center}"""
+
+
+NAME_HTML = '<span class="nm">SCR<i>i</i>TCH</span>'   # the name rule: purple, white i
+
+
+def named(text):
+    """Escape text for HTML and draw the app name the SCRiTCH way (same rule as the app)."""
+    return re.sub("scritch", NAME_HTML, html.escape(text), flags=re.I)
 
 
 def _page(title, body):
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" '
             f'content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
-            f'<style>{CSS}</style></head><body><main><h1>{html.escape(title)}</h1>{body}</main>'
+            f'<style>{CSS}</style></head><body><main><h1>{named(title)}</h1>{body}</main>'
             f'</body></html>')
 
 
@@ -197,7 +207,7 @@ def form_page(purpose, token, error=""):
     return _page(p["title"], f"""<ol>{steps}</ol>{err}
 <form method="post" action="/send"><input type="hidden" name="t" value="{html.escape(token)}">
 <textarea name="text" placeholder="{html.escape(p['field'])}" autocomplete="off"
-autocapitalize="off" spellcheck="false"></textarea><button>Send to SCRiTCH</button></form>
+autocapitalize="off" spellcheck="false"></textarea><button>Send to your Deck</button></form>
 <p class="note">Only use this on your home Wi-Fi. The key goes straight to your Deck and is stored
 only there.</p>""")
 
