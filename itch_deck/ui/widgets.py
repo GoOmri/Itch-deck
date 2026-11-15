@@ -847,12 +847,27 @@ def tile(t, s, game, rect, focused=False):
     k = anim(("tile", game["id"]), 1.0 if focused else 0.0)
     grow = (t.focus_scale - 1) * k
     r = rect.inflate(rect.w * grow, rect.h * grow) if grow else rect
-    if 0.001 < k < 0.999:            # growing / shrinking: scale the finished big one (cheap)
-        full = rect.inflate(rect.w * (t.focus_scale - 1), rect.h * (t.focus_scale - 1))
-        img = pg.transform.smoothscale(_tile_img(t, game, full.size, playable), r.size)
+    loading = game.get("cover_url") and not game.get("cover_file")
+    if loading:                       # cover on its way: dark purple with a passing shine
+        _LOADING.add(game["id"])
+        shimmer(t, s, r)
     else:
-        img = _tile_img(t, game, r.size, playable)
-    s.blit(img, r.topleft)
+        if 0.001 < k < 0.999:         # growing / shrinking: scale the finished big one (cheap)
+            full = rect.inflate(rect.w * (t.focus_scale - 1), rect.h * (t.focus_scale - 1))
+            img = pg.transform.smoothscale(_tile_img(t, game, full.size, playable), r.size)
+        else:
+            img = _tile_img(t, game, r.size, playable)
+        key = ("cover-in", game["id"])
+        if game["id"] in _LOADING:    # just arrived: fade in over the shimmer, no pop
+            _LOADING.discard(game["id"])
+            _ANIM.pop(key, None)
+            anim(key, 1.0, start=0.0, ms=MOTION_MS * 2)
+        a = anim(key, 1.0, ms=MOTION_MS * 2) if key in _ANIM else 1.0
+        if a < 0.99:
+            shimmer(t, s, r)
+            img = img.copy()
+            img.set_alpha(int(255 * max(0.0, a)))
+        s.blit(img, r.topleft)
     if k > 0.5:
         focus_ring(t, s, r)
     _badges(t, s, game, r, playable)
@@ -862,6 +877,38 @@ def tile(t, s, game, rect, focused=False):
     if not playable:                  # info tag on the art, like the other tile badges
         tag(t, s, "Browser game" if "html" in game["platforms"] else "Not playable here",
             r.x + t.u, r.bottom - t.u, kind="dark", anchor="bottomleft")
+
+
+_LOADING = set()                      # tiles that showed the shimmer: their cover fades in
+SHINE_S = 1.6                         # one sweep of the shine
+
+
+def shimmer(t, s, r):
+    """Cover placeholder while it downloads: dark purple, a soft light band sweeping across.
+    Tiles are offset by position, so a row shimmers as one wave."""
+    import time
+    base = _cover_cache.get(("shimmer", r.size))
+    if base is None:
+        base = pg.Surface(r.size, pg.SRCALPHA)
+        pg.draw.rect(base, mix(t.panel, t.accent_btn, 0.28), base.get_rect(), border_radius=t.radius)
+        _cover_cache[("shimmer", r.size)] = base
+    band = _cover_cache.get(("shine", r.h))
+    if band is None:                  # soft vertical band, light in the middle, leaning a little
+        bw = max(8, r.h // 2)
+        band = pg.Surface((bw, r.h * 2))
+        for x in range(bw):
+            v = int(22 * math.sin(math.pi * x / bw) ** 2)
+            pg.draw.line(band, (v, v, v + 4), (x, 0), (x, r.h * 2))
+        band = pg.transform.rotozoom(band, -14, 1)          # smooth edges
+        _cover_cache[("shine", r.h)] = band
+    img = base.copy()
+    ph = ((time.monotonic() / SHINE_S) - r.x / (t.w * 1.5)) % 1 if LIVE else 0.45
+    x = int(-band.get_width() + ph * (r.w + band.get_width() * 2))
+    img.blit(band, (x, (r.h - band.get_height()) // 2), special_flags=pg.BLEND_RGB_ADD)
+    s.blit(img, r.topleft)
+    if LIVE:
+        global _busy_until
+        _busy_until = max(_busy_until, time.monotonic() + 0.05)   # keep frames coming
 
 
 def _tile_img(t, game, size, playable):

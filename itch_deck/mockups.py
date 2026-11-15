@@ -169,6 +169,9 @@ def _shots(t, version):
         ("04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
         ("05_library_scrolled", Library(t, lib, focus=n - 2)),
         ("05b_library_downloading", _act(Library(t, lib, focus=1), "Downloading 42% · Quiet Quarry (+1)")),
+        ("05e_library_covers_loading", _act(Library(t, [dict(g, cover_url="x", cover_file=None)
+                                                   if i % 3 else g for i, g in enumerate(lib)],
+                                                  focus=1), "Covers 40/120")),
         ("05c_library_covers", _act(Library(t, lib, focus=1), "Covers 40/120")),
         ("05d_library_update", _note(_act(Library(t, lib, focus=1), "Covers 40/120"),
                                      "Update v0.3.4 available · Settings")),
