@@ -36,6 +36,21 @@ def find(title):
     return None
 
 
+# Steam labels that aren't a kind of game (skipped), and Steam names that itch calls otherwise
+NOT_GENRES = {"indie", "casual", "free to play", "early access", "massively multiplayer",
+              "violent", "gore", "nudity", "sexual content"}
+TO_ITCH = {"RPG": "Role Playing", "Education": "Educational"}
+
+
+def pick_genre(genres):
+    """First real genre in itch's words ("RPG" -> "Role Playing"), or "" if Steam only has
+    labels like Indie / Casual / Free to Play."""
+    for name in genres or []:
+        if name and name.strip().lower() not in NOT_GENRES:
+            return TO_ITCH.get(name.strip(), name.strip())
+    return ""
+
+
 def details(appid):
     """{"paras": [...], "shots": [url, ...], "genre": str} or None."""
     data = net.get_json(DETAILS.format(id=appid), timeout=20) or {}
@@ -46,7 +61,7 @@ def details(appid):
     shots = [s.get("path_full") for s in d.get("screenshots") or [] if s.get("path_full")]
     genres = [x.get("description") for x in d.get("genres") or [] if x.get("description")]
     return {"paras": html_paras(d.get("about_the_game") or d.get("detailed_description") or ""),
-            "shots": shots, "genre": genres[0] if genres else ""}
+            "shots": shots, "genre": pick_genre(genres), "genres": genres}
 
 
 # --- text ------------------------------------------------------------------------------

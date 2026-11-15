@@ -60,6 +60,16 @@ def _write_json(path, data):
 COVER_MAX = 720          # px, longest side of a saved cover (Epic sends 2560 px art)
 
 
+def _genre(g, page):
+    """Genre from a saved page. Epic pages saved by v0.7.9 kept Steam's first label as is
+    ("Indie", "RPG"): cleaned here until the page is fetched again."""
+    genre = (page.get("genre") or [""])[0]
+    if g.get("store") == "epic" and "steam_genres" not in page:
+        from .stores.steam import pick_genre
+        genre = pick_genre([genre])
+    return genre
+
+
 def _size(path):
     try:
         return os.path.getsize(path)
@@ -171,7 +181,7 @@ class Library:
             d = json.loads(self._page_file(g).read_text())
         except (OSError, ValueError):
             return
-        g["genre"] = (d.get("genre") or [""])[0]
+        g["genre"] = _genre(g, d)
         g["inputs"] = d.get("inputs") or []
 
     def _apply_install(self, g):
@@ -324,9 +334,12 @@ class Library:
 
     def _has_page_fields(self, g):
         try:
-            return "genre" in json.loads(self._page_file(g).read_text())
+            d = json.loads(self._page_file(g).read_text())
         except (OSError, ValueError):
             return False
+        if g.get("store") == "epic" and "steam_genres" not in d:   # v0.7.9: first Steam label
+            return False                                           # (often "Indie"): refetch once
+        return "genre" in d
 
     def _work(self):
         while True:
@@ -464,7 +477,7 @@ class Library:
         g["comments"] = cs or None            # None = section hidden (forum games, parse miss)
         g["comment_count"] = d.get("comment_count", len(cs))
         g["inputs"] = d.get("inputs") or []
-        g["genre"] = (d.get("genre") or [""])[0]
+        g["genre"] = _genre(g, d)
         g["details_from"] = d.get("source") or "itch"
         # pages cached before Genre/Average session were read: stale, so they refetch once
         g["details_at"] = d.get("fetched") if "inputs" in d and "genre" in d else None
@@ -514,7 +527,8 @@ class Library:
         _write_json(self._page_file(g), {
             "fetched": _now().isoformat(timespec="seconds"), "description": paras,
             "comments": [], "comment_count": 0, "shots": n, "inputs": [],
-            "genre": [genre] if genre else [], "source": src,
+            "genre": [genre] if genre else [], "steam_genres": (info or {}).get("genres", []),
+            "source": src,
             "shots_from": "Steam" if n else None})
         log.info("page %s: epic, text from %s, %d shots, steam %s", g["id"], src,
                  n, "matched" if info else "no match")

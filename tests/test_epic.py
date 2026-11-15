@@ -286,6 +286,7 @@ def test_epic_page_text_from_epic_shots_from_steam(tmp_path, monkeypatch):
     lib._fetch_page(g)
     assert g["description"] == ["Hades", "A rogue-like dungeon crawler."] and g["details_from"] == "Epic"
     assert g["screens"] == 2 and g["genre"] == "Action" and g["comments"] is None
+    assert lib._has_page_fields(g)                                   # new pages aren't refetched
     assert any("appids=9" in u for u in asked)                       # HADES™ matched, Hades II not
 
     g2 = lib._prep(dict(epic.game_from_json(LIST[0]), long_text=""))
@@ -298,3 +299,19 @@ def test_epic_page_text_from_epic_shots_from_steam(tmp_path, monkeypatch):
     lib._fetch_page(g3)
     assert g3["description"] == [] and g3["screens"] == 0 and g3["details_at"]
     assert steam.norm("Tom Clancy's® Ghost & Recon™") == "tom clancy s ghost and recon"
+
+
+def test_steam_genre_is_a_real_genre_in_itch_words(tmp_path):
+    from itch_deck.stores.steam import pick_genre
+    assert pick_genre(["Indie", "Casual", "RPG", "Action"]) == "Role Playing"
+    assert pick_genre(["Free to Play", "Massively Multiplayer", "Strategy"]) == "Strategy"
+    assert pick_genre(["Indie", "Casual"]) == "" and pick_genre([]) == ""
+    paths.use_root(tmp_path)                       # a v0.7.9 Epic page with "Indie": hidden + refetched
+    lib = library.Library(None)
+    g = lib._prep(epic.game_from_json(LIST[0]))
+    f = lib._page_file(g)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"fetched": "2026-11-15T18:00:00", "description": [], "genre": ["Indie"],
+                             "inputs": [], "source": "Epic"}))
+    g = lib._prep(epic.game_from_json(LIST[0]))
+    assert g["genre"] == "" and not lib._has_page_fields(g)
