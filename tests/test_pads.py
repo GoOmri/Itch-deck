@@ -114,8 +114,8 @@ def test_quit_hint_line_uses_the_pad_in_use():
         s = pg.Surface((t.w, t.h))
         out[kind] = W.glyph_line(t, s, QUIT_HINT, t.cx, 300, t.f_body).w
     pads.set_current("deck")
-    assert out["ps"] > out["deck"]          # CREATE / OPTIONS pills are wider than ⧉ / ☰
-    assert out["deck"] < t.w * 0.8
+    assert out["ps"] != out["deck"]         # Create / Options drawn like the pad, not ⧉ / ☰
+    assert out["deck"] < t.w * 0.8 and out["ps"] < t.w * 0.8
 
 
 class _Pad:
@@ -151,3 +151,17 @@ def test_known_kinds_stick_and_guesses_are_retried():
     g = set()
     assert pads.resolve([(1, "Steam Virtual Gamepad")], ["deck", "ps"], known={1: "ps"}) == {1: "ps"}
     assert pads.resolve([(7, "Steam Virtual Gamepad")], [], guessed=g) == {7: "xbox"} and g == {7}
+
+
+def test_dualsense_create_options_like_the_pad():
+    """Omri's reference: small button leaning outward, icon above (Create fan, Options ≡)."""
+    from itch_deck.ui import widgets as W
+    t = _theme()
+    h = int(t.u * 3.0 * 1.25)
+    cr, op = W._ps_small("BACK", h, t.glyph_c), W._ps_small("MENU", h, t.glyph_c)
+    assert cr.get_height() == h and cr.get_width() < h            # taller than wide
+    assert pg.image.tobytes(cr, "RGBA") != pg.image.tobytes(op, "RGBA")
+    for img in (cr, op):                     # icon band on top, gap, then the button
+        rows = [any(img.get_at((x, y)).a > 128 for x in range(img.get_width()))
+                for y in range(img.get_height())]
+        assert rows[img.get_height() // 8] and rows[-img.get_height() // 4]

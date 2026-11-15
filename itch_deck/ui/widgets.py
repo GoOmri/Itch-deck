@@ -382,25 +382,63 @@ def _shape(name, d, ink):
     return out
 
 
+def _ps_small(btn, h, col):
+    """DualSense Create (BACK) / Options (MENU) as on the pad (Omri's reference, 15 Nov): a small
+    oblong button leaning a little outward (Create's top to the left, Options' to the right),
+    with its icon printed just above it: Create = three short strokes fanning out (\\ | /),
+    Options = three horizontal lines. Solid white like every glyph. h = glyph height."""
+    key = ("ps_small", btn, h, tuple(col))
+    if key in _shape_cache:
+        return _shape_cache[key]
+    k = 4
+    H = h * k
+    W_ = int(H * 0.5)
+    img = pg.Surface((W_, H), pg.SRCALPHA)
+    cx = W_ / 2
+    lean = -8 if btn == "BACK" else 8            # degrees; + = top leans right
+    pw, ph = int(H * 0.34), int(H * 0.62)        # the button: about 1 : 2 like the pad
+    pill_img = pg.Surface((pw, ph), pg.SRCALPHA)
+    pg.draw.rect(pill_img, col, (0, 0, pw, ph), border_radius=pw // 2)
+    pill_img = pg.transform.rotate(pill_img, -lean)
+    img.blit(pill_img, pill_img.get_rect(center=(cx, H - ph / 2 - H * 0.02)))
+    lw = max(k * 2, int(H * 0.075))
+    top, bot = H * 0.02, H * 0.27                # icon band above the button
+    if btn == "BACK":                            # three strokes on rays from a point below
+        ox, oy = cx, bot + H * 0.16
+        for a in (-38, 0, 38):
+            r = math.radians(a)
+            r0, r1 = (oy - bot) + H * 0.02, oy - top
+            dx, dy = math.sin(r), -math.cos(r)
+            pg.draw.line(img, col, (ox + dx * r0, oy + dy * r0), (ox + dx * r1, oy + dy * r1), lw)
+            for end in (r0, r1):               # round caps
+                pg.draw.circle(img, col, (ox + dx * end, oy + dy * end), lw / 2)
+    else:                     # three horizontal lines, as wide as the button, gaps = line width
+        lo = (bot + H * 0.03 - top) / 5
+        for i in range(3):
+            y = top + lo * (2 * i + 0.5)
+            pg.draw.rect(img, col, (cx - pw * 0.5, y - lo / 2, pw, lo), border_radius=int(lo / 2))
+    out = pg.transform.smoothscale(img, (W_ // k, h))
+    _shape_cache[key] = out
+    return out
+
+
 def glyph(t, s, btn, x, cy, ink=None, kind=None):
     """Steam-style button glyph: solid white shape, label knocked out in the dark ink colour.
     Follows the pad in use (pads.current, or kind=):
       Deck / Xbox: A B X Y letters in a circle; ☰ MENU and ⧉ BACK pills; L1 R1 L2 R2 squares
                    (Xbox: LB RB LT RT).
-      DualSense:   ✕ ○ □ △ drawn in the circle; CREATE / OPTIONS pills; L1 R1 L2 R2.
+      DualSense:   ✕ ○ □ △ drawn in the circle; Create / Options drawn as on the pad (small
+                   leaning button, icon above it: _ps_small); L1 R1 L2 R2.
     ◀ ▶ = circle. Left edge at x, centred on cy. Returns width. Labels centre on their bounds."""
     kind = kind or pads.current
     d = int(t.u * 3.0)
     c, ink = t.glyph_c, ink or t.glyph_ink
     if btn == "START":
         btn = "MENU"
-    if kind == "ps" and btn in ("MENU", "BACK"):    # words, like the print on the pad
-        img = t.f_glyph.render(pads.name(btn, kind).upper(), True, ink)
-        img = img.subsurface(img.get_bounding_rect())
-        r = pg.Rect(int(x), int(cy - d * 0.42), img.get_width() + int(d * 0.7), int(d * 0.84))
-        pg.draw.rect(s, c, r, border_radius=r.h // 2)
-        s.blit(img, img.get_rect(center=r.center))
-        return r.w
+    if kind == "ps" and btn in ("MENU", "BACK"):    # drawn like the pad: icon over a small pill
+        img = _ps_small(btn, int(d * 1.25), c)
+        s.blit(img, img.get_rect(midleft=(int(x), int(cy))))
+        return img.get_width()
     if btn in ("MENU", "BACK"):
         r = pg.Rect(int(x), int(cy - d * 0.42), int(d * 1.45), int(d * 0.84))
         pg.draw.rect(s, c, r, border_radius=r.h // 2)

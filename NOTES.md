@@ -498,6 +498,15 @@ Per-controller glyphs (in v0.7.2):
     3 Press a Deck button: back to Deck glyphs. 4 Start a game with the DualSense: splash says
     hold CREATE + OPTIONS. 5 Settings → Button symbols cycles; Auto shows what's detected.
     If wrong: send app.log lines "pad added", "pad in use", "pad ... = ".
+v0.7.3 work (branch filter-and-ps-glyphs, 15 Nov, NOT released yet), Omri's v0.7.2 Deck test:
+  - Sort & filter: ◀ ▶ moved the library behind the menu (re-sort + scroll reset under the
+    shade). Library.draw_page now draws a frozen snapshot while the menu is open; on close, if
+    filters changed, the content fades in. tests/test_library_menu.py (fails on the old code).
+  - DualSense Create / Options were word pills; Omri: must look like the real pad. Reference he
+    sent (Ackhsly game-assets sheet): small oblong buttons, about 1:2, leaning ~8° OUTWARD
+    (Create top-left, Options top-right), icon just above: Create = three short strokes fanning
+    out (\ | /), Options = three horizontal lines. widgets._ps_small draws that solid white
+    (4x supersampled), glyph height 1.25 d. He chose "icon above" over "icon inside".
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

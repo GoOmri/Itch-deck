@@ -65,7 +65,8 @@ SVG), never font characters.
 
 **Glyphs speak the pad in your hands.** Footer, dialogs and sentences show the buttons of the
 pad pressed last (Settings → Button symbols overrides): Deck = A B X Y + ⧉ ☰, DualSense =
-✕ ○ □ △ + CREATE / OPTIONS pills, Xbox = A B X Y + LB RB LT RT. Texts never hard-code a button
+✕ ○ □ △ + Create / Options drawn as on the pad (small button leaning outward,
+icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB RB LT RT. Texts never hard-code a button
 ("A to check" → `pads.name("A")`). *Why:* "press A" on a DualSense is a riddle.
 
 ## 6. One place for each thing
