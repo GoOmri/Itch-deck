@@ -24,7 +24,7 @@ jobs:
         run: "! git ls-files | grep -iE '(config\\.json|itch_key|\\.key$)'"
       # Folder build packed behind packaging/launcher.sh (v0.7.4: starts faster than --onefile)
       - run: sh packaging/build.sh
-      - name: Smoke test (through the launcher: unpacks into release/app, then runs)
+      - name: Smoke test (through the launcher, which unpacks into release/app)
         run: ./release/itch-deck --selftest
       - name: Render mockups (draws every page/state; also a crash test)
         run: ./release/itch-deck --render-mockups mockups

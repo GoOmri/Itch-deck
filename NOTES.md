@@ -463,6 +463,9 @@ v0.7.1 (branch v071-fixes, NOT released):
     `python -m itch_deck.hltb <titles>` on branch pushes touching hltb.py (15 Nov: Celeste 8.5 h,
     Circa Infinity 5 h, Cosmic Express 7.5 h, Baba Is You 7.5 h, fake title not found). build.yml
     runs it too, warning only. If times vanish on the Deck, HLTB changed: run that workflow.
+  LESSON (15 Nov, v0.7.4): a ": " inside a workflow step name breaks the YAML and GitHub runs
+    NOTHING (0 s failure named after the file). Before pushing workflow changes:
+    python3 -c "import yaml; yaml.safe_load(open('.github/workflows/build.yml'))".
   LESSON (15 Nov): CI is Python 3.11 — no backslashes inside f-string {} (3.12+ only). Before
     releasing also run `python3.11 -m pytest -q tests` (3.11 + deps are installed in the workspace).
   Deck checklist +6: library X -> Length / Shortest first fill in after a minute; game page shows
