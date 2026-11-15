@@ -678,7 +678,7 @@ Epic game pages (v0.7.9, Omri: "yes" to Epic text + Steam; IGDB rejected: needs 
   MAX_SHOTS, saved like itch shots), genre (filters), and the text when Epic has none. Saved as
   the page json with "source" Epic/Steam (g["details_from"]); footer "From Epic Games ·
   screenshots from Steam" / "From Steam". No match = nothing. Epic games are prefetched like itch.
-Steam genres (branch steam-genres, NOT released; Omri 15 Nov "yes"): steam.pick_genre skips
+Steam genres RELEASED v0.8.0 15 Nov (with Epic updates, Details, design-polish, menu-fixed): steam.pick_genre skips
   labels that aren't genres (Indie, Casual, Free to Play, Early Access, Massively Multiplayer,
   Violent, Gore, Nudity, Sexual Content) and uses itch's words (RPG -> Role Playing, Education ->
   Educational). Page json keeps "steam_genres" (full list); v0.7.9 Epic pages without it are
