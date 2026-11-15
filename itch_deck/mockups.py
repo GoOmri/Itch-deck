@@ -204,6 +204,13 @@ def _shots(t, version):
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
         ("15c_game_update", game("Harbor Ghosts")),
+        ("15h_game_everything", _set(Game(t, dict(by["Quiet Quarry"], title="The Extraordinarily Long Adventures of Pip",
+                                              author="Somebody With A Long Studio Name Games",
+                                              genre="Interactive Fiction", size_mb=12_800,
+                                              ttb={"main": 14.6, "done": 40}, controls_mode="keys",
+                                              short_text="A very long short description that keeps going for a while, "
+                                              "far past one line, to see what happens to the buttons below it."),
+                                     pos=(1, 30)), free_mb=4_100)),
         ("15g_game_mouse_controls", _set(game("Moss & Rivets"), mode="mouse")),
         ("15f_game_other_downloading", _act(game("Moss & Rivets"), "Downloading 42% · Quiet Quarry (+1)")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
