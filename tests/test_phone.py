@@ -50,7 +50,7 @@ def test_page_needs_the_one_time_password(link):
 
 def test_key_reaches_the_app(link):
     code, body = _post(link, link.token, "  key: AbCdEf0123456789abcdefABCDEF0123456789xy \n")
-    assert code == 200 and "Checking it on your Deck" in body
+    assert code == 200 and "Checking it on your Deck" in body and "Close this tab" in body
     assert link.got and key_from_text(link.got[0]) == "AbCdEf0123456789abcdefABCDEF0123456789xy"
     assert _post(link, "wrong", "x" * 40)[0] == 403
     assert len(link.got) == 1

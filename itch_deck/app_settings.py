@@ -118,9 +118,9 @@ class SettingsMixin:
                 self._scan_saves()
             threading.Thread(target=work, daemon=True).start()
             self.say(f"Deleted the saves of {len(dirs)} uninstalled game{'s' * (len(dirs) != 1)}.")
-        self.confirm("Delete saves?", f"Saved games and settings of {len(dirs)} uninstalled "
-                     f"game{'s' * (len(dirs) != 1)} are deleted for good. Installed games keep "
-                     "theirs.", "Delete", go)
+        n = f"{len(dirs)} uninstalled game{'s' * (len(dirs) != 1)}"
+        self.confirm("Delete saves?", [f"Saves of {n} are deleted for good.",
+                                       "Installed games keep theirs."], "Delete", go)
 
     def _h_settings(self, act):
         sc = self.scene
@@ -186,8 +186,8 @@ class SettingsMixin:
                 self.try_import(auto=True)
             elif label == "Disconnect itch":
                 self.confirm("Disconnect itch?",
-                             "scritch forgets your key; installed games stay and still play. To "
-                             "revoke the key too, delete it on itch.io → Settings → API keys.",
+                             ["scritch forgets the key. Installed games still play.",
+                              "To revoke it: itch.io → Settings → API keys."],
                              "Disconnect", self._disconnect_itch)
         elif not isinstance(act, tuple):
             sc.handle(act)

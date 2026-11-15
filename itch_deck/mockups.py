@@ -138,6 +138,7 @@ def _shots(t, version):
                                      toast_error=True)),
         ("11_game_not_installed", game("Quiet Quarry")),
         ("12_game_downloading", game("Hollow Lighthouse")),
+        ("12c_game_queued", game("Paper Comet", behind=True)),
         ("12b_game_offline", game("Quiet Quarry", offline=True)),
         ("11b_game_screenshots", game("Quiet Quarry", section="shots", shot=1)),
         ("11c_game_description", game("Quiet Quarry", section="desc")),
@@ -172,6 +173,12 @@ def _shots(t, version):
             [(n, "Installed" if i == 0 else "", sub) for i, (n, sub, _r) in enumerate(fake.uploads())],
             0))),
         ("21_settings", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log")),
+        ("21b_settings_disconnect", with_overlay(
+            Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log"), (
+                "confirm", "Disconnect itch?",
+                ["scritch forgets the key. Installed games still play.",
+                 "To revoke it: itch.io → Settings → API keys."],
+                [("A", "Disconnect"), ("B", "Cancel")]))),
     ]
 
 

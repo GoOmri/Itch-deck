@@ -428,6 +428,27 @@ v0.7.0 (same branch v065-launch-split, 15 Nov; NOT released - waits for Omri's p
     if you want) launch checklist from v0.6.5. If 3 fails: is the phone on the same Wi-Fi? try
     the address under the QR in the phone's browser; send app.log lines "phonelink:".
 
+v0.7.0 Deck test (15 Nov): phone login ✓ (new key), Circa Infinity (Windows) ✓ "plays perfectly",
+  Cosmic Express (Linux) installs + shows its title screen but ignores the pad -> couldn't exit.
+v0.7.1 (branch v071-fixes, NOT released):
+  - Dialogs (DESIGN rule, Omri): W.modal widens up to read_w, then wraps (wrap_lines); bodies are
+    lists of <=2 short lines. Disconnect + Delete saves texts shortened.
+  - Phone page after Send: polls /status -> big green "✓ Connected as X" + "Close this tab"
+    (window.close(); browsers may refuse -> "You can close this tab now"), red result + "Try
+    another key" on reject. Page stays up 10 s after leaving Setup (was 6).
+  - Install progress = one module (DESIGN rule): queued shows in the progress row ("Starting…",
+    or "Queued · After the current download" when Game.behind), no message box under it.
+  - Quit shortcut: mouse.QuitCombo, hold BACK + START (View + Menu / Create + Options) 2 s ->
+    runner.stop_child(): games now start in their own session (start_new_session) and stop_child
+    SIGTERMs the whole group, SIGKILL after 4 s (Proton/Wine helpers too; also used by Steam's
+    Exit). Fed by mouse mode's loop when that runs (one pad reader), else its own thread.
+    "Starting…" splash shows the hint; closing this way toasts "<game> closed." (not a crash).
+  - Cosmic Express ignoring the pad = the game (keyboard only?); the shortcut is the way out.
+  Deck checklist v0.7.1: 1 Settings -> Disconnect itch: text fits, no cut. 2 Phone: green
+    Connected + Close tab. 3 Install a game: progress row only, nothing pops under it. 4 Cosmic
+    Express -> hold View + Menu 2 s -> back in scritch, toast "closed". 5 Same on a Windows game.
+  Still open: Average session -> HowLongToBeat (Omri wants HLTB, scope given 15 Nov, not built).
+
 ## Epic decision (Omri 15 Nov): ONE codebase, no fork, no second build. Epic is (1) opt-in: the
   Epic tab only exists after Settings -> Connect Epic; until then scritch = itch only, exactly as
   now; (2) isolated: legendary runs as a separate process, Epic errors stay in the Epic tab, itch

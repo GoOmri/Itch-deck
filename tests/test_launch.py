@@ -53,3 +53,49 @@ def test_window_watch_sees_the_game_window(xserver, monkeypatch, tmp_path):
     child.wait(10)
     w.close()
     assert 0.4 < seen < 8, seen               # after the child's 0.6 s start-up, not at once
+
+
+def test_quit_combo_needs_both_buttons_held():
+    from itch_deck import mouse
+    fired = []
+    c = mouse.QuitCombo(None, {}, lambda: fired.append(1))
+    both, one = {"back": True, "start": True}, {"start": True}
+    c.feed(both, 0.0)
+    c.feed(both, 1.9)
+    assert not fired
+    c.feed(one, 2.0)                          # let go of one: the timer starts over
+    c.feed(both, 2.1)
+    c.feed(both, 4.0)
+    assert not fired
+    c.feed(both, 4.2)
+    assert fired == [1]
+    c.feed(both, 9.0)                         # fires once
+    assert fired == [1] and c.fired
+
+
+def test_stop_child_closes_the_whole_game(tmp_path, monkeypatch):
+    """A game that starts helpers (Proton/Wine do): all of them go, not just the first."""
+    import threading
+    from itch_deck import paths
+    paths.use_root(tmp_path)
+    pidfile = tmp_path / "helper.pid"
+    exe = tmp_path / "game.sh"
+    exe.write_text(f"#!/bin/sh\nsleep 60 &\necho $! > {pidfile}\nwait\n")
+    exe.chmod(0o755)
+    out = {}
+    th = threading.Thread(target=lambda: out.update(rc=runner.run(exe, "g")), daemon=True)
+    th.start()
+    for _ in range(100):
+        if pidfile.exists() and pidfile.read_text().strip():
+            break
+        time.sleep(0.05)
+    helper = int(pidfile.read_text())
+    runner.stop_child(grace=1.0)
+    th.join(10)
+    assert not th.is_alive() and out["rc"][0] != 0
+    time.sleep(0.3)
+    try:                                      # gone, or a zombie (killed, not yet reaped)
+        state = open(f"/proc/{helper}/stat").read().rsplit(")", 1)[1].split()[0]
+    except FileNotFoundError:
+        state = "gone"
+    assert state in ("gone", "Z"), f"helper still running ({state})"

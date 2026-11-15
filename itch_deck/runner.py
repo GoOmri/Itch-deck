@@ -15,11 +15,37 @@ CRASH_S = 15             # a non-zero exit sooner than this = "closed right afte
 _proc = None             # the running game, so a quit signal can stop it too
 
 
-def stop_child():
+def stop_child(grace=4.0):
+    """Close the running game and everything it started (Proton/Wine run several processes):
+    SIGTERM to its process group, SIGKILL after `grace` seconds if it's still there."""
+    import signal
+    import threading
     p = _proc
-    if p and p.poll() is None:
-        log.info("play: stopping game (pid %d)", p.pid)
-        p.terminate()
+    if not (p and p.poll() is None):
+        return
+    log.info("play: stopping game (pid %d)", p.pid)
+    try:
+        pgid = os.getpgid(p.pid)
+    except OSError:
+        pgid = None
+
+    def send(sig):
+        try:
+            if pgid and pgid != os.getpgrp():
+                os.killpg(pgid, sig)
+            else:
+                os.kill(p.pid, sig)
+        except OSError:
+            pass
+    send(signal.SIGTERM)
+
+    def later():
+        if p.poll() is None:
+            log.info("play: game still running after %.0fs, killing it", grace)
+            send(signal.SIGKILL)
+    t = threading.Timer(grace, later)
+    t.daemon = True
+    t.start()
 
 
 def _no_bundle(value):
@@ -164,7 +190,8 @@ def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=No
             out.write(f"# {' '.join(cmd)}\n")
             out.flush()
             proc = subprocess.Popen(cmd, cwd=exe.parent, env=env, stdout=out,
-                                    stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+                                    stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                    start_new_session=True)   # own group: closed as a whole
         except OSError as e:
             log.warning("play: could not start %s: %s", exe, e)
             out.write(f"# could not start: {e}\n")

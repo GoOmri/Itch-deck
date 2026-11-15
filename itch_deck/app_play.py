@@ -9,6 +9,9 @@ from .installer import slug_of
 log = logging.getLogger("itch-deck")
 
 
+QUIT_HINT = "To quit a game: hold View + Menu (Create + Options) for 2 seconds"
+
+
 class PlayMixin:
     def play(self, g):
         exe = self.inst.exe_path(g["id"])
@@ -38,11 +41,12 @@ class PlayMixin:
             log.info("play: %s via %s, prefix %s", g["id"], pdir.name, prefix)
         pg = self.pg
         self.scene.toast, self.toast_until = None, 0
-        self._splash(f"Starting {g['title']}…", sub)
+        self._splash(f"Starting {g['title']}…", sub or QUIT_HINT)
         state = {"closed": False}
         mm = None
         if self.controls_of(g)[1] == "mouse":
             mm = mouse.MouseMode(pg, self.inp.pads, self.cfg.get("pointer_speed", "normal"))
+        combo = mouse.QuitCombo(pg, self.inp.pads, runner.stop_child)
 
         def release():                       # the game's window is up: step aside
             if not state["closed"]:
@@ -51,12 +55,15 @@ class PlayMixin:
                 if not state["hidden"]:
                     pg.display.quit()
                 if mm:                       # our window is out of the way: the mapper owns SDL
-                    mm.start()
+                    mm.combo = combo         # one pad reader: mouse mode feeds the shortcut
+                if not (mm and mm.start()):
+                    combo.start()
 
         rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump,
                               size=self.screen.get_size(), umu=umu, extra_env=env, hold=hold)
         if mm:
             mm.stop()
+        combo.stop()
         if state.get("hidden"):
             self._show_window()              # instant: no display re-init, so no Steam UI gap
             self._splash("Returning…")
@@ -65,6 +72,9 @@ class PlayMixin:
             self._splash("Returning…")
         self.inp.flush()
         self.go_game(self.lib.by_id(g["id"]) or g)
+        if combo.fired:                      # closed with the shortcut: not a crash
+            self.say(f"{g['title']} closed.")
+            return
         if mm and mm.error and not runner.crashed(rc, secs):
             self.say(f"Mouse mode didn't start ({mm.error}). The game ran without it.", error=True)
         if runner.crashed(rc, secs):

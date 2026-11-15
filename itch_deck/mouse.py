@@ -158,7 +158,8 @@ def read_pads(pg, pads):
     controller twice: the Deck's own + the Steam Virtual Gamepad), buttons are OR'ed."""
     st = {"rx": 0.0, "ry": 0.0, "ly": 0.0, "lt": 0.0, "rt": 0.0}
     btn = {"a": pg.CONTROLLER_BUTTON_A, "b": pg.CONTROLLER_BUTTON_B, "x": pg.CONTROLLER_BUTTON_X,
-           "start": pg.CONTROLLER_BUTTON_START, "up": pg.CONTROLLER_BUTTON_DPAD_UP,
+           "start": pg.CONTROLLER_BUTTON_START, "back": pg.CONTROLLER_BUTTON_BACK,
+           "up": pg.CONTROLLER_BUTTON_DPAD_UP,
            "down": pg.CONTROLLER_BUTTON_DPAD_DOWN, "left": pg.CONTROLLER_BUTTON_DPAD_LEFT,
            "right": pg.CONTROLLER_BUTTON_DPAD_RIGHT}
     axes = {"rx": pg.CONTROLLER_AXIS_RIGHTX, "ry": pg.CONTROLLER_AXIS_RIGHTY,
@@ -177,11 +178,61 @@ def read_pads(pg, pads):
     return st
 
 
+class QuitCombo:
+    """Hold View + Menu (DualSense: Create + Options) for HOLD_S while a game runs -> on_quit().
+    For games that ignore the pad, so there's always a way back to scritch. Fed by mouse mode's
+    loop when that runs (one reader of the pads), else by its own thread."""
+    HOLD_S = 2.0
+
+    def __init__(self, pg, pads, on_quit):
+        self.pg, self.pads, self.on_quit = pg, pads, on_quit
+        self.t0 = None
+        self.fired = False
+        self._stop = threading.Event()
+        self._thread = None
+
+    def feed(self, st, now):
+        if self.fired:
+            return
+        if st.get("back") and st.get("start"):
+            if self.t0 is None:
+                self.t0 = now
+            elif now - self.t0 >= self.HOLD_S:
+                self.fired = True
+                log.info("play: quit shortcut held, closing the game")
+                self.on_quit()
+        else:
+            self.t0 = None
+
+    def start(self):
+        """Own polling thread (when mouse mode isn't running)."""
+        sdl = _sdl()
+        if not sdl or not self.pads:
+            log.info("play: quit shortcut off (%s)", "no SDL" if not sdl else "no controller")
+            return
+
+        def run():
+            try:
+                while not self._stop.wait(0.05):
+                    sdl.SDL_GameControllerUpdate()
+                    self.feed(read_pads(self.pg, self.pads), time.monotonic())
+            except Exception:  # noqa: BLE001
+                log.exception("quit shortcut stopped")
+        self._thread = threading.Thread(target=run, daemon=True, name="quitcombo")
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(1)
+
+
 class MouseMode:
     """Runs the mapper on a thread for the length of one game."""
 
     def __init__(self, pg, pads, speed="normal"):
         self.pg, self.pads, self.mapper = pg, pads, Mapper(speed)
+        self.combo = None          # QuitCombo fed from this loop while mouse mode runs
         self.dev = self.sdl = self._thread = None
         self._stop = threading.Event()
         self.error = None
@@ -217,7 +268,10 @@ class MouseMode:
             while not self._stop.wait(1 / HZ):
                 now = time.monotonic()
                 self.sdl.SDL_GameControllerUpdate()
-                self.dev.emit(self.mapper.step(read_pads(self.pg, self.pads), now - last))
+                st = read_pads(self.pg, self.pads)
+                if self.combo:
+                    self.combo.feed(st, now)
+                self.dev.emit(self.mapper.step(st, now - last))
                 last = now
         except Exception:  # noqa: BLE001
             log.exception("mouse mode stopped")

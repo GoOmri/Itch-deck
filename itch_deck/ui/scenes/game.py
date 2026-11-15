@@ -23,12 +23,14 @@ class Game(Scene):
     install is doing right now. fail_reason: text for a failed install."""
 
     def __init__(self, t, game, pos=(1, 1), focus=0, phase=None, fail_reason=None,
-                 install_path=None, offline=False, card_out=False,
+                 install_path=None, offline=False, card_out=False, behind=False,
                  section="actions", shot=0, **kw):
         super().__init__(t, **kw)
         self.offline = offline
         self.g, self.pos, self.focus = game, pos, focus
-        self.phase = phase or ("download" if game.get("state") == "downloading" else None)
+        self.phase = phase or ("download" if game.get("state") == "downloading" else
+                               "queued" if game.get("state") == "queued" else None)
+        self.behind = behind       # queued behind another game's download (app sets it)
         self.fail_reason = fail_reason
         self.install_path = install_path
         self.section = section     # "actions" | "shots" | "desc"
@@ -149,7 +151,7 @@ class Game(Scene):
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
                g.get("controls_label"),
                g.get("cover_file"), self.section, self.shot,   # focus: buttons are live bool(self.overlay),
-               self.offline, self.card_out, self.phase, self.fail_reason, self.install_path,
+               self.offline, self.card_out, self.phase, self.behind, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
                # buttons are drawn live on top; only the screenshot strip animates inside the page
                W.frame_tick() if W.animating() and self.section == "shots" else 0,
@@ -360,8 +362,6 @@ class Game(Scene):
             return ("info", "SD card missing", "Insert the card and the game comes back.")
         if st == "missing":
             return ("info", "Game files missing", "Uninstall it, then install it again.")
-        if st == "queued":
-            return ("info", "Queued", "Starts after the current download.")
         return None
 
     def _progress_inline(self, s, x, y, w):
@@ -385,8 +385,11 @@ class Game(Scene):
             W.progress(t, s, bar, p)
         else:
             label, info = {"extract": "Extracting…", "installing": "Installing…",
-                           "proton": "Preparing Proton…", "umu": "Getting umu-launcher…"
+                           "proton": "Preparing Proton…", "umu": "Getting umu-launcher…",
+                           "queued": "Queued" if self.behind else "Starting…"
                            }[self.phase], ""      # no explanations: the label is enough
+            if self.phase == "queued" and self.behind:
+                info = "After the current download"
             W.progress(t, s, bar, 0)          # track only; draw_page animates the segment live
             self._live_bar = bar
         lr = W.text(t, s, label, x, base, t.f_btn, anchor="baseleft")

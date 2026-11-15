@@ -20,7 +20,7 @@ from .app_settings import SettingsMixin
 from .app_setup import SetupMixin
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 
 
 def setup_logging():
@@ -105,7 +105,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             except Exception:  # noqa: BLE001  - display closed (game running): no fade
                 self.fade_from = None
         if kind != "setup" and self.phone and not self.phone_stop_at:
-            self.phone_stop_at = time.time() + 6   # let the phone read "Connected", then close
+            self.phone_stop_at = time.time() + 10  # let the phone read "Connected", then close
         self.kind, self.scene = kind, scene
         self.toast_until = 0
 
@@ -320,7 +320,9 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             g = sc.g
             g["controls_label"] = self.controls_label(g)
             st = g.get("state")
-            sc.phase = g.get("phase") if st == "downloading" else None
+            sc.phase = g.get("phase") if st == "downloading" else \
+                ("queued" if st == "queued" else None)   # waiting shows in the same module
+            sc.behind = bool(self.inst.current and self.inst.current != g["id"])
             sc.fail_reason = g.get("fail_reason")
             inst = self.inst.index.get(g["id"])
             sc.install_path = inst["dir"] if inst else None

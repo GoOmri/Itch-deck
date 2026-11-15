@@ -66,6 +66,12 @@ Every pad action is in the footer: right-aligned, B always last. Empty states do
 them. Yes/no dialogs (Quit, Uninstall) DO show their buttons inside: [action, Cancel], the
 action focused first, ◀ ▶ to switch (Omri). Messages about a game go in ONE box under its
 buttons (`W.notice`: red for errors, neutral otherwise).
+- **Dialog text (Omri, 15 Nov): at most 2 short sentences, one per line, and it always wraps
+  inside the dialog. Text is never cut off or runs past the box.** `W.modal` wraps any body;
+  pass a list of short lines.
+- **Install progress = one module (Omri, 15 Nov):** everything about an install (Starting…,
+  Queued, Getting GE-Proton, Downloading %, Extracting…) shows in the progress module next to
+  Cancel. No boxes appear and disappear under it while it runs.
 
 ## 7. Space = 5 steps
 XS 1u · S 2u · M 3u · L 5u · XL 8u, plus the page margin (6u).

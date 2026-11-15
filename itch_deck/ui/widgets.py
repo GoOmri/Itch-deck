@@ -91,8 +91,8 @@ def fit(font, txt, maxw):
     return txt.rstrip() + "…"
 
 
-def wrap(t, s, txt, x, y, font, maxw, color=None, max_lines=None):
-    """Draw word-wrapped text; returns the bottom y. max_lines cuts with an ellipsis."""
+def wrap_lines(font, txt, maxw):
+    """Word-wrap txt into lines that fit maxw pixels."""
     lines, line = [], ""
     for word in txt.split():
         trial = f"{line} {word}".strip()
@@ -103,6 +103,12 @@ def wrap(t, s, txt, x, y, font, maxw, color=None, max_lines=None):
             line = trial
     if line:
         lines.append(line)
+    return lines
+
+
+def wrap(t, s, txt, x, y, font, maxw, color=None, max_lines=None):
+    """Draw word-wrapped text; returns the bottom y. max_lines cuts with an ellipsis."""
+    lines = wrap_lines(font, txt, maxw)
     if max_lines and len(lines) > max_lines:
         lines = lines[:max_lines]
         lines[-1] = fit(font, lines[-1] + " …", maxw) if font.size(lines[-1] + " …")[0] > maxw \
@@ -672,12 +678,16 @@ def offline_mark(t, s, right, cy, since):
 def modal(t, s, title, body, buttons=None, focus=0):
     """Yes/no dialog with its buttons inside (Omri): [action, "Cancel"], focus lights one."""
     shade(t, s)
-    lines = body if isinstance(body, list) else [body]
     pad = t.lg
+    # body text wraps inside the dialog, never runs past it (design rule: dialogs)
+    paras = body if isinstance(body, list) else [body]
+    need = max([t.f_h2.size(title)[0]] + [t.f_body.size(p)[0] for p in paras]) + pad * 2
+    w = min(t.w - 2 * t.m, max(t.read_w * 0.8, min(need, t.read_w)))   # widen, then wrap
+    lines = [ln for para in (body if isinstance(body, list) else [body])
+             for ln in (wrap_lines(t.f_body, para, w - 2 * pad) or [""])]
     h = pad * 2 + t.f_h2.get_linesize() + t.sm + len(lines) * t.f_body.get_linesize()
     h += (t.lg + t.btn_h) if buttons else 0
-    need = max([t.f_h2.size(title)[0]] + [t.f_body.size(ln)[0] for ln in lines]) + pad * 2
-    r = pg.Rect(0, 0, min(t.w - 2 * t.m, max(t.read_w * 0.8, need)), h)
+    r = pg.Rect(0, 0, w, h)
     r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
     panel(t, s, r)
     y = text_named(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom + t.sm

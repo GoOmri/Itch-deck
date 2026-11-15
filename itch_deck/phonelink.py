@@ -177,7 +177,9 @@ ol{padding-left:1.2rem}li{margin:.7rem 0}small{color:#9a9ab0}
 text-decoration:none;font-weight:600}textarea{width:100%;box-sizing:border-box;min-height:6rem;
 background:#1d1f33;color:#fff;border:1px solid #3a3c58;border-radius:.6rem;padding:.7rem;font:inherit}
 button{margin-top:.8rem;width:100%;padding:.9rem;border:0;border-radius:.6rem;background:#9d6bff;
-color:#141020;font:700 1.05rem system-ui,sans-serif}.err{color:#ff8a8a}.note{color:#9a9ab0;font-size:.85rem}"""
+color:#141020;font:700 1.05rem system-ui,sans-serif}.err{color:#ff8a8a}.note{color:#9a9ab0;font-size:.85rem}
+.big{font-size:1.5rem;font-weight:700;margin:1.2rem 0}.ok{color:#5fd38a}.bad{color:#ff8a8a}
+.wide{display:block;text-align:center}"""
 
 
 def _page(title, body):
@@ -201,9 +203,21 @@ only there.</p>""")
 
 
 def sent_page(token):
-    return _page("Sent", f"""<p id="s">Checking it on your Deck…</p>
-<p><a class="btn" href="/?t={html.escape(token)}">Paste a different key</a></p>
-<script>const t={json.dumps(token)};let n=0;function poll(){{fetch('/status?t='+encodeURIComponent(t))
-.then(r=>r.ok?r.json():null).then(j=>{{if(j&&j.status)document.getElementById('s').textContent=j.status;
-if(++n<40&&!(j&&/Connected|rejected/i.test(j.status||'')))setTimeout(poll,1500)}})
-.catch(()=>{{document.getElementById('s').textContent='Done here. Look at your TV.'}})}}poll()</script>""")
+    """After Send: waits for the Deck's answer, then a clear result (green / red)."""
+    t = json.dumps(token)
+    return _page("Sent", f"""<div id="wait"><p class="note">Checking it on your Deck…</p></div>
+<div id="ok" hidden><p class="big ok">&#10003; <span id="okt"></span></p>
+<button onclick="closeTab()">Close this tab</button>
+<p class="note" id="closed" hidden>You can close this tab now.</p></div>
+<div id="bad" hidden><p class="big bad">&#10007; <span id="badt"></span></p>
+<a class="btn wide" href="/?t={html.escape(token)}">Try another key</a></div>
+<script>const t={t};let n=0;
+function show(id,txt){{for(const k of ['wait','ok','bad'])document.getElementById(k).hidden=k!==id;
+ if(txt)document.getElementById(id+'t').textContent=txt;}}
+function closeTab(){{window.close();setTimeout(()=>{{document.getElementById('closed').hidden=false}},300)}}
+function poll(){{fetch('/status?t='+encodeURIComponent(t)).then(r=>r.ok?r.json():null).then(j=>{{
+ const s=(j&&j.status)||'';
+ if(/^Connected/.test(s))return show('ok',s.split(' Look at')[0]);
+ if(/rejected|can't reach/i.test(s))return show('bad',s);
+ if(++n<40)setTimeout(poll,1500);}}).catch(()=>{{if(++n<40)setTimeout(poll,1500)}})}}
+poll()</script>""")

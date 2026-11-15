@@ -80,7 +80,9 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
   mouse mode when the game's itch page lists only mouse or touchscreen input. In mouse mode the
   right stick moves the pointer and R2 / A left-clicks. L2 / X right-clicks, the left stick
   scrolls, and B / Start is Esc.
-- **Quitting a game:** use the game's own Quit. Steam → *Exit game* also works, but it closes
+- **Quitting a game:** use the game's own Quit, or **hold View + Menu (DualSense: Create +
+  Options) for 2 seconds**: scritch closes the game and everything it started, and comes back.
+  Handy for games that ignore the controller. Steam → *Exit game* also works, but it closes
   scritch too, because Steam ends the whole tile.
 
 ### Settings
@@ -106,7 +108,7 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | "…can't run silently" | The installer type isn't supported. Try Options → Change build. |
 | A game closes right after starting | Try Change build (Windows instead of Linux, or 64-bit). |
 | "needs a newer GE-Proton" | Settings → Proton version → pick the newest (or Auto). |
-| A game's controls do nothing | It may be mouse-only. Set Options → Controls → Mouse. |
+| A game's controls do nothing | It may be mouse-only: Options → Controls → Mouse. To get out: hold View + Menu for 2 s. |
 
 **Logs** (open them in Dolphin; turn on *Show hidden files*):
 - `~/.local/state/itch-deck/logs/app.log`: what scritch did
