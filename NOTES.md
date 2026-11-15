@@ -423,6 +423,12 @@ v0.7.0 (same branch v065-launch-split, 15 Nov; NOT released - waits for Omri's p
     if you want) launch checklist from v0.6.5. If 3 fails: is the phone on the same Wi-Fi? try
     the address under the QR in the phone's browser; send app.log lines "phonelink:".
 
+## Epic decision (Omri 15 Nov): ONE codebase, no fork, no second build. Epic is (1) opt-in: the
+  Epic tab only exists after Settings -> Connect Epic; until then scritch = itch only, exactly as
+  now; (2) isolated: legendary runs as a separate process, Epic errors stay in the Epic tab, itch
+  never depends on it; (3) downloaded on demand: legendary is fetched on first Connect Epic (like
+  umu / GE-Proton), NOT bundled. Licence GPL-3 anyway.
+
 ## Epic tab - research 15 Nov (Omri: only if importing the library is easy)
   legendary (open-source Epic CLI, Python) does it all: list (JSON), install -y, launch
   --dry-run (gives the command to run ourselves via umu + GE-Proton, like itch Windows games),
