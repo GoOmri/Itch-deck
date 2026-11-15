@@ -75,8 +75,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   (Update grey, Play stays the purple main action), no message box. Uninstall, Change build, Controls live in Options;
   ☰ opens it too (on a game page ☰ = Options, never Settings).
 - **Game page info:** line 1 = by · size · genre (· free space before installing, red when it
-  won't fit · ✓ Installed); line 2 = what SCRiTCH maps when it isn't plain controller
-  ("Trackpad as mouse", "Buttons as keyboard") · time to beat (completionist dropped if long).
+  won't fit · ✓ Installed); line 2 = time to beat; line 3 = "Controls  Trackpad as mouse"
+  (dim label, white value) only when SCRiTCH converts something (mouse / keyboard games).
 - **Install progress is one module** next to Cancel: Starting…, Queued, Getting GE-Proton,
   Downloading %, Extracting…. No boxes appearing and disappearing under it.
 - **Messages about a game** go in ONE box under its buttons (`W.notice`). Never above.

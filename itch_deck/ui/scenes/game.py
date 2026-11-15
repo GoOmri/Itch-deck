@@ -227,13 +227,15 @@ class Game(Scene):
             cx += W.icon_draw(s, "check", (cx + ih * 0.45, r.centery), ih, t.accent) + t.xs
             W.text(t, s, "Installed", cx, y, t.f_body, color=t.accent)
         y = r.bottom + t.sm
-        # second line: what SCRiTCH maps (only when it isn't plain controller) + time to beat
+        ttb = hltb.summary(g.get("ttb"))                         # time to beat (HowLongToBeat)
+        if ttb:
+            y = W.text(t, s, ttb, x, y - t.xs, t.f_body, color=t.dim, maxw=maxw).bottom + t.sm
+        # what SCRiTCH maps, on its own line so it reads as a fact about this game (only when
+        # it isn't plain controller): "Controls  Trackpad as mouse"
         ctl = CONTROL_WORDS.get(g.get("controls_mode")) if self.playable else None
-        line2 = "  ·  ".join(b for b in (ctl, hltb.summary(g.get("ttb"))) if b)
-        if t.f_body.size(line2)[0] > maxw:                       # too long: main story only
-            line2 = line2.rsplit("  ·  ", 1)[0]
-        if line2:
-            y = W.text(t, s, line2, x, y - t.xs, t.f_body, color=t.dim, maxw=maxw).bottom + t.sm
+        if ctl:
+            lr = W.text(t, s, "Controls", x, y - t.xs, t.f_body, color=t.dim)
+            y = W.text(t, s, ctl, lr.right + t.sm, y - t.xs, t.f_body).bottom + t.sm
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
             y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w))
         y += t.md
