@@ -105,7 +105,7 @@ class SetupMixin:
             except OSError:
                 log.warning("could not delete %s", file)
         self.pending_key = None
-        self.phone_status = f"Connected as {user}. Look at your TV."
+        self.phone_status = f"Connected as {user}. Head back to your Deck."
         self.lib.store, self.lib.auth_failed = ItchStore(key), False
         self.go_library()
         self.lib.start_sync()
