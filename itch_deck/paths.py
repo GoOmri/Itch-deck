@@ -20,6 +20,38 @@ BUILDS = DATA / "builds.json"        # game id -> upload id chosen with Change b
 UMU = DATA / "umu" / "umu-run"       # umu-launcher zipapp (downloaded on the first Windows install)
 KEY_FILE = HOME / "Downloads" / "itch_key.txt"
 STEAM_TOOLS = HOME / ".steam" / "root" / "compatibilitytools.d"
+_LOCK = []                           # open lock file of the running copy (kept for its lifetime)
+
+
+def lock_instance():
+    """Only ONE copy may run: two copies write the same caches (v0.7.1 Deck log: two started 4 s
+    apart after an update restart -> every hltb.json write raced). flock is released by the
+    kernel when the process dies or exec()s (fd is close-on-exec), so the updater's execve
+    restart re-takes it cleanly. Returns None when we own the lock, else the other copy's pid
+    text ("?" if unknown)."""
+    import fcntl
+    DATA.mkdir(parents=True, exist_ok=True)
+    f = open(DATA / "scritch.lock", "a+")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.seek(0)
+        other = f.read().strip() or "?"
+        f.close()
+        return other
+    f.seek(0)
+    f.truncate()
+    f.write(str(os.getpid()))
+    f.flush()
+    _LOCK[:] = [f]
+    return None
+
+
+def tmp_for(path):
+    """A temp name next to `path` that no other thread or process uses (atomic replace)."""
+    import threading
+    path = Path(path)
+    return path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
 
 
 def use_root(root):

@@ -23,7 +23,7 @@ def load():
 
 def save(cfg):
     paths.CONFIG.mkdir(parents=True, exist_ok=True)
-    tmp = paths.CONFIG_FILE.with_suffix(".tmp")
+    tmp = paths.tmp_for(paths.CONFIG_FILE)
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         json.dump(cfg, f, indent=1)
