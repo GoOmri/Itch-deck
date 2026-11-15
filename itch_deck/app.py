@@ -507,15 +507,6 @@ def selftest(screenshot=None):
     app.go_library()
     steps = [RIGHT, DOWN, X, X, A, DOWN, DOWN, UP, UP, R1, L1, A, START, DOWN, B, B, Y, START, B]
     app.run(max_frames=len(steps) * 2 + 2, script={i * 2: s for i, s in enumerate(steps)})
-    # Settings -> Re-import API key -> B returns to Settings (not a quit dialog)
-    app = App(windowed=True)
-    app.lib.games = [dict(g) for g in fake.library()]
-    app.go_library()
-    app.go_settings()
-    app.scene.focus = next(i for i, r in enumerate(app.scene.items()) if r[0] == "Re-import API key")
-    app.run(max_frames=6, script={1: A, 3: B})
-    assert app.kind == "settings" and not app.scene.overlay and app.settings_back == "library", \
-        (app.kind, app.scene.overlay)
     # M6 Settings: every row does something; leftover saves found and deleted after Delete
     pre = config.install_root(app.cfg) / "_prefixes" / "old-game"
     pre.mkdir(parents=True, exist_ok=True)

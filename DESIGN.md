@@ -86,7 +86,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   them. **Yes/no dialogs** (Quit, Uninstall) show their buttons inside: [action, Cancel],
   action focused first, ◀ ▶ to switch.
 - **Library grid** never scrolls past its last row, and a long A–Z list shows an A–Z strip in
-  the right margin (current letter purple).
+  the right margin (current letter purple); it slides in from the right while you move and
+  slides out 1.5 s after you stop, so it never sits there as clutter.
 - **Library:** tabs All · Installed, plus one per store (itch · Epic) once a second store is
   connected (L1/R1) — no more tabs. **X = Sort & filter:**
   Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
@@ -104,7 +105,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   picks a category (its settings show right away), A / ▶ goes in, B / ◀ comes back. App is
   first: the version + update card, then Refresh library (it syncs every store); a purple dot
   on App when an update waits. Accounts: every store reads the same, "Sign in to X" /
-  "Sign out of X" with the account name on the right. Plain names ("Install games to", "Old
+  "Sign out of X" with the account name on the right, one row per store (a broken or
+  different key = sign out, sign in again). Plain names ("Install games to", "Old
   save data", "Windows support"). New stores or options = rows in an existing category first,
   a new category only when one gets long.
 *Why:* when everything has one home, people stop searching. Buttons scattered over a page

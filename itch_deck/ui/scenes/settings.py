@@ -7,7 +7,7 @@ from .. import widgets as W
 from .base import Scene
 
 # What the player reads. The app still acts on the internal labels (left).
-SHOWN = {"Re-import API key": "Use a new itch key", "Disconnect itch": "Sign out of itch",
+SHOWN = {"Disconnect itch": "Sign out of itch",
          "Install location": "Install games to", "Saves of uninstalled games": "Old save data",
          "Proton version": "Windows support"}
 
@@ -40,7 +40,6 @@ class Settings(Scene):
               ("Refresh library", "", f"Last synced {v['last_sync']}")]),
             ("Accounts", "The stores your games come from.",       # one pair of rows per store
              [("Disconnect itch", v.get("itch_user", ""), ""),
-              ("Re-import API key", "", ""),
               ("Epic", v.get("epic", ""), "")]),
             ("Storage", "Where games go and what they leave behind.",
              [("Install location", v["install_label"], ""),          # SD card / Internal storage
@@ -86,7 +85,7 @@ class Settings(Scene):
         elif act in (LEFT, B):
             self.side = True
 
-    ACTION = {"Refresh library": "Refresh", "Re-import API key": "Open", "Install location": "Change",
+    ACTION = {"Refresh library": "Refresh", "Install location": "Change",
               "Saves of uninstalled games": "Delete", "Proton version": "Change",
               "Pointer speed": "Change", "Update app": "Check", "Disconnect itch": "Sign out",
               "Button symbols": "Change"}

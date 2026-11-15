@@ -290,15 +290,29 @@ class Library(Scene):
     def footer_status(self):
         return self.activity or ("Refreshing library" if self.syncing == "bg" else None), self.notice
 
-    def _letters(self, s, area):
-        """A–Z strip in the right margin: the focused game's letter in purple, letters with
+    ABC_HOLD_S = 1.5                     # strip stays this long after the last move
+
+    def _letters(self, s, area, long_az):
+        """A–Z strip in the right margin: slides in from the right while you move through a
+        long A–Z list, slides out when you stop. Focused game's letter purple, letters with
         games dim, the rest faint. Shows only; L2/R2 still page."""
+        import time
         t = self.t
+        now = time.monotonic()
+        if not hasattr(self, "_abc_f"):                           # opening the page isn't a move
+            self._abc_f, self._abc_t = self.focus, -1e9
+        if self._abc_f != self.focus:                             # moved: slide in / stay in
+            self._abc_f, self._abc_t = self.focus, now
+        on = long_az and (not W.LIVE or now - self._abc_t < self.ABC_HOLD_S)
+        k = W.anim(("abc", "in"), 1.0 if on else 0.0)
+        if k < 0.01:
+            return
+        dx = int((1 - k) * t.m)                                  # off the right edge when out
         have = {letter(g.get("title", "")) for g in self.shown}
         cur = letter(self.shown[self.focus].get("title", "")) if self.shown else ""
         abc = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         top, step = area.y + t.sm, (area.h - 2 * t.sm) / len(abc)
-        x = t.w - t.m // 2
+        x = t.w - t.m // 2 + dx
         for i, ch in enumerate(abc):
             col = t.accent if ch == cur else (t.dim if ch in have else t.faint)
             W.text(t, s, ch, x, int(top + step * (i + 0.5)), t.f_hint, color=col, anchor="center")
@@ -346,5 +360,4 @@ class Library(Scene):
                            int(tw), int(th))
             W.tile(t, s, self.shown[self.focus], rect, focused=True)
         s.set_clip(None)
-        if self.sort == "az" and rows * row_h > area.h:          # long A–Z list: where am I?
-            self._letters(s, area)
+        self._letters(s, area, self.sort == "az" and rows * row_h > area.h)

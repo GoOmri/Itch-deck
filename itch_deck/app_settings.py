@@ -199,9 +199,6 @@ class SettingsMixin:
                 config.save(self.cfg)
                 pads.set_current(self.pad_kind())
                 sc.v["symbols"] = self._symbols_label()
-            elif label == "Re-import API key":
-                self.go_setup("waiting", back=True)
-                self.try_import(auto=True)
             elif label == "Epic":
                 if self.lib.epic and self.lib.epic.connected():
                     self.confirm("Sign out of Epic?",
