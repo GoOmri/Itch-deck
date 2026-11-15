@@ -79,3 +79,17 @@ def test_old_single_filter_moves_to_all(tmp_path):
     v = a._views()
     assert v["all"]["length"] == "short" and v["all"]["genre"] == "any"
     assert "library_sort" not in a.cfg and "installed" not in v
+
+
+def test_l2_r2_jump_by_letter_in_az():
+    from itch_deck.input import L2, R2
+    from itch_deck.ui.scenes.library import letter
+    t, lib = _scene()
+    lib.sort, lib.focus = "az", 0
+    seen = [letter(lib.shown[0]["title"])]
+    for _ in range(3):
+        lib.handle(R2)
+        seen.append(letter(lib.shown[lib.focus]["title"]))
+    assert seen == sorted(set(seen)) and len(set(seen)) == 4          # one new letter per press
+    lib.handle(L2)
+    assert letter(lib.shown[lib.focus]["title"]) == seen[2]
