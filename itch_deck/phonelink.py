@@ -275,7 +275,7 @@ def sent_page(token, preview=None):
     return _page("Sent", body + f"""
 <script>const t={t};let n=0;
 function show(id,s){{for(const k of ['wait','ok','bad'])document.getElementById(k).hidden=k!==id;
- const i=s.indexOf('. ');document.getElementById(id+'h').textContent=(i<0?s:s.slice(0,i)).replace(/\.$/,'');
+ const i=s.indexOf('. ');document.getElementById(id+'h').textContent=(i<0?s:s.slice(0,i)).replace(/[.]$/,'');
  document.getElementById(id+'p').textContent=i<0?'':s.slice(i+2);}}
 function closeTab(){{window.close();setTimeout(()=>{{document.getElementById('closed').hidden=false}},300)}}
 function poll(){{fetch('/status?t='+encodeURIComponent(t)).then(r=>r.ok?r.json():null).then(j=>{{
