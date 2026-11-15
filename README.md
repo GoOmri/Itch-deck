@@ -9,7 +9,9 @@ uninstall, all with the pad. Windows games run through GE-Proton automatically.
 - One-button installs: download, unpack, done. Windows installers (Inno Setup, NSIS) run silently
 - Linux games run natively, Windows games run through umu-launcher + GE-Proton (one prefix per
   game, so your saves survive an uninstall)
-- **Mouse mode** for mouse-only games: the right stick moves the pointer, R2 clicks
+- **Mouse and Keys modes** for games that ignore the pad: the pad becomes a mouse (and keyboard)
+- **Game updates:** a newer build on itch shows *Update* on the tile; Options → Update gets it
+- **Button symbols** follow your controller (Steam Deck, DualSense, Xbox)
 - Installs to the SD card by default, and updates itself from Settings
 
 It's a single Linux binary (Python + pygame-ce, built with PyInstaller). Nothing gets installed on
@@ -80,10 +82,14 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
   if you quit. Then the button turns into **Play**.
 - **Change build:** some games have several downloads (Linux, Windows, 32/64-bit, demos). Options
   → Change build lets you pick another one. If a Linux build won't start, try the Windows build.
-- **Controls:** Options → Controls switches between *Auto*, *Pad* and *Mouse*. *Auto* turns on
-  mouse mode when the game's itch page lists only mouse or touchscreen input. In mouse mode the
-  right stick moves the pointer and R2 / A left-clicks. L2 / X right-clicks, the left stick
-  scrolls, and B / Start is Esc.
+- **Controls:** Options → Controls switches between *Auto*, *Pad*, *Mouse* and *Keys*. *Auto*
+  reads the game's itch page: a controller listed → Pad, a keyboard → Keys, only mouse or
+  touchscreen → Mouse. In **Mouse** mode the right stick moves the pointer and R2 / A
+  left-clicks. L2 / X right-clicks, the left stick scrolls, and B / Start is Esc. In **Keys**
+  mode the D-pad and left stick are the arrow keys, A = Space, B = Esc, X = Z, Y = X,
+  Menu = Enter, L1 = R, R1 = Shift, and the right stick + R2 / L2 still work as a mouse.
+- **Updates:** SCRiTCH checks itch for newer builds of installed games. The tile shows *Update*,
+  and Options → Update installs it; if that fails, the old build stays.
 - **Quitting a game:** use the game's own Quit, or **hold View + Menu (DualSense: Create +
   Options) for 2 seconds**: scritch closes the game and everything it started, and comes back.
   Handy for games that ignore the controller. Steam → *Exit game* also works, but it closes
@@ -96,7 +102,9 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
   reinstall picks them up again. This row shows how much space those saves take, and A deletes
   them.
 - **Proton version:** *Auto* (newest GE-Proton) or a fixed version.
-- **Pointer speed:** slow / normal / fast, for mouse mode.
+- **Pointer speed:** slow / normal / fast, for Mouse and Keys mode.
+- **Button symbols:** *Auto* follows the controller you pressed last; or fix it to Steam Deck,
+  PlayStation or Xbox.
 - **Update app:** checks GitHub for a new version, downloads it and restarts. The previous
   version is kept as `itch-deck.old` next to the app, in case you need to go back.
 
@@ -112,7 +120,7 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | "…can't run silently" | The installer type isn't supported. Try Options → Change build. |
 | A game closes right after starting | Try Change build (Windows instead of Linux, or 64-bit). |
 | "needs a newer GE-Proton" | Settings → Proton version → pick the newest (or Auto). |
-| A game's controls do nothing | It may be mouse-only: Options → Controls → Mouse. To get out: hold View + Menu for 2 s. |
+| A game's controls do nothing | It may need a mouse or keyboard: Options → Controls → Mouse or Keys. To get out: hold View + Menu for 2 s. |
 
 **Logs** (open them in Dolphin; turn on *Show hidden files*):
 - `~/.local/state/itch-deck/logs/app.log`: what scritch did

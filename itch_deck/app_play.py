@@ -46,8 +46,10 @@ class PlayMixin:
         self._splash(f"Starting {g['title']}…", sub or QUIT_HINT)
         state = {"closed": False}
         mm = None
-        if self.controls_of(g)[1] == "mouse":
-            mm = mouse.MouseMode(pg, self.inp.pads, self.cfg.get("pointer_speed", "normal"))
+        eff = self.controls_of(g)[1]
+        if eff in ("mouse", "keys"):           # Keys = keyboard keys + the same mouse
+            mm = mouse.MouseMode(pg, self.inp.pads, self.cfg.get("pointer_speed", "normal"),
+                                 layout=eff)
         combo = mouse.QuitCombo(pg, self.inp.pads, runner.stop_child)
 
         def release():                       # the game's window is up: step aside
@@ -78,7 +80,8 @@ class PlayMixin:
             self.say(f"{g['title']} closed.")
             return
         if mm and mm.error and not runner.crashed(rc, secs):
-            self.say(f"Mouse mode didn't start ({mm.error}). The game ran without it.", error=True)
+            mode = "Keys" if mm.mapper.layout == "keys" else "Mouse"
+            self.say(f"{mode} mode didn't start ({mm.error}). The game ran without it.", error=True)
         if runner.crashed(rc, secs):
             hint = runner.crash_hint(slug_of(g))
             log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")

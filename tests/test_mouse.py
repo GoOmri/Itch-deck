@@ -41,7 +41,8 @@ def test_left_stick_scrolls():
 
 def test_auto_mode():
     assert mouse.auto_mode(["Mouse", "Touchscreen"]) == "mouse"
-    assert mouse.auto_mode(["Keyboard", "Mouse"]) == "mouse"
+    assert mouse.auto_mode(["Keyboard", "Mouse"]) == "keys"      # Keys keeps the mouse too
+    assert mouse.auto_mode(["Keyboard"]) == "keys"                # e.g. Cosmic Express
     assert mouse.auto_mode(["Keyboard", "Mouse", "Xbox controller"]) == "gamepad"
     assert mouse.auto_mode(["Gamepad (any)"]) == "gamepad"
     assert mouse.auto_mode([]) == "gamepad" and mouse.auto_mode(None) == "gamepad"
@@ -76,3 +77,32 @@ def test_parse_genre_and_session_rows():
     assert itch_page.parse_row(html, "Genre") == ["Puzzle", "Adventure"]
     assert itch_page.parse_row(html, "Average session") == ["About an hour"]
     assert itch_page.parse_row(html, "Inputs") == []
+
+
+
+def test_keys_layout():
+    m = mouse.Mapper("normal", layout="keys")
+    ev = m.step({"a": True, "x": True, "y": True, "start": True, "l1": True, "r1": True,
+                 "b": True}, 0.01)
+    down = {c for t, c, v in ev if t == mouse.EV_KEY and v == 1}
+    assert down == {mouse.KEY_SPACE, mouse.KEY_Z, mouse.KEY_X, mouse.KEY_ENTER, mouse.KEY_R,
+                    mouse.KEY_LEFTSHIFT, mouse.KEY_ESC}
+    assert mouse.BTN_LEFT not in down                    # A is Space here, not a click
+    # left stick = arrow keys (not the scroll wheel), released when centred
+    ev = m.step({"lx": -0.9, "ly": 0.8}, 0.01)
+    assert {(c, v) for t, c, v in ev if t == mouse.EV_KEY} >= {(mouse.KEY_LEFT, 1), (mouse.KEY_DOWN, 1)}
+    assert not any(t == mouse.EV_REL and c == mouse.REL_WHEEL for t, c, v in ev)
+    ev = m.step({}, 0.01)
+    assert {(c, v) for t, c, v in ev if t == mouse.EV_KEY} >= {(mouse.KEY_LEFT, 0), (mouse.KEY_DOWN, 0)}
+    # right stick + R2 still drive the mouse
+    ev = m.step({"rx": 1.0, "rt": 1.0}, 0.05)
+    assert any(t == mouse.EV_REL and c == mouse.REL_X and v > 0 for t, c, v in ev)
+    assert (mouse.EV_KEY, mouse.BTN_LEFT, 1) in ev
+    assert {c for t, c, v in m.release_all()} >= {mouse.BTN_LEFT}
+
+
+def test_mouse_layout_unchanged():
+    m = mouse.Mapper("normal")
+    ev = m.step({"a": True, "ly": 1.0}, 0.2)
+    assert (mouse.EV_KEY, mouse.BTN_LEFT, 1) in ev
+    assert any(t == mouse.EV_REL and c == mouse.REL_WHEEL for t, c, v in ev)

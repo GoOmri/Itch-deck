@@ -507,6 +507,29 @@ v0.7.3 work (branch filter-and-ps-glyphs, 15 Nov, NOT released yet), Omri's v0.7
     (Create top-left, Options top-right), icon just above: Create = three short strokes fanning
     out (\ | /), Options = three horizontal lines. widgets._ps_small draws that solid white
     (4x supersampled), glyph height 1.25 d. He chose "icon above" over "icon inside".
+  - Tabs (Omri 15 Nov): All · Installed · itch · Epic. Store tabs show only from 2 connected
+    stores (Library(stores=...); app passes none yet = itch only, so All · Installed today).
+    Recent tab -> Sort "Recently played" (played desc, then A–Z). Game "store" field, default itch.
+  - Game updates: install.json "upload_updated" (upload updated_at) + "build_id" (butler);
+    installer.update_for(); Installer.check_updates() in a thread: after sync every 30 min (each
+    game at most every 6 h) and forced for the game whose page opens. Found -> install.json
+    "update" {upload_id, filename, updated}; tile tag "Update" (accent), info box "Update
+    available", Options → Update (first row) = Installer.update(): reinstall over (same upload
+    id allowed via Installer.updating), fail keeps the old build ("Couldn't update X: …").
+    Installs from before v0.7.3 get a baseline on the first check (no false update).
+    UNVERIFIED against live itch: whether updated_at changes on a file replace (build_id does
+    for butler pushes). Deck: app.log "updates <id>: newer build".
+  - Keys controls mode: Controls Auto / Pad / Mouse / Keys. mouse.Mapper(layout="keys"):
+    D-pad + left stick (0.5) = arrows, A Space, B Esc, X Z, Y X, Menu Enter, L1 R, R1 Shift,
+    right stick + R2/L2 = mouse. auto_mode: pad listed -> gamepad, keyboard -> keys, mouse/touch
+    -> mouse. For Cosmic Express (keyboard only, ignored the pad).
+  Deck checklist v0.7.3: 1 Sort & filter: ◀ ▶ changes values, library behind stays still, new
+    result fades in on close. 2 DualSense: Create / Options look like the pad (footer + Starting).
+    3 Tabs: All · Installed; Sort has Recently played. 4 Cosmic Express → Options → Controls
+    (should say Keys · auto) → play with the D-pad, A, X (undo). 5 Updates: hard to force — check
+    app.log for "updates" lines (no errors); if a game of yours got a new build, it shows Update.
+  Plan agreed 15 Nov (Omri "okay" to all): v0.7.4 = faster start (onedir?) + Inno split installers;
+    then M7 browser games; Epic v0.8/v0.9 with "each game as its own Steam tile" in the same step.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

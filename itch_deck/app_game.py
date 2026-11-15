@@ -12,7 +12,7 @@ log = logging.getLogger("itch-deck")
 
 
 class GameMixin:
-    CONTROLS = ("auto", "gamepad", "mouse")
+    CONTROLS = ("auto", "gamepad", "mouse", "keys")
 
     def _h_game(self, act):
         sc = self.scene
@@ -176,19 +176,21 @@ class GameMixin:
         self.say(f"{g['title']} was uninstalled.")
 
     def controls_of(self, g):
-        """(setting, effective): setting auto|gamepad|mouse; auto follows itch's Inputs."""
+        """(setting, effective): setting auto|gamepad|mouse|keys; auto follows itch's Inputs."""
         setting = (self.cfg.get("controls") or {}).get(g["id"], "auto")
+        if setting not in self.CONTROLS:
+            setting = "auto"
         eff = mouse.auto_mode(g.get("inputs")) if setting == "auto" else setting
         return setting, eff
 
     def controls_label(self, g):
         setting, eff = self.controls_of(g)
-        name = {"gamepad": "Pad", "mouse": "Mouse"}[eff]
+        name = {"gamepad": "Pad", "mouse": "Mouse", "keys": "Keys"}[eff]
         return f"{name} controls" + (" · auto" if setting == "auto" else "")
 
     def cycle_controls(self, g):
         setting, _ = self.controls_of(g)
-        nxt = self.CONTROLS[(self.CONTROLS.index(setting) + 1) % 3]
+        nxt = self.CONTROLS[(self.CONTROLS.index(setting) + 1) % len(self.CONTROLS)]
         ctl = dict(self.cfg.get("controls") or {})
         if nxt == "auto":
             ctl.pop(g["id"], None)
@@ -198,6 +200,9 @@ class GameMixin:
         config.save(self.cfg)
         _, eff = self.controls_of(g)
         log.info("controls %s: %s (%s)", g["id"], nxt, eff)
+        a, b, x, y = (pads.name(k) for k in "ABXY")
         self.say({"mouse": "Right stick moves the mouse, R2 clicks while this game runs.",
+                  "keys": f"D-pad = arrows, {a} = Space, {b} = Esc, {x} = Z, {y} = X; "
+                          "right stick + R2 = mouse.",
                   "gamepad": "The game gets the controller as a gamepad."}[eff] +
                  (" (Auto: from the game's itch page)" if nxt == "auto" else ""))
