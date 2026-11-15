@@ -5,7 +5,7 @@ import shutil
 import threading
 from pathlib import Path
 
-from . import config, pads, proton
+from . import config, pads, proton, words
 from .input import (A, B, START)
 from .library import short_date
 from .app_common import _gb
@@ -68,10 +68,10 @@ class SettingsMixin:
                 name = proton.fetch_ge(on_bytes=on_bytes)
                 job["name"] = name
             except proton.ProtonError as e:
-                job["error"] = str(e)
-            except Exception:  # noqa: BLE001
+                job["error"], job["code"] = str(e), e.code
+            except Exception as e:  # noqa: BLE001
                 log.exception("ge-proton download failed")
-                job["error"] = "Couldn't get GE-Proton. Details are in the log."
+                job["error"], job["code"] = f"{type(e).__name__}: {e}", "W11"
             job["done"] = True
         threading.Thread(target=work, daemon=True, name="ge-proton").start()
         self.say("Downloading GE-Proton (about 0.5 GB, one time).")
@@ -86,7 +86,13 @@ class SettingsMixin:
         self.ge_job = None
         if job["error"]:
             log.info("ge-proton: %s", job["error"])
-            self.say("Couldn't get GE-Proton.", error=True)
+            hint = words.short(job["error"])
+            if hint:
+                self.say(f"Couldn't get GE-Proton. {hint}.", error=True)
+            else:
+                code = job.get("code") or "W11"
+                words.log_code(code, f"ge-proton: {job['error']}")
+                self.say(words.with_code("Couldn't get GE-Proton.", code), error=True)
         else:
             self.say(f"{job['name']} installed. Windows games are ready to go.")
         return self.settings_values()["proton"]

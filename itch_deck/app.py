@@ -9,7 +9,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, pads, paths, runner, theme
+from . import config, pads, paths, runner, theme, words
 from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1)
 from .installer import Installer, slug_of
 from .library import Library
@@ -23,7 +23,7 @@ from .app_setup import SetupMixin
 from .app_epic import EpicMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.8.2"
+VERSION = "0.8.3"
 
 
 def setup_logging():
@@ -370,7 +370,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
         if self.kind == "library":
             self._sync_library_scene()
             if self.lib.sync_error and not self.lib.syncing:
-                self.say("Couldn't refresh the library. Details are in the log.", error=True)
+                words.log_code("L01", f"library refresh: {self.lib.sync_error}")
+                self.say(words.with_code("Couldn't refresh the library.", "L01"), error=True)
                 self.lib.sync_error = None
         elif self.kind == "settings":
             self.scene.v["update"] = self.updater.row_value()

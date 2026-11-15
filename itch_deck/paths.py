@@ -58,7 +58,7 @@ def migrate(bases=None):
     pointing to the new one, so an older version (rollback) still finds everything. If the
     rename fails, keep using the old folder this run and try again next start. Returns lines
     for the log (logging isn't set up yet when this runs)."""
-    global CONFIG, DATA, LOGS, CONFIG_FILE
+    global CONFIG_FILE                    # CONFIG / DATA / LOGS change via globals()[key]
     notes = []
     for key, base in (bases or _BASES).items():
         old, new = base / OLD_NAME, base / NAME

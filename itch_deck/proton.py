@@ -6,7 +6,7 @@ import shutil
 import tarfile
 from pathlib import Path
 
-from . import config, net, paths
+from . import config, net, paths, words
 
 log = logging.getLogger("scritch")
 UMU_LATEST = "https://api.github.com/repos/Open-Wine-Components/umu-launcher/releases/latest"
@@ -16,7 +16,7 @@ GE_SPACE = 2_500_000_000      # bytes free needed on internal storage (~0.5 GB d
 NEED_GE = "GE-Proton isn't installed. Get it in Settings → Proton version."
 
 
-class ProtonError(Exception):
+class ProtonError(words.Coded):
     """A reason to show the user (install failed / can't play)."""
 
 
@@ -35,7 +35,7 @@ def fetch_umu(cancel=None):
         asset = next((a for a in rel.get("assets") or []
                       if a.get("name", "").endswith("zipapp.tar")), None)
         if not asset:
-            raise ProtonError("Couldn't find umu-launcher to download. Details are in the log.")
+            raise ProtonError("Couldn't find umu-launcher to download.", "W01")
         paths.UMU.parent.mkdir(parents=True, exist_ok=True)
         tmp = paths.UMU.parent / "umu.tar"
         net.download(asset["browser_download_url"], tmp, cancel=cancel)
@@ -59,7 +59,7 @@ def fetch_ge(cancel=None, on_bytes=None):
         tar = next((a for a in assets if a.get("name", "").endswith(".tar.gz")), None)
         sha = next((a for a in assets if a.get("name", "").endswith(".sha512sum")), None)
         if not tar:
-            raise ProtonError("Couldn't find GE-Proton to download. Details are in the log.")
+            raise ProtonError("Couldn't find GE-Proton to download.", "W02")
         if tar["name"][:-7] in config.proton_versions():
             return tar["name"][:-7]
         paths.STEAM_TOOLS.mkdir(parents=True, exist_ok=True)
@@ -79,7 +79,8 @@ def fetch_ge(cancel=None, on_bytes=None):
             want = net.get(sha["browser_download_url"]).decode(errors="replace").split()[0]
             if _sha512(dl) != want.lower():
                 dl.unlink(missing_ok=True)
-                raise ProtonError("The GE-Proton download was damaged. Retry to download it again.")
+                raise ProtonError("The GE-Proton download was damaged. Retry to download it again.",
+                                  "W03")
     except (net.Offline, net.NotFound, net.AuthError) as e:
         log.warning("ge-proton: download failed: %s", e)
         raise ProtonError("Couldn't download GE-Proton (needed once for Windows games). "
@@ -119,16 +120,14 @@ def install_ge_tar(tar_path):
                     target = (base / m.linkname).resolve()
                     bad = bad or not str(target).startswith(str(root) + os.sep)
                 if bad:
-                    raise ProtonError("The GE-Proton download looks wrong (unsafe paths). "
-                                      "Details are in the log.")
+                    raise ProtonError("The GE-Proton download looks wrong (unsafe paths).", "W04")
             if hasattr(tarfile, "tar_filter"):        # Python's own guard as a second layer
                 tf.extractall(tmp, members=members, filter="tar")
             else:
                 tf.extractall(tmp, members=members)
         tops = [d for d in tmp.iterdir() if d.is_dir()]
         if len(tops) != 1 or not (tops[0] / "proton").exists():
-            raise ProtonError("The GE-Proton download had an unexpected layout. Details are in "
-                              "the log.")
+            raise ProtonError("The GE-Proton download had an unexpected layout.", "W05")
         final = paths.STEAM_TOOLS / tops[0].name
         if final.exists():
             shutil.rmtree(final)
@@ -142,7 +141,7 @@ def install_umu_tar(tar_path):
     with tarfile.open(tar_path) as tf:
         m = next((m for m in tf.getmembers() if m.isfile() and Path(m.name).name == "umu-run"), None)
         if m is None:
-            raise ProtonError("The umu-launcher download had no umu-run in it.")
+            raise ProtonError("The umu-launcher download had no umu-run in it.", "W06")
         data = tf.extractfile(m).read()
     new = paths.UMU.with_suffix(".new")
     new.write_bytes(data)
@@ -270,7 +269,7 @@ def run_installer(umu, setup, kind, target, game_env, log_file, cancel=None, on_
                                     start_new_session=True)
         except OSError as e:
             log.warning("installer: couldn't start %s: %s", setup, e)
-            raise ProtonError("Couldn't start the installer. Details are in the log.") from None
+            raise ProtonError("Couldn't start the installer.", "W07") from None
 
         def kill():
             try:
@@ -292,9 +291,9 @@ def run_installer(umu, setup, kind, target, game_env, log_file, cancel=None, on_
             if time.monotonic() - t0 > timeout:
                 kill()
                 log.warning("installer: no exit after %d s, stopped", timeout)
-                raise ProtonError("The installer didn't finish (stopped after 15 min).")
+                raise ProtonError("The installer didn't finish (stopped after 15 min).", "W08")
             time.sleep(0.5)
     rc = proc.returncode
     log.info("installer: exit %s after %.0f s", rc, time.monotonic() - t0)
     if rc != 0:
-        raise ProtonError("The installer stopped with an error. Details are in the log.")
+        raise ProtonError("The installer stopped with an error.", "W09")

@@ -29,7 +29,7 @@ SKIP_WIN = ("setup", "redist", "dxweb", "dotnet", "oalinst", "physx", "vcrun", "
             "cefsharp", "createdump", "dump_syms")
 
 
-class InstallError(Exception):
+class InstallError(words.Coded):
     """A reason to show the user on the game page ("Couldn't install" box)."""
 
 
@@ -408,10 +408,10 @@ class Installer:
                 self._fail(gid, title, "itch.io rejected the API key. Sign in to itch again in Settings.")
             except (InstallError, proton.ProtonError) as e:
                 log.info("install %s: %s", gid, e)
-                self._fail(gid, title, str(e))
-            except Exception:  # noqa: BLE001
+                self._fail(gid, title, str(e), e.code)
+            except Exception as e:  # noqa: BLE001
                 log.exception("install %s failed", gid)
-                self._fail(gid, title, "Something went wrong. Details are in the log.")
+                self._fail(gid, title, f"Something went wrong ({type(e).__name__}: {e}).", "I01")
             finally:
                 with self._lock:
                     if self.queue and self.queue[0] == gid:
@@ -420,10 +420,15 @@ class Installer:
                     self.updating.discard(gid)
                     self._save_queue()
 
-    def _fail(self, gid, title, reason):
-        """The full reason goes to the log; the player sees a few plain words (words.short)."""
+    def _fail(self, gid, title, reason, code=None):
+        """The full reason goes to the log; the player sees a few plain words (words.short), or
+        the error code when there's nothing they can act on."""
         log.info("install %s failed: %s", gid, reason)
         hint = words.short(reason)
+        if not hint:
+            code = code or "I01"
+            words.log_code(code, f"install {gid} ({title}): {reason}")
+            hint = f"Code {code}"
         if gid in self.index:                 # an update / Change build: the old build stays
             self._revert_choice(gid)
             self._upd(gid, state="installed", phase=None, fail_reason=None)
@@ -558,12 +563,12 @@ class Installer:
             return self._install_epic(g)
         gid, store = g["id"], self.lib.store
         if not store:
-            raise InstallError("Not connected to itch.io yet.")
+            raise InstallError("Not connected to itch.io yet.", "I03")
         t0 = time.time()
         builds = store.list_builds(g)
         build, platform = self._choose(gid, builds)
         if not build:
-            raise InstallError("No Linux or Windows download found for this game.")
+            raise InstallError("No Linux or Windows download found for this game.", "I02")
         log.info("install %s: %s build %s", gid, platform, build["filename"])
         if platform == "windows" and not proton.proton_dir(self.cfg):
             self._upd(gid, state="downloading", phase="ge", progress=0, speed_mbs=0, eta_s=0)
@@ -716,7 +721,7 @@ class Installer:
                                 cancel=lambda: gid in self._cancel,
                                 log_file=logs / f"{dest.name}-install.log")
         except EpicError as e:
-            raise InstallError(f"Couldn't install: {e}.") from None
+            raise InstallError(f"Couldn't install: {e}.", "I04") from None
         used = sum(f.stat().st_size for f in files.rglob("*") if f.is_file() and not f.is_symlink())
         info = {"game_id": gid, "title": g.get("title"), "store": "epic",
                 "app_name": g["app_name"], "upload_id": g["app_name"], "platform": "windows",
@@ -740,7 +745,7 @@ class Installer:
                                "Try another build with Change build.")
         pdir, umu = proton.proton_dir(self.cfg), proton.umu_path()
         if not pdir or not umu:
-            raise InstallError("Windows installers need GE-Proton and umu-launcher. Retry.")
+            raise InstallError("Windows installers need GE-Proton and umu-launcher. Retry.", "W10")
         target = dest / "files.inst"
         shutil.rmtree(target, ignore_errors=True)
         logs = paths.LOGS / "games"

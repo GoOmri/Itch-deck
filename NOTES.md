@@ -717,6 +717,24 @@ ROADMAP (Omri 15 Nov 20:23, after v0.8.1; page: https://claude.ai/artifact/Hkk8S
   Decided against: auto Steam tiles, IGDB (secret key), reading Epic from Heroic.
   Needs a Deck test, not code: itch update detection, split installer (Stranger More), Epic long
   descriptions count ("epic text fields" log line), Epic game updates.
+v0.8.3 = ROADMAP item "error codes instead of Details" (branch error-codes, NOT released; Omri
+  "go" 16 Nov 01:11). Omri 16 Nov: no log, no QR, no new buttons on the TV; keep the log on disk.
+  - words.CODES = the one list (letter = where: I install, W Windows/GE/umu, P play, L library,
+    U app update; E reserved for Epic sign-in if ever needed). words.Coded(msg, code) is the base of
+    InstallError and ProtonError. Rule: words.short() hint the player can act on WINS; only when
+    there's no hint does the screen get "Code X" and app.log "ERROR CODE X: <full reason>"
+    (words.log_code). Messages that already say what to do get no code.
+  - Where: installer._fail (game page "Couldn't install / Code W09", toast when off the page; I01 =
+    unexpected, logged with traceback), play crash without hint P01, Mouse/Keys P02, library refresh
+    L01, Settings GE-Proton download (hint or code, W11 = unexpected), app update download U01
+    (shown in the Settings update row). "Details are in the log" removed from every message.
+    words hint added: "No internet" (EpicError text) -> "No internet".
+  - Details removed: game ⚙ menu entry, app_game.details_lines, W.details_box, mockup 16b_game_details,
+    its test. Mockups: 16_game_failed shows "Code W09", new 10b_library_toast_code. Gallery
+    republished (3 screens). tests/test_codes.py: every code used is listed and every listed code is
+    used, no screen text mentions the log, hint beats code, I01 fallback.
+  - README "Reporting a problem" (tell us the code; attach ~/.local/state/scritch/logs/app.log if
+    asked) belongs to ROADMAP "Ready to share".
 v0.8.2 RELEASED 15 Nov (Omri "push"; branch rename-scritch) = ROADMAP 1, folder rename:
   - paths: NAME "scritch", OLD_NAME "itch-deck". paths.migrate() runs first thing in main (before
     logging/config/lock): per XDG base (config / data / state) old real dir + no new -> os.rename

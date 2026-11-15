@@ -1,7 +1,6 @@
 """v0.8.2: the folders itch-deck -> scritch. Renamed (not copied) at start, old name left as a
 link so a rolled-back older version still finds everything; a failed rename keeps the old one."""
 import os
-from pathlib import Path
 
 from itch_deck import config, paths, updater
 

@@ -444,7 +444,7 @@ def test_installer_failures(tmp_path, server, monkeypatch):
     inst.lib.store.uploads = [_up(8, "s.exe", p_linux=False, p_windows=True, size=len(INNO))]
     inst.enqueue(lib.games[0])
     _wait(inst)
-    assert lib.games[0]["state"] == "failed" and lib.games[0]["fail_reason"] is None
+    assert lib.games[0]["state"] == "failed" and lib.games[0]["fail_reason"] == "Code W09"
     assert not (tmp_path / "games/quiet-quarry/files.new").exists()
     assert proton.silent_args("nsis", "/a/b")[-1] == "/D=Z:\\a\\b"
     monkeypatch.delenv("FAIL")

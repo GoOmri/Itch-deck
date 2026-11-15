@@ -145,7 +145,7 @@ def test_tabs_and_epic_game_page():
     gp = Game(t, games[1])
     assert [a[0] for a in gp.actions()] == ["Install"] and gp.options() == []   # no Change build
     games[1]["state"] = "installed"
-    assert Game(t, games[1]).options() == ["Uninstall", "Controls", "Details"]
+    assert Game(t, games[1]).options() == ["Uninstall", "Controls"]
 
 
 def test_epic_install_play_uninstall(tmp_path, monkeypatch):
@@ -345,29 +345,3 @@ def test_epic_update_badge_and_update(tmp_path, monkeypatch):
     _wait(inst)
     assert st.installed()["Fern"]["version"] == "2" and not lib.by_id("epic-Fern").get("update")
     assert inst.check_epic_updates() == 0
-
-
-def test_details_shows_log_tail_without_secrets(tmp_path):
-    """Game ⚙ → Details: last lines of the install log (failed) or the last run, keys blanked."""
-    import pygame as pg
-    from itch_deck import app_game
-    from itch_deck.theme import Theme
-    from itch_deck.ui.scenes.game import Game
-    paths.use_root(tmp_path)
-    logs = paths.LOGS / "games"
-    logs.mkdir(parents=True, exist_ok=True)
-    (logs / "hades-install.log").write_text("".join(f"line {i}\n" for i in range(60)) +
-                                            "GET /x?api_key=abc123 failed\n# -AUTH_PASSWORD=XYZ\n")
-    g = {"id": "epic-Fern", "title": "Hades", "state": "failed", "platforms": {"windows"}, "store": "epic",
-         "size_mb": 0, "screens": 0}
-    src, lines = app_game.GameMixin.details_lines(None, g)
-    assert src.startswith("Last install") and len(lines) == 40 and lines[-3] == "line 59"
-    assert "abc123" not in "".join(lines) and "XYZ" not in "".join(lines)
-    pg.init()
-    t = Theme(pg, (1280, 800))
-    assert Game(t, g).options() == ["Details"]
-    g["state"] = "installed"
-    assert Game(t, g).options()[-1] == "Details"
-    sc = Game(t, g)
-    sc.overlay = ("details", "Details", src, lines)
-    sc.draw(pg.Surface((1280, 800)))                                  # draws without errors

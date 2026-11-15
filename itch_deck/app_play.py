@@ -3,7 +3,7 @@ Mixed into App (app.py); split out of app.py on 15 Nov, code unchanged."""
 import logging
 from pathlib import Path
 
-from . import mouse, proton, runner
+from . import mouse, proton, runner, words
 from .installer import slug_of
 
 log = logging.getLogger("scritch")
@@ -99,12 +99,16 @@ class PlayMixin:
             return
         if mm and mm.error and not runner.crashed(rc, secs):
             mode = "Keys" if mm.mapper.layout == "keys" else "Mouse"
-            log.info("play: %s mode off: %s", mode, mm.error)
-            self.say(f"{mode} controls didn't start.", error=True)
+            words.log_code("P02", f"{g['id']}: {mode} mode off: {mm.error}")
+            self.say(words.with_code(f"{mode} controls didn't start.", "P02"), error=True)
         if runner.crashed(rc, secs):
             hint = runner.crash_hint(slug_of(g))
             log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
-            self.say(f"{g['title']} couldn't start." + (f" {hint}" if hint else ""), error=True)
+            if hint:
+                self.say(f"{g['title']} couldn't start. {hint}", error=True)
+            else:
+                words.log_code("P01", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
+                self.say(words.with_code(f"{g['title']} couldn't start.", "P01"), error=True)
 
     def _hide_window(self):
         """Hide our window while a game runs instead of closing the display: showing it again is

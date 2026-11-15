@@ -188,6 +188,9 @@ def _shots(t, version):
         ("10_library_toast", Library(t, lib, focus=idx["Grave Gardener"],
                                      toast="Grave Gardener closed right after starting. Try Change build.",
                                      toast_error=True)),
+        ("10b_library_toast_code", Library(t, lib, focus=idx["Grave Gardener"],
+                                           toast="Couldn't refresh the library · Code L01",
+                                           toast_error=True)),
         ("11_game_not_installed", game("Quiet Quarry")),
         ("11b_game_free_space", _set(game("Quiet Quarry"), free_mb=42_300)),
         ("11c_game_no_space", _set(game("Quiet Quarry"), free_mb=120)),
@@ -218,8 +221,8 @@ def _shots(t, version):
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "", "")], 0))),
-        ("16_game_failed", game("Grave Gardener",
-                                fail_reason=None)),        # the reason is in the log only
+        ("16_game_failed", game("Grave Gardener",           # nothing to act on: the code
+                                fail_reason="Code W09")),  # (same code + reason in the log)
         ("16b_game_failed_build", game("Grave Gardener", fail_reason="Try another build in Options")),
         ("17_game_browser", game("Frog Parliament")),
         ("18_game_not_playable", game("Velvet Static")),
@@ -253,13 +256,6 @@ def _shots(t, version):
         ("06e_library_two_stores", Library(t, both, focus=1, stores=("itch", "epic"))),
         ("06f_library_epic_tab", Library(t, both, filt="epic", focus=0, stores=("itch", "epic"))),
         ("15d_game_epic", Game(t, epic_games[1], pos=(2, len(epic_games)))),
-        ("16b_game_details", _with(game("Grave Gardener"), overlay=(
-            "details", "Details", "Last install · Grave Gardener",
-            ["[DLManager] INFO: = Progress: 41.20% (812/1971), Running for 00:02:11, ETA: 00:03:07",
-             "[DLManager] INFO:  + Download  - 12.31 MiB/s (raw) / 18.02 MiB/s (decompressed)",
-             "[DLManager] ERROR: Failed to write file Content/Paks/pakchunk0.pak: [Errno 28] No space left on device",
-             "[cli] ERROR: Download failed, check the log above.",
-             "install 1234: Couldn't install: Not enough space."]))),
         ("15e_game_epic_details", Game(t, dict(epic_games[1], screens=4, details_from="Epic", comments=None,
                                                 details_at="2026-11-15T18:00:00",
                                                 description=["Tend a moonlit orchard that drifts between planets.",

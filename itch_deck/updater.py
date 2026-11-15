@@ -13,7 +13,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import net, pads
+from . import net, pads, words
 
 log = logging.getLogger("scritch")
 LATEST = "https://api.github.com/repos/GoOmri/Itch-deck/releases/latest"
@@ -117,8 +117,8 @@ class Updater:
             self.state = "ready"
             log.info("update: v%s installed, previous kept as %s", self.new_version, old.name)
         except Exception as e:  # noqa: BLE001
-            log.warning("update download failed: %s", e)
-            self.state, self.error = "error", "download failed"
+            words.log_code("U01", f"update v{self.new_version} download: {e}")
+            self.state, self.error = "error", "download failed · Code U01"
             for p in (new, new.with_name(new.name + ".part")):
                 try:
                     p.unlink()
