@@ -498,7 +498,7 @@ Per-controller glyphs (in v0.7.2):
     3 Press a Deck button: back to Deck glyphs. 4 Start a game with the DualSense: splash says
     hold CREATE + OPTIONS. 5 Settings → Button symbols cycles; Auto shows what's detected.
     If wrong: send app.log lines "pad added", "pad in use", "pad ... = ".
-v0.7.3 work (branch filter-and-ps-glyphs, 15 Nov, NOT released yet), Omri's v0.7.2 Deck test:
+v0.7.3 RELEASED 15 Nov (Omri "push update"; branch filter-and-ps-glyphs). From Omri's v0.7.2 Deck test:
   - Sort & filter: ◀ ▶ moved the library behind the menu (re-sort + scroll reset under the
     shade). Library.draw_page now draws a frozen snapshot while the menu is open; on close, if
     filters changed, the content fades in. tests/test_library_menu.py (fails on the old code).
