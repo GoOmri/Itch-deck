@@ -119,9 +119,11 @@ class Client:
                                       "filter": "", "sort": 0, "randomizer": 0}}
             hdr = {"User-Agent": UA, "Referer": BASE, "Origin": BASE.rstrip("/"),
                    "Content-Type": "application/json", "Accept": "*/*"}
-            if key:
+            if tok:
+                hdr["x-auth-token"] = str(tok)
+            if key:                               # older site builds also want a key/value pair
                 body[key] = val
-                hdr.update({"x-auth-token": str(tok), "x-hp-key": str(key), "x-hp-val": str(val)})
+                hdr.update({"x-hp-key": str(key), "x-hp-val": str(val)})
             try:
                 raw = net.get(BASE + self.endpoint, timeout=20, headers=hdr,
                               data=json.dumps(body).encode())

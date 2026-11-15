@@ -93,3 +93,20 @@ def test_library_caches_and_stops_when_down(tmp_path, monkeypatch):
     lib._hltb_down = True
     lib.queue_hltb()
     assert lib.jobs["hltb"] == [0, 0]
+
+
+def test_token_only_init_still_sends_token(monkeypatch):
+    seen = {}
+
+    def fake_get(url, timeout=20, headers=None, data=None, **kw):
+        if url == hltb.BASE:
+            return b""                                          # no chunks: fallback endpoint
+        if "/init" in url:
+            return b'{"token": "T"}'
+        seen.update(headers)
+        return json.dumps({"data": [row("Celeste", 8 * 3600)]}).encode()
+
+    monkeypatch.setattr(net, "get", fake_get)
+    c = hltb.Client()
+    assert c.lookup("Celeste")["main"] == 8.0 and c.endpoint == "api/s"
+    assert seen["x-auth-token"] == "T" and "x-hp-key" not in seen
