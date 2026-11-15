@@ -450,6 +450,23 @@ def _ps_small(btn, h, col):
     return out
 
 
+def text_glyphs(t, s, line, cx, top, font, color):
+    """One centred line with pad glyphs inline: "Press {X} to change it." draws the real X /
+    square glyph for the pad in use instead of its name."""
+    import re
+    parts = re.split(r"\{(\w+)\}", line)               # text, btn, text, btn, …
+    gap = t.u * 0.5
+    sizes = [font.size(p)[0] if i % 2 == 0 else glyph(t, pg.Surface((1, 1)), p, 0, 0) + 2 * gap
+             for i, p in enumerate(parts)]
+    x, cy = cx - sum(sizes) / 2, top + font.get_height() / 2
+    for i, (p, w) in enumerate(zip(parts, sizes)):
+        if i % 2 == 0:
+            text(t, s, p, x, cy, font, color=color, anchor="midleft")
+        else:
+            glyph(t, s, p, x + gap, cy)
+        x += w
+
+
 def glyph(t, s, btn, x, cy, ink=None, kind=None):
     """Steam-style button glyph: solid white shape, label knocked out in the dark ink colour.
     Follows the pad in use (pads.current, or kind=):
@@ -992,6 +1009,7 @@ def notice(t, s, x, y, w, title, body=None, kind="error"):
 
 
 ACTION_ROW = "\0action"      # value that makes a row's label purple (a reset like Clear filters)
+OFF_ROW = "\0off"            # same row when it can't do anything yet: faint, never focused
 
 
 def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
@@ -1005,11 +1023,11 @@ def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
         if k > 0.01:
             panel(t, s, r, mix(t.panel_hi, t.focus_fill, k))
         ly = r.centery - (t.f_small.get_height() // 2 if sub else 0)
-        action = value == ACTION_ROW                # purple at rest, white when lit (contrast)
-        if action:
+        action, off = value == ACTION_ROW, value == OFF_ROW   # purple at rest, white when lit
+        if action or off:
             value = ""
         text(t, s, label, r.x + pad, ly, t.f_btn, anchor="midleft",
-             color=t.accent if action and i != focus else t.text_c)
+             color=t.faint if off else t.accent if action and i != focus else t.text_c)
         if sub:
             text(t, s, sub, r.x + pad, ly + t.f_btn.get_height() * 0.55, t.f_small,
                  color=t.dim, anchor="topleft", maxw=r.w * 0.6)

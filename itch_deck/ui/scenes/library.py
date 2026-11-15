@@ -5,7 +5,7 @@ import pygame as pg
 from ...input import UP, DOWN, LEFT, RIGHT, X, L2, R2
 from .. import widgets as W
 from .base import Scene
-from ... import hltb, pads
+from ... import hltb
 
 
 STORE_NAMES = {"itch": "itch", "epic": "Epic"}
@@ -133,8 +133,8 @@ class Library(Scene):
                 ("Show", dict(SHOWS)[self.show] + n(show=self.show), ""),
                 ("Genre", ("Any" if self.genre == "any" else self.genre) + n(genre=self.genre), ""),
                 ("Length", dict(LENGTHS)[self.length] + n(length=self.length), "")]
-        if self.filtered():
-            rows.append(("Clear filters", W.ACTION_ROW, ""))
+        # always there, so the menu never changes size: faint until a filter is on
+        rows.append(("Clear filters", W.ACTION_ROW if self.filtered() else W.OFF_ROW, ""))
         return rows
 
     def menu_open(self, f=0):
@@ -173,7 +173,9 @@ class Library(Scene):
         if self.overlay and self.overlay[0] == "menu":
             kind, title, sub, items, f = self.overlay
             if act in (UP, DOWN):
-                self.overlay = (kind, title, sub, items, (f + (1 if act == DOWN else -1)) % len(items))
+                live = [i for i, it in enumerate(items) if it[1] != W.OFF_ROW]   # skip faint rows
+                f = live[(live.index(f) + (1 if act == DOWN else -1)) % len(live)] if f in live else 0
+                self.overlay = (kind, title, sub, items, f)
             return
         if act == X:
             self.menu_open()
@@ -245,7 +247,7 @@ class Library(Scene):
         if not self.shown:
             if self.filtered():                 # games exist, the filter hides them all
                 return self._center_msg(s, y, "No games match this filter.",
-                                        f"Press {pads.name('X')} to change it.")
+                                        "Press {X} to change it.")
             if self.filt == "installed":
                 return self._center_msg(s, y, "Nothing installed yet.",
                                         "Install a game from All and it shows up here.")
@@ -255,7 +257,7 @@ class Library(Scene):
                                         f"Games in your {name} library show up here.")
             if self.offline:
                 return self._center_msg(s, y, "Can't reach itch.io.",
-                                        f"Check Wi-Fi, then press {pads.name('Y')} to try again.", refresh=True)
+                                        "Check Wi-Fi, then press {Y} to try again.", refresh=True)
             return self._center_msg(s, y, "No games yet.",
                                     "Games you buy or claim on itch show up here.", refresh=True)
         self._grid(s, y)
@@ -323,7 +325,7 @@ class Library(Scene):
         if spinner:
             W.spinner(t, s, (int(t.cx), int(cy - t.xl)), int(t.u * 3), 0.2)
         r = W.text(t, s, title, t.cx, cy, t.f_h2, anchor="center")
-        W.text(t, s, sub, t.cx, r.bottom + t.xs, t.f_body, color=t.dim, anchor="midtop")
+        W.text_glyphs(t, s, sub, t.cx, r.bottom + t.xs, t.f_body, t.dim)   # {X} = pad glyph
         # refresh: Y is already in the footer (DESIGN rule 6), not repeated here
 
     def _grid(self, s, top):

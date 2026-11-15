@@ -93,7 +93,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
   the library's genres), Length (Any / Under 2 h / 2–10 h / 10 h+ from HowLongToBeat main
   story; unknown only under Any, sorted last). Remembered per tab. ◀ ▶ or A change a value, each value
-  shows its count, the title the live total, "Clear filters" when filtering (purple text, white when lit); when a filter is on the top bar
+  shows its count, the title the live total, "Clear filters" always last (faint and skipped until a filter is on, then purple,
+  white when lit) so the menu never changes size; when a filter is on the top bar
   shows a purple FILTER: … tag and "12 of 30 games" (plain words alone read like playtime; the
   "of 30" says games are hidden), and an empty result says "No games match this filter." **Each tab keeps its own Sort & filter** (Omri 15 Nov): a filter set on All never hides games on Installed; Installed starts unfiltered. Genre goes in the info line; time to beat gets its own
   dim line ("Main story ~4 h · Completionist ~9 h"), or nothing if HLTB doesn't know the game
@@ -140,7 +141,8 @@ sentence case everywhere else ("Change build").
 feel frozen. So: calm where you act, alive where you wait.
 
 ## 10. Words: only what the player needs
-SCRiTCH is for casual players (Omri, 15 Nov). Short, plain, sentence case. "…" means in progress.
+SCRiTCH is for casual players (Omri, 15 Nov). Short, plain, sentence case. Pad buttons in text are drawn as glyphs ("Press {X}" →
+ the real ✕ / □ / X for the pad in use, `W.text_glyphs`), never spelled out. "…" means in progress.
 **No technical words on screen** (file, installer, library, runnable, Proton reasons, exit codes,
 paths): the full reason goes to the log, the screen gets a title ("Couldn't install") and at most
 a few plain words the player can act on ("Not enough space", "No internet"), or nothing. One

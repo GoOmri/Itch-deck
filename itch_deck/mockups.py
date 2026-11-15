@@ -137,6 +137,7 @@ def _shots(t, version):
     if pads.current == "ps":           # DualSense set: the screens where its glyphs show
         return [
             ("ps_04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
+            ("ps_06j_library_filter_empty", Library(t, lib, focus=0, genre="Racing")),
             ("ps_09_library_quit", with_overlay(Library(t, lib, focus=0), quit_dlg)),
             ("ps_15_game_installed", game("Moss & Rivets",
                                           install_path="/run/media/deck/SD/itch/moss-and-rivets")),
@@ -166,6 +167,8 @@ def _shots(t, version):
         ("06g_library_filtered", Library(t, lib, focus=0, length="short")),
         ("06h_library_filtered_two", Library(t, lib, focus=0, genre="Puzzle", length="short")),
         ("06b_library_recent", Library(t, lib, sort="played", focus=0)),   # Recent = a sort now
+        ("06i_library_sort_filter_none", _menu(Library(t, lib, focus=0), 0)),
+        ("06j_library_filter_empty", Library(t, lib, focus=0, genre="Racing")),
         ("06c_library_sort_filter", _menu(Library(t, lib, focus=0, sort="short", genre="Puzzle"), 3)),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
         ("08_library_empty", Library(t, [])),
