@@ -536,7 +536,7 @@ v0.7.3 RELEASED 15 Nov (Omri "push update"; branch filter-and-ps-glyphs). From O
     app.log for "updates" lines (no errors); if a game of yours got a new build, it shows Update.
   Plan agreed 15 Nov (Omri "okay" to all): v0.7.4 = faster start (onedir?) + Inno split installers;
     then M7 browser games; Epic v0.8/v0.9 with "each game as its own Steam tile" in the same step.
-v0.7.4 (branch v074-start-split, NOT released - waits for "push update"):
+v0.7.4 RELEASED 15 Nov (Omri "push update"; branch v074-start-split = split installers + faster start + settings-sidebar):
   - Split installers (BUILT): stores/itch.split_parts(build, uploads) = Inno slices uploaded
     separately (setup.exe + setup-1.bin, -2a.bin…; same stem first, else every slice-named .bin
     without a Linux tag when the exe was renamed). pick_build skips slices (is_part), so they never
