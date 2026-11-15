@@ -576,7 +576,7 @@ v0.7.4 Deck test (15 Nov): faster start ✓ "no flicker, opens really quick". Li
   Bleed 2 ignores the DualSense unless the DualSense started the tile: Steam makes the launching
   pad player 1 and Bleed 2 reads only player 1. Not ours; workaround = start SCRiTCH with the pad
   you'll play with. Later idea (research): hide the other pads from single-player games.
-v0.7.5 (branch v075-tabs-splash, NOT released - waits for "push update"):
+v0.7.5 RELEASED 15 Nov (Omri "push"; branch v075-tabs-splash):
   - Sort & filter per tab: Library.views {tab: {sort, show, genre, length}}, sort/show/genre/length
     are properties on the current tab's view; cfg "library_views" (old library_* keys -> All on
     first load, App._views). Installed starts unfiltered. Mockup 06d. tests/test_library_menu.py.
