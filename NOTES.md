@@ -591,7 +591,7 @@ v0.7.5 RELEASED 15 Nov (Omri "push"; branch v075-tabs-splash):
 v0.7.5 Deck test (15 Nov): all ✓. Omri: the launch logo only flashes (start too quick) -> removed
   on branch v076-no-splash (first frame = plain background, no fade; W.launch_splash, mockup 00
   and DESIGN line gone). NOT released.
-Epic step 1 (v0.7.6; Omri 15 Nov: "build the way a fresh user will", no Heroic): read-only Epic tab.
+Epic step 1 RELEASED v0.7.6 15 Nov (Omri "push update"; with the no-launch-logo change; Omri 15 Nov: "build the way a fresh user will", no Heroic): read-only Epic tab.
   - stores/epic.py: legendary downloaded on first Connect (GitHub legendary-gl/legendary latest,
     asset legendary_linux_x64 -> DATA/epic/legendary; >1 MB check). OWN config dir DATA/epic/config
     (LEGENDARY_CONFIG_PATH, chmod 700) = never touches Heroic. login(code) = `auth --code`, ok when
