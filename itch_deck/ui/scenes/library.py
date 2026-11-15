@@ -1,4 +1,5 @@
-"""P2 Library (home): All / Installed / Recent tabs, Sort & filter menu (X), cover grid."""
+"""P2 Library (home): All / Installed (+ itch / Epic once 2 stores are connected) tabs,
+Sort & filter menu (X), cover grid."""
 import pygame as pg
 
 from ...input import UP, DOWN, LEFT, RIGHT, X, L2, R2
@@ -7,8 +8,21 @@ from .base import Scene
 from ... import hltb, pads
 
 
-TABS = (("all", "All"), ("installed", "Installed"), ("recent", "Recent"))
-SORTS = (("az", "A–Z"), ("added", "Recently added"), ("short", "Shortest first"))
+STORE_NAMES = {"itch": "itch", "epic": "Epic"}
+SORTS = (("az", "A–Z"), ("played", "Recently played"), ("added", "Recently added"),
+         ("short", "Shortest first"))
+
+
+def tabs(stores=("itch",)):
+    """All · Installed, then one tab per store (Omri 15 Nov: All · Installed · itch · Epic).
+    With one store its tab would equal All, so store tabs show only from two stores on."""
+    out = [("all", "All"), ("installed", "Installed")]
+    if len(stores) > 1:
+        out += [(k, STORE_NAMES.get(k, k)) for k in stores]
+    return tuple(out)
+
+
+TABS = tabs()            # default set (itch only); a Library uses self.tabs()
 SHOWS = (("all", "Everything"), ("playable", "Playable here"))
 LENGTHS = (("any", "Any"), ("short", "Under 2 h"), ("mid", "2–10 h"), ("long", "10 h+"))
 
@@ -38,9 +52,11 @@ def visible(games, filt="all", sort="az", show="all", genre="any", length="any")
         gs = [g for g in gs if length_kind(g) == length]
     if filt == "installed":
         gs = [g for g in gs if g.get("state") in ("installed", "missing")]
-    if filt == "recent":                                    # newest play first
-        return sorted((g for g in gs if g.get("played")), key=lambda g: g["played"], reverse=True)
-    if sort == "added":
+    elif filt in STORE_NAMES:                               # a store tab
+        gs = [g for g in gs if g.get("store", "itch") == filt]
+    if sort == "played":                                    # last played first, then the rest A–Z
+        gs.sort(key=lambda g: g.get("played") or "", reverse=True)
+    elif sort == "added":
         gs.sort(key=lambda g: g.get("added") or "", reverse=True)
     elif sort == "short":                                   # unknown length last, A–Z
         gs.sort(key=lambda g: hltb.length_hours(g.get("ttb")) or float("inf"))
@@ -50,8 +66,11 @@ def visible(games, filt="all", sort="az", show="all", genre="any", length="any")
 class Library(Scene):
     def __init__(self, t, games, filt="all", focus=0, syncing=None, sync_page=0,
                  offline_since=None, offline=False, sort="az", show="all", genre="any",
-                 length="any", **kw):
+                 length="any", stores=("itch",), **kw):
         super().__init__(t, **kw)
+        self.stores = tuple(stores)
+        if filt not in dict(self.tabs()):     # e.g. an old "recent" tab, or Epic disconnected
+            filt = "all"
         self.games, self.filt, self.focus = games, filt, focus
         self.sort, self.show = sort, show                   # X menu (saved in config by the app)
         self.genre, self.length = genre, length
@@ -117,8 +136,11 @@ class Library(Scene):
         self.focus, self._first, self._sy = 0, 0, None
         self.menu_open(self.overlay[4] if label != "Clear filters" else 1)
 
+    def tabs(self):
+        return tabs(self.stores)
+
     def next_tab(self, step):
-        keys = [k for k, _ in TABS]
+        keys = [k for k, _ in self.tabs()]
         self.filt = keys[(keys.index(self.filt) + step) % len(keys)]
         self.focus, self._first, self._sy = 0, 0, None
 
@@ -178,7 +200,7 @@ class Library(Scene):
         y = self._top_bar(s)
         key = ("tabswipe", id(self))
         if getattr(self, "_tab_filt", self.filt) != self.filt:      # tab changed: swipe in
-            keys = [k for k, _ in TABS]                             # tab to the right: from right
+            keys = [k for k, _ in self.tabs()]                      # tab to the right: from right
             self._tab_dir = 1 if keys.index(self.filt) > keys.index(self._tab_filt) else -1
             W._ANIM.pop(key, None)                                  # restart from 0
         self._tab_filt = self.filt
@@ -201,9 +223,10 @@ class Library(Scene):
             if self.filt == "installed":
                 return self._center_msg(s, y, "Nothing installed yet.",
                                         "Install a game from All and it shows up here.")
-            if self.filt == "recent":
-                return self._center_msg(s, y, "Nothing played yet.",
-                                        "Games you play show up here, newest first.")
+            if self.filt in STORE_NAMES and not self.filtered():
+                name = STORE_NAMES[self.filt]
+                return self._center_msg(s, y, f"No {name} games yet.",
+                                        f"Games in your {name} library show up here.")
             if self.offline:
                 return self._center_msg(s, y, "Can't reach itch.io.",
                                         f"Check Wi-Fi, then press {pads.name('Y')} to try again.", refresh=True)
@@ -216,7 +239,7 @@ class Library(Scene):
         base = int(t.m + t.xs)              # everything in the top bar sits on this baseline
         r = W.wordmark(t, s, t.m, base, anchor="baseleft")
         x = r.right + t.lg
-        for key, label in TABS:
+        for key, label in self.tabs():
             on = self.filt == key
             lr = W.text(t, s, label, x, base, t.f_btn, color=t.text_c if on else t.dim,
                         anchor="baseleft")

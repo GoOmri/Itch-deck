@@ -64,6 +64,11 @@ class GameMixin:
                          "install it again any time.", "Uninstall", lambda: self._uninstall(g))
         elif label == "Play":
             self.play(g)
+        elif label == "Update":
+            if self.lib.offline or not self.lib.store:
+                self.say("Updating needs internet.", error=True)
+            elif self.inst.update(g) and self.inst.current and self.inst.current != gid:
+                self.say("Queued. The update starts after the current download.")
         elif label == "Change build":
             self.change_build(g)
         elif label.startswith("Controls"):

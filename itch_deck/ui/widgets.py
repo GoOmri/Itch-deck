@@ -815,7 +815,9 @@ def _badges(t, s, game, r, playable):
     pad = t.u
     st = game.get("state")
     # top-right: install state
-    if st == "installed":
+    if st == "installed" and game.get("update"):       # newer build on itch
+        tag(t, s, "Update", r.right - pad, r.y + pad, kind="accent", anchor="topright")
+    elif st == "installed":
         c = (r.right - pad - t.u * 1.6, r.y + pad + t.u * 1.6)
         pg.draw.circle(s, t.accent, c, t.u * 1.6)
         icon_draw(s, "check", c, int(t.u * 1.4), t.on_accent)

@@ -46,8 +46,8 @@ def _read_json(path, default):
 
 def _write_json(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=1))
+    tmp = paths.tmp_for(path)          # install + update-check threads both write the index
+    tmp.write_text(json.dumps(dict(data) if isinstance(data, dict) else data, indent=1))
     tmp.replace(path)
 
 
@@ -259,6 +259,26 @@ def _find_win_exe(root, title, slug):
     return (names[0] if names else None), names[1:]
 
 
+UPDATE_EVERY_S = 6 * 3600
+
+
+def update_for(info, builds):
+    """("update", build) when itch has a newer build than the installed one: the same upload
+    with a newer date or a new butler build id, or (upload gone) the build picked in its place.
+    ("baseline", build) for installs made before we recorded dates; (None, build|None) else."""
+    cur = next((u for u in builds if u["id"] == info.get("upload_id")), None)
+    if cur is None:
+        repl, _ = pick_build(builds, info.get("platform") or "linux")
+        return ("update", repl) if repl else (None, None)
+    if "upload_updated" not in info:
+        return "baseline", cur
+    newer = bool(cur.get("updated")) and bool(info["upload_updated"]) and \
+        cur["updated"] > info["upload_updated"]
+    rebuilt = bool(cur.get("build_id")) and bool(info.get("build_id")) and \
+        cur["build_id"] != info["build_id"]
+    return ("update", cur) if newer or rebuilt else (None, cur)
+
+
 # --- installer -----------------------------------------------------------------------------
 class Installer:
     def __init__(self, lib, root_fn, cfg=None):
@@ -271,6 +291,7 @@ class Installer:
         self._cancel = set()
         self._thread = None
         self._lock = threading.Lock()
+        self.updating = set()     # gids queued as updates (same upload id may be reinstalled)
         lib.installs, lib.live = self.index, {}
         lib.apply_installs()
 
@@ -286,7 +307,8 @@ class Installer:
     def _done(self, gid):
         """Installed, and with the build the user chose (a Change build reinstall isn't)."""
         info = self.index.get(gid)
-        return bool(info) and self.choices.get(gid, info["upload_id"]) == info["upload_id"]
+        return bool(info) and gid not in self.updating and \
+            self.choices.get(gid, info["upload_id"]) == info["upload_id"]
 
     def enqueue(self, g, upload_id=None):
         """upload_id: a build picked in Change build (remembered for reinstalls too)."""
@@ -352,7 +374,8 @@ class Installer:
                 if g is None:
                     raise InstallError("This game isn't in your library any more.")
                 self._install(dict(g))
-                self.events.append(("done", gid, f"{title} is installed."))
+                self.events.append(("done", gid, f"{title} is updated." if gid in self.updating
+                                    else f"{title} is installed."))
             except net.Cancelled:
                 log.info("install %s: cancelled", gid)
                 self._cleanup_download(gid)
@@ -376,16 +399,80 @@ class Installer:
                     if self.queue and self.queue[0] == gid:
                         self.queue.pop(0)
                     self._cancel.discard(gid)
+                    self.updating.discard(gid)
                     self._save_queue()
 
     def _fail(self, gid, title, reason):
         if gid in self.index:                 # a Change build reinstall: the old build stays
             self._revert_choice(gid)
             self._upd(gid, state="installed", phase=None, fail_reason=None)
-            self.events.append(("error", gid, f"Couldn't change the build: {reason}"))
+            self.events.append(("error", gid, f"Couldn't update {title}: {reason}"
+                                if gid in self.updating else f"Couldn't change the build: {reason}"))
             return
         self._upd(gid, state="failed", phase=None, fail_reason=reason)
         self.events.append(("failed", gid, f"Couldn't install {title}."))
+
+    # --- updates (newer build of an installed game on itch) ---
+    def check_updates(self, gids=None, force=False):
+        """Ask itch for the builds of installed games and mark the ones with a newer build
+        (install.json "update"; Library._apply_install copies it to the game). Runs in a
+        background thread; quiet when offline. Each game at most every UPDATE_EVERY_S unless
+        force (the game page asks once per open)."""
+        store = self.lib.store
+        if not store:
+            return 0
+        now, found = time.time(), 0
+        for gid in list(gids if gids is not None else self.index):
+            info, g = self.index.get(gid), self.lib.by_id(gid)
+            if not info or g is None or gid == self.current or gid in self.queue:
+                continue
+            if not force and now - info.get("checked", 0) < UPDATE_EVERY_S:
+                continue
+            try:
+                builds = store.list_builds(g)
+            except (net.Offline, net.AuthError):
+                log.info("updates: offline, stopped")
+                break
+            except Exception as e:  # noqa: BLE001
+                log.info("updates %s: %s", gid, e)
+                continue
+            kind, b = update_for(info, builds)
+            info["checked"] = now
+            if kind == "baseline":            # installed before v0.7.3: remember what we have
+                info["upload_updated"], info["build_id"] = b.get("updated") or "", b.get("build_id")
+            if kind == "update":
+                info["update"] = {"upload_id": b["id"], "filename": b["filename"],
+                                  "updated": b.get("updated") or ""}
+                log.info("updates %s: newer build %s (%s)", gid, b["filename"], b.get("updated"))
+                found += 1
+            else:
+                info.pop("update", None)
+            self._save_info(gid, info)
+            g["update"] = info.get("update")
+        return found
+
+    def _save_info(self, gid, info):
+        try:
+            _write_json(Path(info["dir"]) / "install.json", info)
+        except OSError:
+            pass                               # SD card out: the index still has it
+        _write_json(paths.INSTALLS, self.index)
+
+    def update(self, g):
+        """Options → Update: reinstall with the newer build; the old one stays if it fails."""
+        gid = g["id"]
+        info = self.index.get(gid) or {}
+        up = info.get("update")
+        if not up:
+            return False
+        self.updating.add(gid)
+        if up["upload_id"] != info.get("upload_id"):
+            self.choices[gid] = up["upload_id"]
+            _write_json(paths.BUILDS, self.choices)
+        if not self.enqueue(g):
+            self.updating.discard(gid)
+            return False
+        return True
 
     def _revert_choice(self, gid):
         info = self.index.get(gid)
@@ -508,6 +595,7 @@ class Installer:
         tmp.replace(files)
         used = sum(f.stat().st_size for f in files.rglob("*") if f.is_file() and not f.is_symlink())
         info = {"game_id": gid, "title": g.get("title"), "upload_id": build["id"],
+                "upload_updated": build.get("updated") or "", "build_id": build.get("build_id"),
                 "filename": build["filename"], "platform": platform, "exe": exe, "alternatives": alts[:10],
                 "size": used, "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
                 "dir": str(dest)}
@@ -522,7 +610,7 @@ class Installer:
         log.info("install %s: done in %.0fs -> %s (exe %s; %d other candidates)", gid,
                  time.time() - t0, dest, exe, len(alts))
         self._upd(gid, state="installed", phase=None, progress=0, fail_reason=None,
-                  size_mb=used // 1_000_000)
+                  size_mb=used // 1_000_000, update=None)
 
     def _silent_install(self, gid, g, setup, tmp, root, dest):
         """Run setup.exe (Inno / NSIS) with no window into dest/files.inst, inside the game's

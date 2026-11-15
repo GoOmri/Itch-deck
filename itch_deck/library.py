@@ -123,6 +123,7 @@ class Library:
 
     def _apply_install(self, g):
         inst = self.installs.get(g["id"])
+        g["update"] = (inst or {}).get("update")      # newer build on itch (Installer.check_updates)
         if inst and Path(inst["dir"]).exists():
             g["state"], g["size_mb"] = "installed", inst.get("size", 0) // 1_000_000
             g.pop("missing", None)

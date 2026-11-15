@@ -56,6 +56,8 @@ def library():
             g.update(progress=0.42, speed_mbs=11.8, eta_s=111)
         if state == "missing":
             g["missing"] = "card"
+        if title == "Harbor Ghosts":                 # an installed game with a newer itch build
+            g["update"] = {"upload_id": 1, "filename": "harbor-ghosts-linux.zip", "updated": ""}
         out.append(g)
     return sorted(out, key=lambda g: g["title"].lower())
 

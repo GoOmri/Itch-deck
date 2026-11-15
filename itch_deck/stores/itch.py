@@ -94,6 +94,7 @@ def parse_uploads(data):
             "linux": bool(u.get("p_linux")) or "p_linux" in tr,
             "windows": bool(u.get("p_windows")) or "p_windows" in tr,
             "updated": u.get("updated_at") or u.get("created_at") or "",
+            "build_id": u.get("build_id"),      # set for butler (wharf) uploads: a new push = new id
         })
     return out
 

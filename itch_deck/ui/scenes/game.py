@@ -69,7 +69,7 @@ class Game(Scene):
         if not self.playable:
             return []
         if st == "installed":
-            return ["Uninstall", "Change build", "Controls"]
+            return (["Update"] if g.get("update") else []) + ["Uninstall", "Change build", "Controls"]
         if st == "missing":
             return [] if g.get("missing") == "card" else ["Uninstall"]
         if st in ("downloading", "queued") or self.phase:
@@ -150,7 +150,7 @@ class Game(Scene):
         t = self.t
         g = self.g
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
-               g.get("controls_label"), str(g.get("ttb")),
+               g.get("controls_label"), str(g.get("ttb")), str(g.get("update")),
                g.get("cover_file"), self.section, self.shot,   # focus: buttons are live bool(self.overlay),
                self.offline, self.card_out, self.phase, self.behind, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
@@ -366,6 +366,8 @@ class Game(Scene):
             return ("info", "SD card missing", "Insert the card and the game comes back.")
         if st == "missing":
             return ("info", "Game files missing", "Uninstall it, then install it again.")
+        if st == "installed" and g.get("update"):
+            return ("info", "Update available", "A newer build is on itch. Options → Update gets it.")
         return None
 
     def _progress_inline(self, s, x, y, w):

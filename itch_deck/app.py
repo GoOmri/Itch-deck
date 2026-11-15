@@ -135,6 +135,17 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         shown = self._shown()
         pos = (shown.index(g) + 1 if g in shown else 1, len(shown))
         self._set("game", Game(self.t, g, pos=pos, offline=self.lib.offline))
+        if g.get("state") == "installed" and not self.lib.offline:
+            self._check_updates([g["id"]], force=True)      # fresh answer for the page you open
+
+    def _check_updates(self, gids=None, force=False):
+        """Newer itch builds of installed games, in the background (Installer.check_updates)."""
+        t = getattr(self, "_upd_thread", None)
+        if t is not None and t.is_alive():
+            return
+        self._upd_thread = threading.Thread(target=self.inst.check_updates, args=(gids, force),
+                                            daemon=True, name="updates")
+        self._upd_thread.start()
 
     def go_settings(self):
         from .ui.scenes.settings import Settings
@@ -302,6 +313,10 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             f = paths.KEY_FILE
             if f.exists() and f.stat().st_mtime != self.tried_mtime:
                 self.try_import(auto=True)     # Warpinator drop is picked up by itself
+        if self.lib.store and not self.lib.syncing and not self.lib.offline and \
+                now > getattr(self, "next_update_check", 0):   # newer builds (6 h per game)
+            self.next_update_check = now + 1800
+            self._check_updates()
         if now > self.next_mount_check:               # SD card in/out: refresh install states
             self.next_mount_check = now + 2
             self._check_mounts()

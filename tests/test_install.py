@@ -550,3 +550,47 @@ def test_install_choices(tmp_path, monkeypatch):
     assert [n for n, _ in config.install_choices()] == ["Internal storage"]
     monkeypatch.setattr(config, "sd_card", lambda: tmp_path / "SD")
     assert config.install_choices()[0] == ("SD card", tmp_path / "SD/itch")
+
+
+# --- game updates (v0.7.3) ------------------------------------------------------------------
+def test_update_for_rules():
+    ups = itch.parse_uploads({"uploads": [_up(9, "q.zip", updated_at="2026-11-10", build_id=3)]})
+    base = {"upload_id": 9, "platform": "linux", "upload_updated": "2026-11-10", "build_id": 3}
+    assert installer.update_for(base, ups)[0] is None
+    assert installer.update_for(dict(base, upload_updated="2026-11-01"), ups)[0] == "update"
+    assert installer.update_for(dict(base, build_id=2), ups)[0] == "update"
+    old = {"upload_id": 9, "platform": "linux"}                       # installed before v0.7.3
+    assert installer.update_for(old, ups)[0] == "baseline"
+    kind, b = installer.update_for(dict(base, upload_id=7), ups)       # dev replaced the upload
+    assert kind == "update" and b["id"] == 9
+    assert installer.update_for(dict(base, upload_id=7), [])[0] is None
+
+
+def test_update_found_installed_and_cleared(tmp_path, server):
+    v1 = _zip([("quarry/quarry", ELF64 + b"v1" * 1000, 0o755)])
+    v2 = _zip([("quarry/quarry", ELF64 + b"v2" * 1000, 0o755)])
+    _Handler.files, _Handler.slow = {"/q.zip": v1}, False
+    ups = [_up(9, "q.zip", size=len(v1), updated_at="2026-11-10")]
+    lib, inst = _setup(tmp_path, server, ups)
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    g = lib.by_id("5")
+    assert g["state"] == "installed" and inst.index["5"]["upload_updated"] == "2026-11-10"
+    assert inst.check_updates(force=True) == 0 and not g.get("update")
+    # the developer replaces the file on itch
+    _Handler.files = {"/q.zip": v2}
+    ups[0].update(size=len(v2), updated_at="2026-11-14")
+    assert inst.check_updates() == 0                      # checked moments ago: not asked again
+    assert inst.check_updates(force=True) == 1
+    assert g["update"]["upload_id"] == 9
+    assert '"update"' in (tmp_path / "games/quiet-quarry/install.json").read_text()   # survives
+    lib2 = library.Library(None)
+    lib2.games = [lib2._prep({"id": "5", "title": "Quiet Quarry", "platforms": ["linux"]})]
+    installer.Installer(lib2, lambda: tmp_path / "games")
+    assert lib2.by_id("5")["update"]                      # ... a restart
+    assert inst.update(g)                                  # same upload id: still reinstalls
+    _wait(inst)
+    assert g["state"] == "installed" and not g.get("update")
+    assert b"v2" in inst.exe_path("5").read_bytes()
+    assert inst.events[-1] == ("done", "5", "Quiet Quarry is updated.")
+    assert inst.index["5"]["upload_updated"] == "2026-11-14"

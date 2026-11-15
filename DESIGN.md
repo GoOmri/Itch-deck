@@ -79,8 +79,9 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
 - **Pad actions** are in the footer: right-aligned, B always last; empty states don't repeat
   them. **Yes/no dialogs** (Quit, Uninstall) show their buttons inside: [action, Cancel],
   action focused first, ◀ ▶ to switch.
-- **Library:** tabs All · Installed · Recent (L1/R1) — no more tabs. **X = Sort & filter:**
-  Sort (A–Z / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
+- **Library:** tabs All · Installed, plus one per store (itch · Epic) once a second store is
+  connected (L1/R1) — no more tabs. **X = Sort & filter:**
+  Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
   the library's genres), Length (Any / Under 2 h / 2–10 h / 10 h+ from HowLongToBeat main
   story; unknown only under Any, sorted last). Remembered. ◀ ▶ or A change a value, each value
   shows its count, the title the live total, "Clear filters" when filtering, the top bar the

@@ -150,7 +150,7 @@ def _shots(t, version):
         ("05d_library_update", _note(_act(Library(t, lib, focus=1), "Covers 40/120"),
                                      "Update v0.3.4 available · Settings")),
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
-        ("06b_library_recent", Library(t, lib, filt="recent", focus=0)),
+        ("06b_library_recent", Library(t, lib, sort="played", focus=0)),   # Recent = a sort now
         ("06c_library_sort_filter", _menu(Library(t, lib, focus=0, sort="short", genre="Puzzle"), 3)),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
         ("08_library_empty", Library(t, [])),
@@ -171,6 +171,7 @@ def _shots(t, version):
         ("14_game_preparing_proton", game("Orbit Bakery", phase="proton")),
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
+        ("15c_game_update", game("Harbor Ghosts")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "", "")], 0))),
