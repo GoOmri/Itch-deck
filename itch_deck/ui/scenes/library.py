@@ -279,19 +279,10 @@ class Library(Scene):
         if self.filtered():
             rr = W.tag(t, s, "Filter: " + self.filter_summary().replace("  ·  ", " · "),
                        rr.x - t.md, base - W.x_mid(t.f_small), kind="accent", anchor="midright")
-        act = self.activity or ("Refreshing library" if self.syncing == "bg" else None)
-        if act:                         # background work, hidden when done
-            sep = W.text(t, s, "·", rr.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright")
-            ar = W.text(t, s, act, sep.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright",
-                        maxw=int(t.w * 0.38))
-            sr = int(t.u * 1.2)
-            W.spinner(t, s, (int(ar.x - t.sm - sr), int(base - W.x_mid(t.f_small))), sr, 0.15)
-            rr = pg.Rect(ar.x - t.sm - sr * 2, ar.y, 0, ar.h)
-        if self.notice:                 # e.g. app update ready: purple = "happening"
-            sep = W.text(t, s, "·", rr.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright")
-            W.text(t, s, self.notice, sep.x - t.sm, base, t.f_small, color=t.accent,
-                   anchor="baseright", maxw=int(t.w * 0.3))
-        return int(base + t.lg)
+        return int(base + t.lg)                 # background work lives in the footer now
+
+    def footer_status(self):
+        return self.activity or ("Refreshing library" if self.syncing == "bg" else None), self.notice
 
     def _center_msg(self, s, y, title, sub, spinner=False, refresh=False):
         t = self.t

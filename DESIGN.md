@@ -77,7 +77,12 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
 - **Install progress is one module** next to Cancel: Starting…, Queued, Getting GE-Proton,
   Downloading %, Extracting…. No boxes appearing and disappearing under it.
 - **Messages about a game** go in ONE box under its buttons (`W.notice`). Never above.
-- **Pad actions** are in the footer: right-aligned, B always last; empty states don't repeat
+- **The footer has two sides.** Right: pad actions, B always last. Left: what runs in the
+  background on every screen (chasing spinner + dim "Downloading 42% · Quiet Quarry (+1)",
+  refresh, covers), else update news in purple; empty when nothing runs. The game page hides
+  its own download there (it's already by its button). The top bar only describes the list
+  (filter tag, count, offline).
+- Pad actions: empty states don't repeat
   them. **Yes/no dialogs** (Quit, Uninstall) show their buttons inside: [action, Cancel],
   action focused first, ◀ ▶ to switch.
 - **Library:** tabs All · Installed, plus one per store (itch · Epic) once a second store is

@@ -806,3 +806,6 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - Omri removed the plain "Under 2 h" because it read like his playtime, then games looked missing.
   Now: purple tag "FILTER: UNDER 2 H" + "12 of 30 games" in the top bar; a tab the filter
   empties says "No games match this filter. Press X to change it." (not "No games yet").
+- Footer left = background work on every screen (spinner + text) or the update notice; the
+  Library top bar keeps only filter tag, count and offline. `Scene.footer_status()`; the app
+  sets `scene.activity` / `scene.notice` every frame.

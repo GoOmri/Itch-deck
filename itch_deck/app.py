@@ -284,7 +284,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
                 "ready": f"v{u.new_version} installed · restart in Settings"}.get(u.state)
 
     def _activity(self):
-        """Top-bar background work: a running download first, then sync/covers/details."""
+        """Footer-left background work (every screen): a running download first, then sync/covers/details."""
         gid = self.inst.current
         g = self.lib.by_id(gid) if gid else None
         if g and g.get("state") == "downloading":
@@ -354,6 +354,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
         if now > self.next_mount_check:               # SD card in/out: refresh install states
             self.next_mount_check = now + 2
             self._check_mounts()
+        self.scene.activity, self.scene.notice = self._activity(), self._update_notice()
         if self.kind == "library":
             self._sync_library_scene()
             if self.lib.sync_error and not self.lib.syncing:

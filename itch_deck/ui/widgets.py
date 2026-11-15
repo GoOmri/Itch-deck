@@ -518,9 +518,10 @@ def glyph_line(t, s, parts, cx, y, font, color=None):
     return pg.Rect(int(cx - total / 2), int(y), int(total), font.get_height())
 
 
-def hint_bar(t, s, items):
+def hint_bar(t, s, items, activity=None, notice=None):
     """Steam-style footer: actions right-aligned, white UPPERCASE labels.
-    items: [(button, label), ...]; an empty label pairs the glyph with the next one (L1 R1)."""
+    items: [(button, label), ...]; an empty label pairs the glyph with the next one (L1 R1).
+    Left side = background work (chasing spinner + dim text), else update news in purple."""
     r = pg.Rect(0, t.h - t.hint_h, t.w, t.hint_h)
     pg.draw.rect(s, t.hint_bg, r)
     cy, gap, sep = r.centery, t.u * 0.7, t.md      # glyph↔label (optical), between actions
@@ -531,6 +532,14 @@ def hint_bar(t, s, items):
         widths.append((gw, lw))
     total = sum(gw + (gap + lw + sep if lw else gap) for gw, lw in widths) - sep
     x = t.w - t.m - total
+    room = int(x - t.lg - t.m)                     # left side never runs into the actions
+    if activity:
+        sr = int(t.u * 1.2)
+        spinner(t, s, (t.m + sr, cy), sr, 0.15)
+        text(t, s, activity, t.m + sr * 2 + t.sm, cy, t.f_small, color=t.dim, anchor="midleft",
+             maxw=room - sr * 2 - t.sm)
+    elif notice:
+        text(t, s, notice, t.m, cy, t.f_small, color=t.accent, anchor="midleft", maxw=room)
     for (btn, label), (gw, lw) in zip(items, widths):
         glyph(t, s, btn, x, cy)
         x += gw + gap

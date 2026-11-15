@@ -187,6 +187,7 @@ def _shots(t, version):
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
         ("15c_game_update", game("Harbor Ghosts")),
+        ("15f_game_other_downloading", _act(game("Moss & Rivets"), "Downloading 42% · Quiet Quarry (+1)")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "", "")], 0))),
@@ -215,6 +216,7 @@ def _shots(t, version):
         ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=5)),
         ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
         ("21f_settings_epic_in", Settings(t, dict(settings_vals, epic="Connected as omri"), version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
+        ("21i_settings_downloading", _act(Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=2), "Downloading 42% · Quiet Quarry")),
         ("21g_settings_app_refresh", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=1)),
         ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=7)),
         ("26_epic_connect", EpicConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
