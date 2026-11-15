@@ -662,7 +662,7 @@ OPEN for the design chat (Omri 15 Nov 17:47): the active-filter text was removed
   Sort & filter hint), not as loose text by the count. Omri is taking this to the design chat.
 v0.7.7 Deck test (15 Nov): all ✓. Omri: R2 fast scroll choppy, app sluggish; Epic game pages said
   "Loading details from itch.io…" forever.
-  Fix (branch smooth-scroll, NOT released): Epic keyImages are 2560 px -> library.shrink_cover()
+  Fix RELEASED v0.7.8 15 Nov (with design branch filter-hint; Omri "push update"): Epic keyImages are 2560 px -> library.shrink_cover()
   saves covers at most 720 px (<id>.small.jpg) in the cover worker; covers saved before are shrunk
   once in a background thread (files > 400 KB). widgets: _src() decodes each cover file once
   (shrunk) instead of per size; _LRU caches drop oldest instead of clearing everything at 600;
@@ -671,6 +671,11 @@ v0.7.7 Deck test (15 Nov): all ✓. Omri: R2 fast scroll choppy, app sluggish; E
   "About" message. Bench (/tmp, 130 games, a row every 3 frames, this server ~3-4x a Deck): 2560 px
   covers p95 58 ms / 26 frames > 33 ms -> 720 px covers p95 ~11 ms / 0-1; background shrink
   doesn't stall drawing (pygame releases the GIL).
+Epic descriptions (Omri 15 Nov): only the catalog's short "description" shows (game page header).
+  v0.7.8 logs "epic text fields: {...}" after each Epic sync (counts of description /
+  longDescription / shortDescription / technicalDetails / screenshot keyImages + one long sample).
+  Next: if many have longDescription -> show it as "About this game" (cheap, no new requests);
+  Epic store pages (full text + screenshots) only if the catalog is thin (unofficial, fragile).
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
