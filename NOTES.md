@@ -450,7 +450,21 @@ v0.7.1 (branch v071-fixes, NOT released):
   Deck checklist v0.7.1: 1 Settings -> Disconnect itch: text fits, no cut. 2 Phone: green
     Connected + Close tab. 3 Install a game: progress row only, nothing pops under it. 4 Cosmic
     Express -> hold View + Menu 2 s -> back in scritch, toast "closed". 5 Same on a Windows game.
-  Still open: Average session -> HowLongToBeat (Omri wants HLTB, scope given 15 Nov, not built).
+  - Time to beat = HowLongToBeat (Omri: "we need time to beat, especially with Epic"); itch's
+    Average session is gone (game page + filter). hltb.py = own stdlib client (howlongtobeatpy
+    pulls aiohttp/bs4/fake_useragent): home page -> /_next chunk with the POST /api/... endpoint
+    (fallback api/s) -> GET <ep>/init?t= -> token (15 Nov: token only, no hp key/val; the token
+    is bound to the UA, so one UA per session) -> POST search with x-auth-token. Strict match:
+    normalised name or alias must be equal. Library job "hltb" prio 7 (after pages), 1.5 s
+    apart, hltb.json per game id, rechecked after 30 days (misses too); one Offline -> skip the
+    rest this run. Game page: dim line "Main story ~4 h · Completionist ~9 h", nothing if
+    unknown. Library X: Length (Any/Under 2 h/2–10 h/10 h+) + Sort "Shortest first" (unknown last).
+    LESSON: my workspace can't reach HLTB; .github/workflows/hltb-live.yml runs
+    `python -m itch_deck.hltb <titles>` on branch pushes touching hltb.py (15 Nov: Celeste 8.5 h,
+    Circa Infinity 5 h, Cosmic Express 7.5 h, Baba Is You 7.5 h, fake title not found). build.yml
+    runs it too, warning only. If times vanish on the Deck, HLTB changed: run that workflow.
+  Deck checklist +6: library X -> Length / Shortest first fill in after a minute; game page shows
+    the time line for a known game (Circa Infinity), nothing for an obscure one.
 
 ## Epic decision (Omri 15 Nov): ONE codebase, no fork, no second build. Epic is (1) opt-in: the
   Epic tab only exists after Settings -> Connect Epic; until then scritch = itch only, exactly as
@@ -487,7 +501,8 @@ v0.7.1 (branch v071-fixes, NOT released):
 - config.py (chmod 600, install_root: SD else ~/Games/itch, proton_versions), net.py (urllib +
   certifi; Offline/AuthError), stores/itch.py (owned-keys, quirk, dedupe), stores/itch_page.py
   (HTML -> description/shots/comments, tolerant), library.py (cache, sync thread, job queue:
-  covers prio 1, opened page prio 0, prefetch prio 5; page cache 7 days; shots -> 1280px jpg).
+  covers prio 1, opened page prio 0, prefetch prio 5, hltb prio 7; page cache 7 days, hltb 30;
+  shots -> 1280px jpg). hltb.py: HowLongToBeat client + fmt/summary/length_hours.
 - paths.use_root(dir) redirects everything (tests/selftest). tests/test_itch.py runs in CI.
 - theme.py: all colours/sizes/fonts/timings. Inter bundled in assets/fonts (OFL).
   Grid: 4 cols at 1280×800, 5 at 1920×1080 (from width).

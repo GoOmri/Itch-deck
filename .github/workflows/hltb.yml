@@ -15,16 +15,3 @@ jobs:
         with: { python-version: "3.11" }
       - run: pip install -r requirements.txt
       - run: python -m itch_deck.hltb Celeste "Circa Infinity" "Cosmic Express" "Baba Is You" "Not A Real Game 12345"
-      - name: Reference (howlongtobeatpy) for comparison
-        if: always()
-        run: |
-          pip install howlongtobeatpy
-          python -c "
-          import logging; logging.basicConfig(level=logging.DEBUG)
-          from howlongtobeatpy import HowLongToBeat
-          from howlongtobeatpy.HTMLRequests import HTMLRequests as H
-          from fake_useragent import UserAgent
-          ua = UserAgent().random
-          si = H.send_website_request_getcode(ua); print('search url', si and si.search_url)
-          a = H.send_website_get_auth_token(si and si.search_url, ua); print('auth', a and vars(a))
-          r = HowLongToBeat().search('Celeste'); print([(x.game_name, x.main_story) for x in r or []])"

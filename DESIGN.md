@@ -55,9 +55,12 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
   + a square **⚙ Options** button next to it. Everything else (Uninstall, Change build,
   Controls) is in that menu; ☰ opens it too. ☰ on a game page = its Options, never Settings.
 - **Library:** tabs All · Installed · Recent (L1/R1) — no more tabs (Omri). **X = Sort &
-  filter**: Sort (A–Z / Recently added), Show (Everything / Playable here), Genre (Any + the
-  genres in the library), Session (Any / Short / Long, from itch's "Average session"; itch has
-  no time-to-beat). Remembered in config. Genre + session also show in the game's info line.
+  filter**: Sort (A–Z / Recently added / Shortest first), Show (Everything / Playable here),
+  Genre (Any + the genres in the library), Length (Any / Under 2 h / 2–10 h / 10 h+, from
+  HowLongToBeat's main-story time; unknown games only show under Any, and sort last).
+  Remembered in config. Genre shows in the game's info line; time to beat gets its own dim
+  line under it ("Main story ~4 h · Completionist ~9 h"), and nothing at all when HLTB doesn't
+  know the game (strict title match: no time beats a wrong time).
   In the menu: ◀ ▶ (or A) change the focused value, each filter value shows its game count,
   the title shows the live total, "Clear filters" appears when something filters, and the top
   bar shows the active filters ("Puzzle · 26 games").

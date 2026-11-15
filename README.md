@@ -72,6 +72,10 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | L2 / R2 | Page up / down | — | — |
 | Start (☰) | Settings | Options | Back |
 
+- **Sort & filter (X in the library):** sort A–Z, by date added, or *Shortest first*; filter by
+  Genre or Length (Under 2 h / 2–10 h / 10 h+). Lengths come from
+  [HowLongToBeat](https://howlongtobeat.com), looked up in the background and refreshed monthly.
+  Games HLTB doesn't know (many small itch games) show no time rather than a wrong one.
 - **Installing:** press Install. The download runs in the background (one at a time) and resumes
   if you quit. Then the button turns into **Play**.
 - **Change build:** some games have several downloads (Linux, Windows, 32/64-bit, demos). Options
@@ -121,7 +125,7 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 ```
 ~/Applications/itch-deck/itch-deck      the app
 ~/.config/itch-deck/config.json         settings + API key
-~/.local/share/itch-deck/               library cache, covers, game pages, umu-launcher
+~/.local/share/itch-deck/               library cache, covers, game pages, times to beat, umu-launcher
 ~/.local/state/itch-deck/logs/          logs
 <SD card>/itch/<game>/                  installed games (or ~/Games/itch/ on internal storage)
 <SD card>/itch/_prefixes/<game>/        Windows saves (Proton prefixes)
