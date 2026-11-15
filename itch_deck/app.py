@@ -397,6 +397,9 @@ def selftest(screenshot=None):
             assert app.phone is None and page.httpd is None, "phone page still open after Setup"
         finally:
             itch_mod.ItchStore.check_key = real_check
+            app.cfg.pop("api_key", None)               # later steps start with no key, like
+            app.cfg.pop("itch_user", None)             # before (CI has internet: a fake key
+            config.save(app.cfg)                       # would be rejected -> back to Setup)
         app = App(windowed=True)
     app.run(max_frames=3, script={1: RIGHT})
     app = App(windowed=True)
