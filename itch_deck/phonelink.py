@@ -193,9 +193,10 @@ margin-bottom:1.4rem}.ico svg{width:3.2rem;height:3.2rem}
 .spin circle{fill:none;stroke-width:4.4}.spin .tr{stroke:#2c2e48}
 .spin .hd{stroke:#9d6bff;stroke-dasharray:6 200;animation:c 1.4s cubic-bezier(.65,0,.35,1) infinite}
 @keyframes r{to{transform:rotate(360deg)}}
-@keyframes c{0%{stroke-dasharray:6 200;stroke-dashoffset:0}50%{stroke-dasharray:96 200;stroke-dashoffset:-6}
-100%{stroke-dasharray:6 200;stroke-dashoffset:-96}}
-/* busy = chasing edges: the front races ahead, the back catches up (same as the app) */
+@keyframes c{0%{stroke-dasharray:6 200;stroke-dashoffset:0}50%{stroke-dasharray:96 200;stroke-dashoffset:-10}
+100%{stroke-dasharray:6 200;stroke-dashoffset:-125.7}}
+/* busy = chasing edges: the front races ahead, the back catches up (same as the app).
+   The back edge travels one full circle (2πr = 125.7) so each loop ends where the next starts */
 .res h2{font-size:1.75rem;line-height:1.2;margin:0 0 .5rem}.res p{color:#9a9ab0;margin:0 0 1.8rem;max-width:20rem}
 .res .btn,.res button{margin:0}"""
 
