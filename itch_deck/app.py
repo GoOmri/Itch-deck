@@ -499,6 +499,11 @@ def main(argv=None):
         selftest(a.screenshot)
         print("selftest ok")
         return 0
+    other = paths.lock_instance()
+    if other is not None:
+        log.warning("another copy is already running (pid %s), quitting", other)
+        logging.shutdown()
+        return 0
     exit_on_signals()
     app = App(windowed=a.windowed)
     _APP[0] = app

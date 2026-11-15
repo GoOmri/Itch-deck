@@ -51,7 +51,7 @@ def ago(stamp):
 
 def _write_json(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
+    tmp = paths.tmp_for(path)    # own name per thread/process: a shared hltb.tmp raced
     tmp.write_text(json.dumps(data, ensure_ascii=False))
     tmp.replace(path)
 
