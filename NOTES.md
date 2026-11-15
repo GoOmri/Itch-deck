@@ -848,3 +848,17 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - Sort & filter keeps one size: Clear filters is always there (`W.OFF_ROW` = faint, skipped
   by ▲▼, until a filter is on). Empty-state lines draw pad glyphs inline (`W.text_glyphs`,
   "Press {X} to change it.").
+
+## Polish batch (15 Nov)
+- Game page: control mapping on line 2 (from itch Inputs, only when not plain pad); free space
+  after the size before installing (red if it won't fit).
+- "… is ready to play." toast + ✓ pops on the tile when an install finishes.
+- Build problems say "Try another build in Options"; missing game "Refresh your library".
+- A–Z: L2/R2 jump to previous / next letter (back = start of this letter first).
+- Covers: dark purple shimmer while loading, fade in on arrival.
+- Game page balance (buttons under the text instead of on the cover's bottom edge): mockup
+  only, waiting for Omri.
+
+## Todo (Omri)
+- Logo font: pick a font, then make SCRiTCH an outlined SVG (colours baked in) used by the app
+  wordmark, the phone pages and the README, so it looks the same everywhere. Check the licence.
