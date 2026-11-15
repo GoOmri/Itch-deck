@@ -380,6 +380,9 @@ v0.6.3 (Omri: finish M6 and push, 14 Nov): card-back = design-next + design's di
   pushed main twice at 0.6.2 without a bump, which replaced the v0.6.2 binary; CI now skips the
   release when the tag exists. M6 DONE once the v0.6.3 Deck check passes.
 
+v0.6.4 (15 Nov, Omri "push update"): only change = design's "Filters v2" (pushed to main 14 Nov
+  23:20 at 0.6.3; CI correctly skipped re-releasing v0.6.3). Version bump only.
+
 ## Future (optional) milestones
 - M7 browser games (Omri 14 Nov: optional, after M6). Plan: download the HTML5 upload zip (itch's
   own app plays these offline), serve it from a local http.server (fixed port per game so
