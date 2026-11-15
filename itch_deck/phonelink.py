@@ -16,7 +16,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 TTL = 300                    # seconds a one-time password (and so a QR code) is valid
 MAX_BODY = 8192
 

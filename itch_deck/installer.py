@@ -21,7 +21,7 @@ from pathlib import Path
 from . import config, net, paths, proton, words
 from .stores.itch import pick_build, split_parts
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 SPACE_FACTOR = 2.5            # download + extracted copy + slack
 SKIP_EXE = ("unins", "crashhandler", "crash_handler", "crashpad", "vc_redist", "dxsetup",
             "unitycrash", "chrome-sandbox", "chrome_sandbox", "notification_helper")

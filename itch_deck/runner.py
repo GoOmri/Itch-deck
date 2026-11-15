@@ -8,7 +8,7 @@ import time
 
 from . import paths
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 OVERLAP_S = 1.0          # keep our window up while the game maps its own (less Steam UI flicker)
 HOLD_MAX_S = 300         # longest we keep "Preparing Proton…" up (first umu run downloads its runtime)
 CRASH_S = 15             # a non-zero exit sooner than this = "closed right after starting"

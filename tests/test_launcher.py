@@ -1,5 +1,5 @@
 """The release file = packaging/launcher.sh + the app folder (tar.gz). Unpacks once per version
-into app/ (previous kept as app.old/), then starts app/itch-deck directly; a broken download
+into app/ (previous kept as app.old/), then starts app/scritch directly; a broken download
 never removes a working app."""
 import os
 import subprocess
@@ -12,7 +12,7 @@ PACK = ROOT / "packaging" / "pack.sh"
 def _release(tmp, version, out):
     src = tmp / f"src{version}"
     src.mkdir()
-    exe = src / "itch-deck"
+    exe = src / "scritch"
     exe.write_text(f'#!/bin/sh\necho "v{version} launcher=$SCRITCH_LAUNCHER args=$*"\n')
     exe.chmod(0o755)
     (src / "_internal").mkdir()
@@ -27,7 +27,7 @@ def _run(path, tmp):
 
 
 def _log(tmp):
-    return (tmp / "state/itch-deck/logs/launcher.log").read_text()
+    return (tmp / "state/scritch/logs/launcher.log").read_text()
 
 
 def test_unpack_once_update_and_broken_download(tmp_path):
@@ -73,3 +73,13 @@ def test_child_env_drops_folder_build_libs(tmp_path, monkeypatch):
     env = {"LD_LIBRARY_PATH": f"{home}/app/_internal",
            "LD_LIBRARY_PATH_ORIG": f"{home}/app.old/_internal:/usr/lib/x"}
     assert runner.child_env(env)["LD_LIBRARY_PATH"] == "/usr/lib/x"
+
+
+def test_launcher_logs_into_old_folder_until_the_app_moves_it(tmp_path):
+    """v0.8.2: the launcher runs before the app renames itch-deck -> scritch. It must not create
+    state/scritch first, or the app would find both folders and leave the old one behind."""
+    (tmp_path / "state/itch-deck/logs").mkdir(parents=True)
+    tile = _release(tmp_path, "1.0", tmp_path / "itch-deck")
+    assert _run(tile, tmp_path).returncode == 0
+    assert not (tmp_path / "state/scritch").exists()
+    assert "unpacked v1.0" in (tmp_path / "state/itch-deck/logs/launcher.log").read_text()

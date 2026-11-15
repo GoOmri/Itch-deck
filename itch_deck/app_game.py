@@ -8,7 +8,7 @@ from . import config, mouse, pads
 from .input import (A, B, START, L1, R1)
 from .app_common import LATER
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 
 class GameMixin:

@@ -6,7 +6,7 @@ from pathlib import Path
 from . import mouse, proton, runner
 from .installer import slug_of
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 
 # To quit a game: hold the pad's View + Menu (DualSense: Create + Options) 2 s (mouse.QuitCombo).

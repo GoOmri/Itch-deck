@@ -1,4 +1,4 @@
-"""Settings + API key in ~/.config/itch-deck/config.json (chmod 600). The key is never logged."""
+"""Settings + API key in ~/.config/scritch/config.json (chmod 600). The key is never logged."""
 import json
 import logging
 import os
@@ -6,7 +6,7 @@ from pathlib import Path
 
 from . import paths
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 DEFAULTS = {"api_key": None, "install_root": None, "proton": None}
 
 
@@ -76,6 +76,14 @@ def drive_name(path):
     return "SD card" if on_card(path) else "internal storage"
 
 
+def games_dir(base):
+    """The games folder on a drive: "scritch" for new users (v0.8.2), but an existing "itch"
+    folder is kept: Wine prefixes and Epic's records hold the full path, so installed games
+    and their saves never move."""
+    old = Path(base) / "itch"
+    return old if old.is_dir() else Path(base) / "scritch"
+
+
 def pin_install_root(cfg, installed_dirs=()):
     """Remember the SD card as the install location the first time we see it (or infer it from
     games already installed on a card). Without this, a card that's out made installs quietly go
@@ -83,7 +91,7 @@ def pin_install_root(cfg, installed_dirs=()):
     if cfg.get("install_root"):
         return False
     sd = sd_card()
-    root = (sd / "itch") if sd else next((Path(d).parent for d in installed_dirs if on_card(d)), None)
+    root = games_dir(sd) if sd else next((Path(d).parent for d in installed_dirs if on_card(d)), None)
     if root is None:
         return False
     cfg["install_root"] = str(root)
@@ -93,15 +101,15 @@ def pin_install_root(cfg, installed_dirs=()):
 def install_choices():
     """Install locations Settings can switch between: the SD card (when one is in) and internal."""
     sd = sd_card()
-    return ([("SD card", sd / "itch")] if sd else []) + \
-        [("Internal storage", paths.HOME / "Games" / "itch")]
+    return ([("SD card", games_dir(sd))] if sd else []) + \
+        [("Internal storage", games_dir(paths.HOME / "Games"))]
 
 
 def install_root(cfg):
     if cfg.get("install_root"):
         return Path(cfg["install_root"])
     sd = sd_card()
-    return (sd / "itch") if sd else (paths.HOME / "Games" / "itch")
+    return games_dir(sd) if sd else games_dir(paths.HOME / "Games")
 
 
 def proton_versions():

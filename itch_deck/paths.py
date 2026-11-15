@@ -3,9 +3,13 @@ import os
 from pathlib import Path
 
 HOME = Path.home()
-CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "itch-deck"
-DATA = Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share")) / "itch-deck"
-LOGS = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "itch-deck" / "logs"
+NAME, OLD_NAME = "scritch", "itch-deck"   # folder names (v0.8.2 renamed them, see migrate())
+_BASES = {"CONFIG": Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")),
+          "DATA": Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share")),
+          "LOGS": Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state"))}
+CONFIG = _BASES["CONFIG"] / NAME
+DATA = _BASES["DATA"] / NAME
+LOGS = _BASES["LOGS"] / NAME / "logs"
 
 CONFIG_FILE = CONFIG / "config.json"
 LIBRARY = DATA / "library.json"
@@ -45,6 +49,48 @@ def lock_instance():
     f.flush()
     _LOCK[:] = [f]
     return None
+
+
+def migrate(bases=None):
+    """v0.8.2: the folders were called itch-deck, now scritch. Run at start, before anything
+    opens a file. For each of config / data / state: old folder there and new one not -> rename
+    (same disk, so nothing is copied and no space is needed), then leave a link at the old name
+    pointing to the new one, so an older version (rollback) still finds everything. If the
+    rename fails, keep using the old folder this run and try again next start. Returns lines
+    for the log (logging isn't set up yet when this runs)."""
+    global CONFIG, DATA, LOGS, CONFIG_FILE
+    notes = []
+    for key, base in (bases or _BASES).items():
+        old, new = base / OLD_NAME, base / NAME
+        try:
+            if old.is_symlink() or not old.is_dir():
+                continue                  # nothing to move, or already moved (old = our link)
+            if new.exists():
+                notes.append(f"folders: both {old} and {new} exist, using {new}")
+                continue
+            os.rename(old, new)
+            notes.append(f"folders: moved {old} -> {new}")
+        except OSError as e:
+            notes.append(f"folders: couldn't move {old} ({e}), using it as it is")
+            if bases is None:
+                inner = old / "logs" if key == "LOGS" else old
+                globals()[key] = inner
+                CONFIG_FILE = CONFIG / "config.json"
+                _repoint()
+            continue
+        try:
+            old.symlink_to(NAME)          # relative link: itch-deck -> scritch
+        except OSError as e:
+            notes.append(f"folders: no link at {old} ({e})")
+    return notes
+
+
+def _repoint():
+    """Recompute the files inside DATA after DATA changed (migrate fallback)."""
+    global LIBRARY, COVERS, PAGES, SHOTS, INSTALLS, QUEUE, PLAYED, HLTB, BUILDS, UMU
+    LIBRARY, COVERS, PAGES, SHOTS = DATA / "library.json", DATA / "covers", DATA / "pages", DATA / "shots"
+    INSTALLS, QUEUE, PLAYED = DATA / "installed.json", DATA / "queue.json", DATA / "played.json"
+    HLTB, BUILDS, UMU = DATA / "hltb.json", DATA / "builds.json", DATA / "umu" / "umu-run"
 
 
 def tmp_for(path):

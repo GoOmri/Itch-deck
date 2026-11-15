@@ -23,7 +23,7 @@ import struct
 import threading
 import time
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 UINPUT = "/dev/uinput"
 EV_SYN, EV_KEY, EV_REL = 0, 1, 2

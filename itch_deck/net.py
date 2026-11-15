@@ -5,7 +5,7 @@ import ssl
 import urllib.error
 import urllib.request
 
-UA = "itch-deck (+https://github.com/GoOmri/itch-deck)"
+UA = "scritch (+https://github.com/GoOmri/Itch-deck)"
 
 
 class Offline(Exception):

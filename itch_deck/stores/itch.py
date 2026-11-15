@@ -6,7 +6,7 @@ import re
 from .. import net
 from .base import Store
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 API = "https://api.itch.io"
 MAX_PAGES = 200  # safety stop
 

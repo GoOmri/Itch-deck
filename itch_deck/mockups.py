@@ -151,7 +151,7 @@ def _shots(t, version):
             ("ps_15_game_installed", game("Moss & Rivets",
                                           install_path="/run/media/deck/SD/itch/moss-and-rivets")),
             ("ps_21_settings", Settings(t, dict(settings_vals, symbols="Auto · PlayStation"),
-                                        version, "~/.local/state/itch-deck/logs/app.log",
+                                        version, "~/.local/state/scritch/logs/app.log",
                                         focus=7)),        # Button symbols
             ("ps_25_starting", Splash("Starting Moss & Rivets…", QUIT_HINT)),
             ("ps_02b_setup_typing", Setup(t, "waiting", typing=True, typed="Xk3vQ2b7f19aa0c4d6e8")),
@@ -239,14 +239,14 @@ def _shots(t, version):
             [("Program to run", "MossAndRivets.exe", f"3 programs found · {pads.name('A')} to choose")] +
             [(n, "Installed" if i == 0 else "", sub) for i, (n, sub, _r) in enumerate(fake.uploads())],
             0))),
-        ("21_settings", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log")),
-        ("21a_settings_account", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=2)),
-        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
-        ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=3)),
-        ("21f_settings_epic_in", Settings(t, dict(settings_vals, epic="Connected as omri"), version, "~/.local/state/itch-deck/logs/app.log", focus=3)),
-        ("21i_settings_downloading", _act(Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=2), "Downloading 42% · Quiet Quarry")),
-        ("21g_settings_app_refresh", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=1)),
-        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=6)),
+        ("21_settings", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log")),
+        ("21a_settings_account", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=2)),
+        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=4)),
+        ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=3)),
+        ("21f_settings_epic_in", Settings(t, dict(settings_vals, epic="Connected as omri"), version, "~/.local/state/scritch/logs/app.log", focus=3)),
+        ("21i_settings_downloading", _act(Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=2), "Downloading 42% · Quiet Quarry")),
+        ("21g_settings_app_refresh", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=1)),
+        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=6)),
         ("26_epic_connect", EpicConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("26b_epic_getting_ready", EpicConnect(t, "prep", qr=_qr(), url=PHONE_URL, progress=0.4)),
         ("26c_epic_rejected", EpicConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
@@ -266,9 +266,9 @@ def _shots(t, version):
                                                              "Plant, graft and trade with the travellers who stop by. "
                                                              "Every season the orbit shifts and new fruit grows."]),
                                        pos=(2, len(epic_games)), section="shots")),
-        ("21d_settings_update", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=0)),
+        ("21d_settings_update", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=0)),
         ("21b_settings_disconnect", with_overlay(
-            Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=2), (
+            Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=2), (
                 "confirm", "Sign out of itch?",
                 ["SCRiTCH forgets the key. Installed games still play.",
                  "To revoke it: itch.io → Settings → API keys."],

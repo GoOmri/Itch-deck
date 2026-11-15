@@ -14,7 +14,7 @@ import logging
 import os
 import re
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 KINDS = ("deck", "ps", "xbox")
 LABEL = {"auto": "Auto", "deck": "Steam Deck", "ps": "PlayStation", "xbox": "Xbox"}

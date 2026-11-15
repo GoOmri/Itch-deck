@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import config, net, paths
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 UMU_LATEST = "https://api.github.com/repos/Open-Wine-Components/umu-launcher/releases/latest"
 GE_LATEST = "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest"
 GE_SPACE = 2_500_000_000      # bytes free needed on internal storage (~0.5 GB download + ~1.5 GB)

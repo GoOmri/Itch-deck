@@ -28,7 +28,7 @@ SRC_MAX = 720                 # longest side kept in memory: a focused TV tile i
 LIVE = False   # True in the running app: animate. False for mockups: draw the end state.
 
 
-APP_NAME = "SCRiTCH"          # shown name; binary, data folders and repo keep itch-deck for now
+APP_NAME = "SCRiTCH"          # shown name; folders are "scritch" (v0.8.2), repo + package keep itch
 
 
 def spring(x, back=None):

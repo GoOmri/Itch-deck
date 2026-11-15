@@ -25,13 +25,13 @@ jobs:
       # Folder build packed behind packaging/launcher.sh (v0.7.4: starts faster than --onefile)
       - run: sh packaging/build.sh
       - name: Smoke test (through the launcher, which unpacks into release/app)
-        run: ./release/itch-deck --selftest
+        run: ./release/scritch --selftest
       - name: Render mockups (draws every page/state; also a crash test)
-        run: ./release/itch-deck --render-mockups mockups
+        run: ./release/scritch --render-mockups mockups
       - uses: actions/upload-artifact@v4
         with: { name: mockups, path: mockups }
       - uses: actions/upload-artifact@v4
-        with: { name: itch-deck, path: release/itch-deck }
+        with: { name: scritch, path: release/scritch }
       # Release on every main push, tagged with VERSION from app.py (bump it to publish a new one)
       - id: ver
         run: echo "v=$(grep -oP 'VERSION = "\K[^"]+' itch_deck/app.py)" >> "$GITHUB_OUTPUT"
@@ -50,4 +50,6 @@ jobs:
         with:
           tag_name: v${{ steps.ver.outputs.v }}
           target_commitish: ${{ github.sha }}
-          files: release/itch-deck
+          files: |
+            release/scritch
+            release/itch-deck

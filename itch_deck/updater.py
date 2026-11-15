@@ -1,5 +1,5 @@
 """Self-update from GitHub Releases. Download next to the binary, swap it in (Linux keeps the
-running file open, so renaming is safe), keep itch-deck.old for one rollback, restart via exec.
+running file open, so renaming is safe), keep <name>.old for one rollback, restart via exec.
 
 Since v0.7.4 the release file is the launcher (packaging/launcher.sh + the app folder packed
 behind it): the app runs from ~/Applications/itch-deck/app/, and the file Steam starts is
@@ -15,9 +15,9 @@ from pathlib import Path
 
 from . import net, pads
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 LATEST = "https://api.github.com/repos/GoOmri/Itch-deck/releases/latest"
-ASSET = "itch-deck"
+ASSETS = ("scritch", "itch-deck")   # v0.8.2+ publish both names; v0.8.1 and older only know itch-deck
 
 
 def launcher_path():
@@ -83,7 +83,8 @@ class Updater:
     def _check(self, quiet):
         try:
             rel = net.get_json(LATEST, timeout=15)
-            asset = next((a for a in rel.get("assets", []) if a.get("name") == ASSET), None)
+            found = {a.get("name"): a for a in rel.get("assets", [])}
+            asset = next((found[n] for n in ASSETS if n in found), None)
             tag = rel.get("tag_name", "")
             if asset and _ver(tag) > _ver(self.version):
                 self.new_version, self.url = tag.lstrip("v"), asset["browser_download_url"]

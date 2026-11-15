@@ -11,7 +11,7 @@ from urllib.parse import quote
 
 from .. import net
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 SEARCH = "https://store.steampowered.com/api/storesearch/?term={q}&l=english&cc=US"
 DETAILS = "https://store.steampowered.com/api/appdetails?appids={id}&l=english&cc=US"

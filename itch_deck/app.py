@@ -1,4 +1,4 @@
-"""itch-deck: scene switching, key import, library sync, installs (Linux + Windows via Proton)."""
+"""SCRiTCH: scene switching, key import, library sync, installs (Linux + Windows via Proton)."""
 import argparse
 import json
 import logging
@@ -22,8 +22,8 @@ from .app_settings import SettingsMixin
 from .app_setup import SetupMixin
 from .app_epic import EpicMixin
 
-log = logging.getLogger("itch-deck")
-VERSION = "0.8.1"
+log = logging.getLogger("scritch")
+VERSION = "0.8.2"
 
 
 def setup_logging():
@@ -493,7 +493,7 @@ def selftest(screenshot=None):
     from . import fake
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
-    paths.use_root(tempfile.mkdtemp(prefix="itch-deck-selftest-"))
+    paths.use_root(tempfile.mkdtemp(prefix="scritch-selftest-"))
     app = App(windowed=True)
     assert app.kind == "setup"
     # v0.7 phone login: the phone sends a key -> checked -> library; the page closes soon after
@@ -602,15 +602,18 @@ def selftest(screenshot=None):
         pygame.quit()
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="itch-deck")
+    p = argparse.ArgumentParser(prog="scritch")
     p.add_argument("--windowed", action="store_true", help="1280x800 window (Desktop Mode)")
     p.add_argument("--selftest", action="store_true", help="headless smoke test")
     p.add_argument("--screenshot", help="with --selftest: save last frame as PNG")
     p.add_argument("--render-mockups", metavar="DIR", help="save every page/state as PNGs to DIR")
     p.add_argument("--real", metavar="DATA", help="with --render-mockups: use a copy of the real cache (library.json, covers, pages, shots); SCRITCH_GAME=title picks the game")
     a = p.parse_args(argv)
+    moved = paths.migrate()          # itch-deck -> scritch folders, before any file is opened
     setup_logging()
     log.info("start v%s args=%s", VERSION, argv or sys.argv[1:])
+    for line in moved:
+        log.info("%s", line)
 
     if a.render_mockups:
         from .mockups import render

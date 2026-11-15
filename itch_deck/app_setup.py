@@ -10,7 +10,7 @@ from .stores.itch import ItchStore
 from .app_common import QUIT_DLG
 from .phonelink import PhoneLink
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 
 def key_from_text(text):

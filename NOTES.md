@@ -1,4 +1,4 @@
-# itch-deck — working notes (read this first in a new chat)
+# SCRiTCH (repo itch-deck) — working notes (read this first in a new chat)
 
 Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
@@ -19,7 +19,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - Write what you changed in NOTES.md before pushing, so the next chat knows.
 - Real data for mockups: `python run.py --render-mockups DIR --real DATA` renders with Omri's real
   library (covers, pages, screenshots); random game, or SCRITCH_GAME=<title or id>. DATA = unzipped
-  copy of the Deck's ~/.local/share/itch-deck/{library.json,covers,pages,shots} — ask Omri to attach
+  copy of the Deck's ~/.local/share/scritch/{library.json,covers,pages,shots} — ask Omri to attach
   it (Archive.zip). NEVER commit it: the repo is public, the art is the developers', the list is his.
 - After ANY UI change: re-render mockups (`python run.py --render-mockups DIR`) and publish them as
   `after/` to the gallery artifact https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (Omri expects it current).
@@ -717,6 +717,39 @@ ROADMAP (Omri 15 Nov 20:23, after v0.8.1; page: https://claude.ai/artifact/Hkk8S
   Decided against: auto Steam tiles, IGDB (secret key), reading Epic from Heroic.
   Needs a Deck test, not code: itch update detection, split installer (Stranger More), Epic long
   descriptions count ("epic text fields" log line), Epic game updates.
+v0.8.2 = ROADMAP 1, folder rename (branch rename-scritch, NOT released; Omri "go" 15 Nov 20:37):
+  - paths: NAME "scritch", OLD_NAME "itch-deck". paths.migrate() runs first thing in main (before
+    logging/config/lock): per XDG base (config / data / state) old real dir + no new -> os.rename
+    (same disk: no copy, no space, instant) + relative symlink itch-deck -> scritch, so a rollback
+    to v0.8.1 still finds everything. Both exist -> use new, log, never merge/delete. Rename fails
+    -> that folder stays in use under the old name this run (paths._repoint), retried next start.
+    app.log lines "folders: moved …". tests/test_migrate.py.
+  - launcher.sh: app binary app/scritch (PyInstaller --name scritch). It logs into state/itch-deck/
+    logs while that's still a real folder and state/scritch doesn't exist, so it never creates
+    the new folder before the app moves the old one (test in test_launcher.py).
+  - Release: build.sh makes release/scritch + a copy release/itch-deck; CI publishes BOTH (v0.8.1
+    and older only look for "itch-deck"). updater.ASSETS = ("scritch", "itch-deck"), first found.
+    Keep publishing itch-deck for a while (until nobody is on <= v0.8.1).
+  - NOT renamed (Omri agreed): the tile's folder ~/Applications/itch-deck/ (launcher doesn't care
+    about its folder name; README says ~/Applications/scritch/scritch for new users; Omri can move
+    his by hand + edit the tile Target); existing games folders "itch" (Wine prefixes + legendary
+    store full paths). config.games_dir(base) = base/itch if it exists, else base/scritch (new
+    users; Epic games live there too). Python package itch_deck + GitHub repo name: unchanged
+    (package rename = conflicts with the design chat; repo rename maybe at ROADMAP 3).
+  - Logger name "scritch" everywhere, net UA "scritch (+repo)", argparse prog, README paths.
+  - Checked: pytest 3.13 + 3.11 (118), selftest 3.13 + 3.11 (also run with old-layout XDG dirs:
+    moved + links), selftest with itch rejecting every key, mockups (only the version number
+    changed: 21, 21d, 21g -> gallery not republished). Real PyInstaller build run as Omri's Deck:
+    v0.8.1-style ~/Applications/itch-deck/{itch-deck, app/itch-deck} + old XDG dirs -> new file
+    in the tile path unpacks app/scritch (old app -> app.old), folders moved, old launcher.log kept,
+    pinned SD install_root untouched.
+  Deck checklist v0.8.2: 1 Settings -> App -> Update -> restarts into v0.8.2. 2 Library, covers,
+    filters, itch + Epic sign-ins all still there (nothing to sign in again). 3 Dolphin (hidden
+    files on): ~/.config, ~/.local/share, ~/.local/state each have a scritch folder and an
+    itch-deck link (arrow icon). 4 Install + play one small game; uninstall it. 5 Quit, start from
+    the tile again. If anything is missing: ~/.local/state/scritch/logs/app.log lines "folders:".
+    Rollback: rename itch-deck.old to itch-deck in ~/Applications/itch-deck/ (old version reads
+    the same data through the links).
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

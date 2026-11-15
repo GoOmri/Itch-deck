@@ -24,7 +24,7 @@ import subprocess
 
 from .. import net, paths
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 LATEST = "https://api.github.com/repos/legendary-gl/legendary/releases/latest"
 ASSET = "legendary_linux_x64"

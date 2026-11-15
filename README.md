@@ -1,4 +1,4 @@
-# SCRiTCH (itch-deck)
+# SCRiTCH
 
 A controller-first launcher for your **itch.io** library on the **Steam Deck**. It shows up as one
 Steam tile in Game Mode. From there you can browse the games you own, install them, play and
@@ -24,13 +24,13 @@ You need a Steam Deck (or another SteamOS / Linux PC) and an itch.io account.
 ### 1. Get the app
 1. Switch to **Desktop Mode**. Open the
    [latest release](https://github.com/GoOmri/Itch-deck/releases/latest) in Firefox and
-   download `itch-deck`.
-2. In Dolphin, make the folder `~/Applications/itch-deck/` and move the file into it.
+   download `scritch`.
+2. In Dolphin, make the folder `~/Applications/scritch/` and move the file into it.
 3. Right-click the file → **Properties → Permissions** → tick **Is executable**.
 
 ### 2. Add it to Steam
 1. Steam → **Games → Add a Non-Steam Game to My Library → Browse**, then pick
-   `~/Applications/itch-deck/itch-deck`.
+   `~/Applications/scritch/scritch`.
 2. In the tile's **Properties**, rename it (for example *SCRiTCH*). Leave **Compatibility**
    off, because it's a native Linux app.
 3. Back in Game Mode: tile → controller icon → pick the **Gamepad** template.
@@ -52,7 +52,7 @@ No phone, or the page won't open (some routers block devices from reaching each 
 **Import file**: save the key as `itch_key.txt` and send it to the Deck's `~/Downloads` with
 Warpinator. Or **Type key**, with Steam + X for the on-screen keyboard.
 
-The key is stored only in `~/.config/itch-deck/config.json`, which only your user can read.
+The key is stored only in `~/.config/scritch/config.json`, which only your user can read.
 Settings → **Disconnect itch** makes scritch forget it; to revoke it as well, delete it on itch.io
 → Settings → API keys.
 
@@ -116,8 +116,8 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 - **Button symbols:** *Auto* follows the controller you pressed last; or fix it to Steam Deck,
   PlayStation or Xbox.
 - **Update app:** checks GitHub for a new version, downloads it and restarts. The previous
-  version is kept as `itch-deck.old` next to the app, in case you need to go back: rename it
-  back to `itch-deck` in Dolphin.
+  version is kept as `scritch.old` next to the app, in case you need to go back: rename it
+  back to `scritch` in Dolphin.
 
 ## When something goes wrong
 
@@ -134,23 +134,26 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | A game's controls do nothing | It may need a mouse or keyboard: Options → Controls → Mouse or Keys. To get out: hold View + Menu for 2 s. |
 
 **Logs** (open them in Dolphin; turn on *Show hidden files*):
-- `~/.local/state/itch-deck/logs/app.log`: what scritch did
-- `~/.local/state/itch-deck/logs/games/<game>.log`: the game's own output from its last run,
+- `~/.local/state/scritch/logs/app.log`: what scritch did
+- `~/.local/state/scritch/logs/games/<game>.log`: the game's own output from its last run,
   including the exact command line
-- `~/.local/state/itch-deck/logs/games/<game>-install.log`: the output of a Windows installer
+- `~/.local/state/scritch/logs/games/<game>-install.log`: the output of a Windows installer
 
 ## Where things live
 
 ```
-~/Applications/itch-deck/itch-deck      the file Steam starts (unpacks the app once per version)
-~/Applications/itch-deck/app/           the app itself (app.old/ = the version before)
-~/.config/itch-deck/config.json         settings + API key
-~/.local/share/itch-deck/               library cache, covers, game pages, times to beat, umu-launcher
-~/.local/share/itch-deck/epic/          the Epic helper (legendary) and your Epic sign-in
-~/.local/state/itch-deck/logs/          logs
-<SD card>/itch/<game>/                  installed games (or ~/Games/itch/ on internal storage)
-<SD card>/itch/_prefixes/<game>/        Windows saves (Proton prefixes)
+~/Applications/scritch/scritch          the file Steam starts (unpacks the app once per version)
+~/Applications/scritch/app/             the app itself (app.old/ = the version before)
+~/.config/scritch/config.json           settings + API key
+~/.local/share/scritch/                 library cache, covers, game pages, times to beat, umu-launcher
+~/.local/share/scritch/epic/            the Epic helper (legendary) and your Epic sign-in
+~/.local/state/scritch/logs/            logs
+<SD card>/scritch/<game>/               installed games (or ~/Games/scritch/ on internal storage)
+<SD card>/scritch/_prefixes/<game>/     Windows saves (Proton prefixes)
 ```
+Used it before v0.8.2? Your folders were called `itch-deck`: the first start of v0.8.2 renames
+them to `scritch` and leaves an `itch-deck` link behind. The app folder you added to Steam and
+the games folder (`itch`) stay where they are.
 
 ## Known limits
 - **Browser (HTML5) games** are listed and tagged, but they can't be played from scritch yet.
@@ -167,7 +170,7 @@ python -m pytest -q tests          # unit tests (itch API from fixtures, install
 python run.py --selftest           # headless run through every screen with fake data
 python run.py --windowed           # run it on a desktop (keyboard: arrows, Enter, Esc, x, y, m)
 python run.py --render-mockups out # PNGs of every screen
-sh packaging/build.sh              # release/itch-deck: folder build packed behind a launcher
+sh packaging/build.sh              # release/scritch: folder build packed behind a launcher
 ```
 Every push to `main` builds the binary on GitHub Actions (Ubuntu 22.04) and publishes a release
 named after `VERSION` in `itch_deck/app.py`. Read `NOTES.md` (working notes and decisions) and

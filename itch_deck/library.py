@@ -13,7 +13,7 @@ from pathlib import Path
 from . import config, hltb, net, paths
 from .stores import itch_page
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 PAGE_MAX_AGE = dt.timedelta(days=7)
 HLTB_MAX_AGE = dt.timedelta(days=30)   # time to beat (and "not on HLTB") rechecked monthly
 MAX_SHOTS = 8

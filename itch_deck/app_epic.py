@@ -6,7 +6,7 @@ import threading
 from . import config
 from .input import B
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 
 class EpicMixin:

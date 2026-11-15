@@ -546,7 +546,7 @@ def test_pin_install_root(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "sd_card", lambda: media / "deck/NEW")
     assert not config.pin_install_root(cfg)         # already pinned: never moves by itself
     cfg2 = {}
-    assert config.pin_install_root(cfg2) and cfg2["install_root"] == str(media / "deck/NEW/itch")
+    assert config.pin_install_root(cfg2) and cfg2["install_root"] == str(media / "deck/NEW/scritch")   # new card: v0.8.2 name
 
 
 def test_appimage_unpack(tmp_path):
@@ -593,6 +593,8 @@ def test_install_choices(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "sd_card", lambda: None)
     assert [n for n, _ in config.install_choices()] == ["Internal storage"]
     monkeypatch.setattr(config, "sd_card", lambda: tmp_path / "SD")
+    assert config.install_choices()[0] == ("SD card", tmp_path / "SD/scritch")   # no games yet: new name
+    (tmp_path / "SD/itch").mkdir(parents=True)                      # games already there: kept
     assert config.install_choices()[0] == ("SD card", tmp_path / "SD/itch")
 
 

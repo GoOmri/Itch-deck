@@ -10,7 +10,7 @@ from .input import (A, B, START)
 from .library import short_date
 from .app_common import _gb
 
-log = logging.getLogger("itch-deck")
+log = logging.getLogger("scritch")
 
 
 class SettingsMixin:
