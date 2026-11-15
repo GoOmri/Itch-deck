@@ -23,7 +23,7 @@ from .app_setup import SetupMixin
 from .app_epic import EpicMixin
 
 log = logging.getLogger("itch-deck")
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 
 
 def setup_logging():

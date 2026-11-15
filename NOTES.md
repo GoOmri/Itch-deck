@@ -701,7 +701,7 @@ Earlier: Epic descriptions (Omri 15 Nov): only the catalog's short "description"
 v0.8.0 Deck test (15 Nov): all ✓ except the install-done feedback: no toast, no ✓ pop when Omri
   waited on the game page (toast skipped on the game's own page; pop needed the library to have
   drawn the tile busy). Fix on branch done-feedback (NOT released): App._install_events always
-  toasts "done" and calls W.mark_done(gid) so the ✓ pops next time the tile shows. Test in
+  toasts "done" and calls W.mark_done(gid) so the ✓ pops next time the tile shows (RELEASED v0.8.1 with design-polish progress glide + shine). Test in
   tests/test_library_menu.py.
 OPEN (Omri 15 Nov: "ruminate some other time"): Details shows raw log lines - useless to a casual
   player. Idea on the table: "Get help" = the plain reason + a QR that opens the full log on the
