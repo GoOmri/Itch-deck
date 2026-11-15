@@ -51,6 +51,15 @@ def _menu(scene, focus):
     return scene
 
 
+def _set(scene, mode=None, **kw):
+    """Mockup-only state the app normally sets each frame (free space, control mapping)."""
+    for k, v in kw.items():
+        setattr(scene, k, v)
+    if mode:
+        scene.g = dict(scene.g, controls_mode=mode)
+    return scene
+
+
 def _act(scene, text):
     scene.activity = text
     return scene
@@ -160,6 +169,9 @@ def _shots(t, version):
         ("04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
         ("05_library_scrolled", Library(t, lib, focus=n - 2)),
         ("05b_library_downloading", _act(Library(t, lib, focus=1), "Downloading 42% · Quiet Quarry (+1)")),
+        ("05e_library_covers_loading", _act(Library(t, [dict(g, cover_url="x", cover_file=None)
+                                                   if i % 3 else g for i, g in enumerate(lib)],
+                                                  focus=1), "Covers 40/120")),
         ("05c_library_covers", _act(Library(t, lib, focus=1), "Covers 40/120")),
         ("05d_library_update", _note(_act(Library(t, lib, focus=1), "Covers 40/120"),
                                      "Update v0.3.4 available · Settings")),
@@ -177,6 +189,8 @@ def _shots(t, version):
                                      toast="Grave Gardener closed right after starting. Try Change build.",
                                      toast_error=True)),
         ("11_game_not_installed", game("Quiet Quarry")),
+        ("11b_game_free_space", _set(game("Quiet Quarry"), free_mb=42_300)),
+        ("11c_game_no_space", _set(game("Quiet Quarry"), free_mb=120)),
         ("12_game_downloading", game("Hollow Lighthouse")),
         ("12c_game_queued", game("Paper Comet", behind=True)),
         ("12b_game_offline", game("Quiet Quarry", offline=True)),
@@ -190,12 +204,23 @@ def _shots(t, version):
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
         ("15c_game_update", game("Harbor Ghosts")),
+        ("15h_game_everything", _set(Game(t, dict(by["Quiet Quarry"], title="The Extraordinarily Long Adventures of Pip",
+                                              author="Somebody With A Long Studio Name Games",
+                                              genre="Interactive Fiction", size_mb=12_800,
+                                              ttb={"main": 14.6, "done": 40}, controls_mode="keys",
+                                              short_text="A very long short description that keeps going for a while, "
+                                              "far past one line, to see what happens to the buttons below it. "
+                                              "It even runs onto a third line, so it gets cut here and reads "
+                                              "in full under About this game."),
+                                     pos=(1, 30)), free_mb=4_100)),
+        ("15g_game_mouse_controls", _set(game("Moss & Rivets"), mode="mouse")),
         ("15f_game_other_downloading", _act(game("Moss & Rivets"), "Downloading 42% · Quiet Quarry (+1)")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "", "")], 0))),
         ("16_game_failed", game("Grave Gardener",
                                 fail_reason=None)),        # the reason is in the log only
+        ("16b_game_failed_build", game("Grave Gardener", fail_reason="Try another build in Options")),
         ("17_game_browser", game("Frog Parliament")),
         ("18_game_not_playable", game("Velvet Static")),
         ("19_game_picker", with_overlay(game("Quiet Quarry"), picker)),

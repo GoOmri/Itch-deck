@@ -15,6 +15,13 @@ _HINTS = (
     ("API key", "Sign in to itch again"),
     ("Signed out of Epic", "Connect Epic again"),
     ("Connect Epic Games", "Connect Epic again"),
+    # the build itself is the problem: another build usually works (⚙ Options → Change build)
+    ("program to run", "Try another build in Options"),
+    ("couldn't be unpacked", "Try another build in Options"),
+    ("aren't supported", "Try another build in Options"),
+    ("unsafe file paths", "Try another build in Options"),
+    ("can't run silently", "Try another build in Options"),
+    ("isn't in your library", "Refresh your library"),
 )
 
 

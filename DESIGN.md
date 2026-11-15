@@ -74,6 +74,13 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   + a square **⚙ Options** next to it. When itch has a newer build: **Play · Update · ⚙**
   (Update grey, Play stays the purple main action), no message box. Uninstall, Change build, Controls live in Options;
   ☰ opens it too (on a game page ☰ = Options, never Settings).
+- **Game page info:** title (wraps to 2 lines, then "…"), "by author" (dim), then the facts as icon + value pairs
+  (`W.facts`, drawn icons, dim icon / white value, wraps to a second row): ✓ Installed
+  (purple) · size (+ free space before installing, red when it won't fit) · genre · time to
+  beat (main story only) · controls when SCRiTCH converts ("Trackpad as mouse",
+  "Buttons as keyboard"). Facts you scan, not a sentence you read.
+  The tagline under them is 2 lines max; when it's cut it reads in full as the first
+  paragraph of About, so nothing is lost.
 - **Install progress is one module** next to Cancel: Starting…, Queued, Getting GE-Proton,
   Downloading %, Extracting…. No boxes appearing and disappearing under it.
 - **Messages about a game** go in ONE box under its buttons (`W.notice`). Never above.
@@ -131,8 +138,11 @@ sentence case everywhere else ("Change build").
 - One tempo: `W.spring`, no overshoot (`SPRING_BACK` 0), `MOTION_MS` 240 ms. Pages swipe in
   (from the right going deeper, left going back); Library content swipes between tabs;
   tiles/screenshots grow on focus; toasts slide up; scrolling glides.
-- The ONE springy thing: the tab underline (`TAB_BACK`).
+- Springy only twice: the tab underline (`TAB_BACK`) and the ✓ popping onto a tile when
+  an install finishes (a "done" moment, with the "… is ready to play." toast).
 - Buttons and rows never move — focus lights them in place.
+- A cover on its way: dark purple tile with a soft shine sweeping across (`W.shimmer`, a row
+  moves as one wave); the cover fades in over it, never pops.
 - Waiting: **the chasing arc** (`W.chase`, used by `W.spinner`, the tile busy ring and the
   phone `.spin`): the front edge races ahead, the back edge catches up, the whole thing turns
   slowly (`CHASE_S` 1.4 s). The indeterminate bar glides end to end (`BUSY_SWEEP_S` 0.75 s).

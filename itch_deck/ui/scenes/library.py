@@ -179,10 +179,25 @@ class Library(Scene):
             return
         if act == X:
             self.menu_open()
+        elif n and act in (L2, R2) and self.sort == "az":   # A–Z: jump to the prev / next letter
+            self.focus = self._letter_jump(1 if act == R2 else -1)
         elif n:
             step = {LEFT: -1, RIGHT: 1, UP: -c, DOWN: c, L2: -3 * c, R2: 3 * c}.get(act, 0)
             if step:
                 self.focus = max(0, min(n - 1, self.focus + step))
+
+    def _letter_jump(self, d):
+        """First game of the next (d=1) / previous (d=-1) letter; back = start of this letter
+        first, like a phone's contact list."""
+        ls = [letter(g.get("title", "")) for g in self.shown]
+        cur, i = ls[self.focus], self.focus
+        if d > 0:
+            return next((j for j in range(i + 1, len(ls)) if ls[j] != cur), i)
+        start = next(j for j in range(len(ls)) if ls[j] == cur)
+        if start < i:
+            return start
+        prev = ls[start - 1] if start else None
+        return next((j for j in range(len(ls)) if ls[j] == prev), i)
 
     # --- drawing -------------------------------------------------------
     def hints(self):

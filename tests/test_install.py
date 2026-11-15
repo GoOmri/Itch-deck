@@ -438,7 +438,8 @@ def test_installer_failures(tmp_path, server, monkeypatch):
     _umu(tmp_path)
     inst.enqueue(lib.games[0])
     _wait(inst)
-    assert lib.games[0]["state"] == "failed" and lib.games[0]["fail_reason"] is None   # log only
+    assert lib.games[0]["state"] == "failed" and \
+        lib.games[0]["fail_reason"] == "Try another build in Options"   # InstallShield: another build
     monkeypatch.setenv("FAIL", "1")                 # installer exits with an error
     inst.lib.store.uploads = [_up(8, "s.exe", p_linux=False, p_windows=True, size=len(INNO))]
     inst.enqueue(lib.games[0])
@@ -647,6 +648,7 @@ def test_player_words_are_short_and_plain():
         == "Not enough space"
     assert words.short("Lost the connection to itch.io. Retry when you're online") == "No internet"
     assert words.short("itch.io rejected the API key. Re-import it in Settings.") == "Sign in to itch again"
-    assert words.short("No program to run was found in the download.") is None
+    assert words.short("No program to run was found in the download.") == "Try another build in Options"
+    assert words.short("Something odd happened.") is None
     for say in [s for _, s in words._HINTS] + [h for _, h in runner.HINTS]:
         assert len(say.split()) <= 6, say

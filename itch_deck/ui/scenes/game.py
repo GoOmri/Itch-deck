@@ -19,6 +19,9 @@ def _mb(mb):
 SHOT_GROW = 1.12   # focused screenshot grows more than tiles: it's what you're looking at
 MAIN_ACTIONS = ("Install", "Retry install", "Play")
 
+CONTROL_WORDS = {"mouse": "Trackpad as mouse", "keys": "Buttons as keyboard"}   # pad: nothing to say
+
+
 class Game(Scene):
     def footer_status(self):
         act = self.activity                     # this game's own download shows by its button
@@ -165,10 +168,11 @@ class Game(Scene):
         t = self.t
         g = self.g
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
-               g.get("controls_label"), str(g.get("ttb")), str(g.get("update")),
+               g.get("controls_label"), g.get("controls_mode"), str(g.get("ttb")), str(g.get("update")),
                g.get("cover_file"), self.section, self.shot,   # focus: buttons are live bool(self.overlay),
                self.offline, self.card_out, self.phase, self.behind, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
+               (getattr(self, "free_mb", None) or 0) // 1000,   # GB steps: no re-layout per MB
                # buttons are drawn live on top; only the screenshot strip animates inside the page
                W.frame_tick() if W.animating() and self.section == "shots" else 0,
                getattr(self, "_end", 0))
@@ -212,27 +216,36 @@ class Game(Scene):
         x = cover_r.right + t.lg
         maxw = t.w - t.m - x
         y = cover_r.y - W.cap_gap(t.f_h1)       # capitals of the title = cover top edge
-        y = W.text(t, s, g["title"], x, y, t.f_h1, maxw=maxw).bottom
-        parts = ([f"by {g['author']}"] if g.get("author") else []) + \
-                ([_mb(g["size_mb"])] if g["size_mb"] else []) + \
-                ([g["genre"]] if g.get("genre") else [])               # itch's own Genre
-        info = "  ·  ".join(parts) or " "                         # no author: skip the "by"
-        r = W.text(t, s, info, x, y, t.f_body, color=t.dim)      # one info line, no loose tags
-        if g.get("state") == "installed":                         # state = purple (rule 1)
-            ih = int(t.f_body.get_height() * 0.42)
-            cx = r.right + t.md
-            W.text(t, s, "·", r.right + t.sm * 0.6, y, t.f_body, color=t.dim)
-            cx += W.icon_draw(s, "check", (cx + ih * 0.45, r.centery), ih, t.accent) + t.xs
-            cx = W.text(t, s, "Installed", cx, y, t.f_body, color=t.accent).right
-            ctl = g.get("controls_label") or ""
-            if ctl and "auto" not in ctl.lower():                 # only when not the default
-                W.text(t, s, f"  ·  {ctl}", cx, y, t.f_body, color=t.dim)
-        y = r.bottom + t.sm
-        ttb = hltb.summary(g.get("ttb"))                         # time to beat (HowLongToBeat)
-        if ttb:
-            y = W.text(t, s, ttb, x, y - t.xs, t.f_body, color=t.dim, maxw=maxw).bottom + t.sm
+        y = W.wrap(t, s, g["title"], x, y, t.f_h1, maxw, max_lines=2)    # long titles: 2 lines
+        if g.get("author"):                                       # who made it: one quiet line
+            y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim, maxw=maxw).bottom
+        y += t.sm
+        # the facts: icon + value pairs, scannable at a glance (state first, purple = yours)
+        items = [("check", "Installed", t.accent)] if g.get("state") == "installed" else []
+        if g["size_mb"]:
+            size, col = _mb(g["size_mb"]), None
+            free = getattr(self, "free_mb", None)
+            if free is not None and self.playable and \
+                    g.get("state") not in ("installed", "downloading", "queued", "missing"):
+                size += f"  ·  {_mb(free)} free"                # space, before installing
+                col = t.error if g["size_mb"] > free else None
+            items.append(("disk", size, col))
+        if g.get("genre"):
+            items.append(("tag", g["genre"], None))
+        ttb = g.get("ttb") or {}
+        hours = ttb.get("main") or ttb.get("done")                # main story; completionist cut
+        if hours:
+            items.append(("clock", f"{hltb.fmt(hours)} to beat", None))
+        mode = g.get("controls_mode") if self.playable else None
+        if mode in CONTROL_WORDS:                                 # what SCRiTCH converts
+            items.append(("mouse" if mode == "mouse" else "keys", CONTROL_WORDS[mode], None))
+        if items:
+            y = W.facts(t, s, x, y, items, maxw) + t.md
+        self._tag_cut = False
         if g.get("short_text"):  # itch's short description; cached, so it shows offline too
-            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, min(maxw, t.read_w))
+            tw = min(maxw, t.read_w)                  # 2 lines max; a longer one opens About
+            self._tag_cut = len(W.wrap_lines(t.f_body, g["short_text"], tw)) > 2
+            y = W.wrap(t, s, g["short_text"], x, y, t.f_body, tw, max_lines=2)
         y += t.md
 
         if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
@@ -290,7 +303,8 @@ class Game(Scene):
                       last[1].bottom - t.xs, kind="dark", anchor="bottomright")
             y += th + pad + t.lg
         desc_y = y
-        paras = g.get("description") or []
+        paras = ([g["short_text"]] if getattr(self, "_tag_cut", False) else []) + \
+            (g.get("description") or [])              # a cut tagline reads in full here
         if paras:
             y = W.text(t, s, "About this game", t.m, y, t.f_h2).bottom + t.sm
             w = min(t.w - 2 * t.m, t.read_w * 1.4)   # long reading: ~95 chars per line

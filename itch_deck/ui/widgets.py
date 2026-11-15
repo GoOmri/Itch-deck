@@ -594,6 +594,61 @@ def hint_bar(t, s, items, activity=None, notice=None):
 
 
 # --- controls ---------------------------------------------------------------
+def _i_disk(b, d, w, c):                 # size: a drive
+    pg.draw.rect(b, c, (d * .1, d * .22, d * .8, d * .56), w, border_radius=int(d * .1))
+    pg.draw.line(b, c, (d * .1, d * .56), (d * .9, d * .56), w)
+    pg.draw.circle(b, c, (d * .74, d * .67), w * 0.7)
+
+
+def _i_tag(b, d, w, c):                  # genre: a label tag
+    pts = [(d * .12, d * .2), (d * .52, d * .2), (d * .88, d * .52), (d * .54, d * .86),
+           (d * .12, d * .5)]
+    pg.draw.polygon(b, c, pts, w)
+    pg.draw.circle(b, c, (d * .32, d * .38), w * 0.8)
+
+
+def _i_clock(b, d, w, c):                # time to beat
+    pg.draw.circle(b, c, (d / 2, d / 2), d * .4, w)
+    pg.draw.line(b, c, (d / 2, d / 2), (d / 2, d * .26), w)
+    pg.draw.line(b, c, (d / 2, d / 2), (d * .68, d * .6), w)
+
+
+def _i_mouse(b, d, w, c):                # controls: trackpad as mouse
+    pg.draw.rect(b, c, (d * .26, d * .1, d * .48, d * .8), w, border_radius=int(d * .24))
+    pg.draw.line(b, c, (d / 2, d * .14), (d / 2, d * .38), w)
+
+
+def _i_keys(b, d, w, c):                 # controls: buttons as keyboard
+    pg.draw.rect(b, c, (d * .06, d * .24, d * .88, d * .52), w, border_radius=int(d * .08))
+    for i in range(4):
+        pg.draw.circle(b, c, (d * (.24 + i * .17), d * .42), w * 0.75)
+    pg.draw.line(b, c, (d * .3, d * .6), (d * .7, d * .6), w)
+
+
+_LINE_ICONS = {"disk": _i_disk, "tag": _i_tag, "clock": _i_clock, "mouse": _i_mouse,
+               "keys": _i_keys}
+
+
+def facts(t, s, x, y, items, maxw):
+    """Game facts as one calm row of icon + value pairs (wraps if it must):
+    items = [(icon, text, color or None)]. Icons dim, values white, a wide gap between.
+    Returns the bottom y."""
+    f = t.f_body
+    ih = int(f.get_height() * 0.8)
+    gap, row_h = t.lg, f.get_linesize() + t.sm
+    cx, cy = x, y + f.get_height() / 2
+    for icon, txt, col in items:
+        w = ih + t.sm + f.size(txt)[0]
+        if cx > x and cx + w > x + maxw:                 # next line
+            cx, cy = x, cy + row_h
+        iw = icon_draw(s, icon, (cx + ih / 2, cy), ih * (0.7 if icon == "check" else 1),
+                       col or t.dim)
+        iw = max(iw, ih)                                  # same slot for every icon: values align
+        text(t, s, txt, cx + iw + t.sm, cy, f, color=col or t.text_c, anchor="midleft")
+        cx += w + gap
+    return int(cy + f.get_height() / 2)
+
+
 def icon_draw(s, name, center, size, color):
     """Drawn icons (never font characters, so they match the footer glyphs): "play", "check".
     size = icon height in px. Returns its width."""
@@ -628,6 +683,13 @@ def icon_draw(s, name, center, size, color):
         pg.draw.polygon(s, color, pts)
         pg.draw.aalines(s, color, True, pts)
         return int(a * 1.6)
+    if name in _LINE_ICONS:              # outline icons for the game page facts (supersampled)
+        k, d = 4, int(h * 4)
+        big = pg.Surface((d, d), pg.SRCALPHA)
+        _LINE_ICONS[name](big, d, max(2, int(d * 0.11)), color)
+        img = pg.transform.smoothscale(big, (int(h), int(h)))
+        s.blit(img, img.get_rect(center=(int(cx), int(cy))))
+        return int(h)
     if name == "check":
         w = max(2, round(h * 0.2))
         pts = [(cx - h * 0.42, cy + h * 0.02), (cx - h * 0.12, cy + h * 0.32),
@@ -847,12 +909,27 @@ def tile(t, s, game, rect, focused=False):
     k = anim(("tile", game["id"]), 1.0 if focused else 0.0)
     grow = (t.focus_scale - 1) * k
     r = rect.inflate(rect.w * grow, rect.h * grow) if grow else rect
-    if 0.001 < k < 0.999:            # growing / shrinking: scale the finished big one (cheap)
-        full = rect.inflate(rect.w * (t.focus_scale - 1), rect.h * (t.focus_scale - 1))
-        img = pg.transform.smoothscale(_tile_img(t, game, full.size, playable), r.size)
+    loading = game.get("cover_url") and not game.get("cover_file")
+    if loading:                       # cover on its way: dark purple with a passing shine
+        _LOADING.add(game["id"])
+        shimmer(t, s, r)
     else:
-        img = _tile_img(t, game, r.size, playable)
-    s.blit(img, r.topleft)
+        if 0.001 < k < 0.999:         # growing / shrinking: scale the finished big one (cheap)
+            full = rect.inflate(rect.w * (t.focus_scale - 1), rect.h * (t.focus_scale - 1))
+            img = pg.transform.smoothscale(_tile_img(t, game, full.size, playable), r.size)
+        else:
+            img = _tile_img(t, game, r.size, playable)
+        key = ("cover-in", game["id"])
+        if game["id"] in _LOADING:    # just arrived: fade in over the shimmer, no pop
+            _LOADING.discard(game["id"])
+            _ANIM.pop(key, None)
+            anim(key, 1.0, start=0.0, ms=MOTION_MS * 2)
+        a = anim(key, 1.0, ms=MOTION_MS * 2) if key in _ANIM else 1.0
+        if a < 0.99:
+            shimmer(t, s, r)
+            img = img.copy()
+            img.set_alpha(int(255 * max(0.0, a)))
+        s.blit(img, r.topleft)
     if k > 0.5:
         focus_ring(t, s, r)
     _badges(t, s, game, r, playable)
@@ -862,6 +939,38 @@ def tile(t, s, game, rect, focused=False):
     if not playable:                  # info tag on the art, like the other tile badges
         tag(t, s, "Browser game" if "html" in game["platforms"] else "Not playable here",
             r.x + t.u, r.bottom - t.u, kind="dark", anchor="bottomleft")
+
+
+_LOADING = set()                      # tiles that showed the shimmer: their cover fades in
+SHINE_S = 1.6                         # one sweep of the shine
+
+
+def shimmer(t, s, r):
+    """Cover placeholder while it downloads: dark purple, a soft light band sweeping across.
+    Tiles are offset by position, so a row shimmers as one wave."""
+    import time
+    base = _cover_cache.get(("shimmer", r.size))
+    if base is None:
+        base = pg.Surface(r.size, pg.SRCALPHA)
+        pg.draw.rect(base, mix(t.panel, t.accent_btn, 0.28), base.get_rect(), border_radius=t.radius)
+        _cover_cache[("shimmer", r.size)] = base
+    band = _cover_cache.get(("shine", r.h))
+    if band is None:                  # soft vertical band, light in the middle, leaning a little
+        bw = max(8, r.h // 2)
+        band = pg.Surface((bw, r.h * 2))
+        for x in range(bw):
+            v = int(22 * math.sin(math.pi * x / bw) ** 2)
+            pg.draw.line(band, (v, v, v + 4), (x, 0), (x, r.h * 2))
+        band = pg.transform.rotozoom(band, -14, 1)          # smooth edges
+        _cover_cache[("shine", r.h)] = band
+    img = base.copy()
+    ph = ((time.monotonic() / SHINE_S) - r.x / (t.w * 1.5)) % 1 if LIVE else 0.45
+    x = int(-band.get_width() + ph * (r.w + band.get_width() * 2))
+    img.blit(band, (x, (r.h - band.get_height()) // 2), special_flags=pg.BLEND_RGB_ADD)
+    s.blit(img, r.topleft)
+    if LIVE:
+        global _busy_until
+        _busy_until = max(_busy_until, time.monotonic() + 0.05)   # keep frames coming
 
 
 def _tile_img(t, game, size, playable):
@@ -878,16 +987,28 @@ def _tile_img(t, game, size, playable):
     return img
 
 
+_WAS_BUSY = set()       # games seen downloading: their ✓ pops in once when they finish
+
+
 def _badges(t, s, game, r, playable):
     pad = t.u
     st = game.get("state")
+    if st in ("downloading", "queued"):
+        _WAS_BUSY.add(game["id"])
     # top-right: install state
     if st == "installed" and game.get("update"):       # newer build on itch
         tag(t, s, "Update", r.right - pad, r.y + pad, kind="accent", anchor="topright")
     elif st == "installed":
-        c = (r.right - pad - t.u * 1.6, r.y + pad + t.u * 1.6)
-        pg.draw.circle(s, t.accent, c, t.u * 1.6)
-        icon_draw(s, "check", c, int(t.u * 1.4), t.on_accent)
+        key = ("check-pop", game["id"])
+        if game["id"] in _WAS_BUSY:                   # just finished: pop in (the one "done" spring)
+            _WAS_BUSY.discard(game["id"])
+            _ANIM.pop(key, None)
+            anim(key, 1.0, start=0.0, back=TAB_BACK)
+        k = anim(key, 1.0, back=TAB_BACK) if key in _ANIM else 1.0
+        if k > 0.02:
+            c = (r.right - pad - t.u * 1.6, r.y + pad + t.u * 1.6)
+            pg.draw.circle(s, t.accent, c, t.u * 1.6 * k)
+            icon_draw(s, "check", c, max(1, int(t.u * 1.4 * k)), t.on_accent)
     elif st == "downloading":
         ring(t, s, (int(r.right - pad - t.u * 1.6), int(r.y + pad + t.u * 1.6)), int(t.u * 1.6),
              game.get("progress", 0),
