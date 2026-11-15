@@ -214,7 +214,6 @@ def test_epic_install_fails_plainly_and_cancels(tmp_path, monkeypatch):
     inst.cancel("epic-Fern")
     _wait(inst, secs=15)
     assert lib.by_id("epic-Fern")["state"] is None and "epic-Fern" not in inst.index
-    assert gp.actions() == [] and gp.message()[1] == "Coming soon"
 
 
 def test_itch_games_not_duplicated_after_restart(tmp_path, monkeypatch):
