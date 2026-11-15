@@ -189,10 +189,13 @@ class WindowWatch:
             self.ok = False
 
 
-def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=None, hold=None):
+def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=None, hold=None,
+        args=(), secret_args=(), cwd=None):
     """Start exe, call on_started() after OVERLAP_S (or sooner if it already exited), wait.
     pump() keeps our window alive during the overlap; hold() -> True keeps it up longer (Proton
-    still building the prefix). Returns (returncode, seconds)."""
+    still building the prefix). args: extra command-line arguments; secret_args go last and are
+    never written to the log (Epic's one-time sign-in token). cwd: default = the exe's folder.
+    Returns (returncode, seconds)."""
     global _proc
     logs = paths.LOGS / "games"
     logs.mkdir(parents=True, exist_ok=True)
@@ -201,7 +204,9 @@ def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=No
         out.write(f"# {exe}\n# started {time.ctime(t0)}\n")
         out.flush()
         try:
-            cmd = command(exe, size, umu)
+            cmd = command(exe, size, umu) + list(args)
+            shown = cmd + (["<Epic sign-in arguments hidden>"] if secret_args else [])
+            cmd += list(secret_args)
             env = child_env()
             env.setdefault("APPIMAGE_EXTRACT_AND_RUN", "1")   # AppImage left packed: no FUSE needed
             if extra_env:
@@ -209,9 +214,9 @@ def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=No
                 env.pop("PYTHONHOME", None)            # umu-run is a Python zipapp
                 env.pop("PYTHONPATH", None)
                 out.write("".join(f"# {k}={v}\n" for k, v in extra_env.items()))
-            out.write(f"# {' '.join(cmd)}\n")
+            out.write(f"# {' '.join(shown)}\n")
             out.flush()
-            proc = subprocess.Popen(cmd, cwd=exe.parent, env=env, stdout=out,
+            proc = subprocess.Popen(cmd, cwd=cwd or exe.parent, env=env, stdout=out,
                                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                     start_new_session=True)   # own group: closed as a whole
         except OSError as e:

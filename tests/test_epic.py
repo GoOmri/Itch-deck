@@ -14,16 +14,30 @@ FAKE = r"""#!/bin/sh
 # stand-in legendary: config in $LEGENDARY_CONFIG_PATH, library from $FAKE_LIST
 case "$1 $2" in
   "auth --code")
-    [ "$3" = "%s" ] || { echo "Login attempt failed" >&2; exit 1; }
+    [ "$3" = "@GOOD@" ] || { echo "Login attempt failed" >&2; exit 1; }
     mkdir -p "$LEGENDARY_CONFIG_PATH"
     echo '{"displayName": "omri_epic", "refresh_token": "SECRET"}' > "$LEGENDARY_CONFIG_PATH/user.json";;
   "auth --delete") rm -f "$LEGENDARY_CONFIG_PATH/user.json";;
+  "install Fern")
+    dir=""; while [ $# -gt 0 ]; do [ "$1" = "--game-folder" ] && dir="$2"; shift; done
+    [ -n "$NOSPACE" ] && { echo "[cli] ERROR: Not enough available disk space!" >&2; exit 1; }
+    for p in 10.00 55.50 100.00; do
+      echo "[DLManager] INFO: = Progress: $p% (1/2), Running for 00:00:01, ETA: 00:00:0${SLOW:-0}" >&2
+      echo "[DLManager] INFO:  + Download	- 12.50 MiB/s (raw) / 20.00 MiB/s (decompressed)" >&2
+      [ -n "$SLOW" ] && sleep "$SLOW"
+    done
+    mkdir -p "$dir/Binaries/Win64"; printf 'MZ' > "$dir/Binaries/Win64/Hades.exe"
+    printf '{"Fern": {"app_name": "Fern", "install_path": "%s", "executable": "Binaries\\\\Win64\\\\Hades.exe"}}' "$dir" > "$LEGENDARY_CONFIG_PATH/installed.json";;
+  "launch Fern")
+    d=$(sed -n 's/.*"install_path": "\([^"]*\)".*/\1/p' "$LEGENDARY_CONFIG_PATH/installed.json")
+    printf '{"game_executable": "Binaries/Win64/Hades.exe", "game_directory": "%s", "game_parameters": ["-x"], "user_parameters": [], "egl_parameters": ["-AUTH_PASSWORD=SECRETCODE"], "working_directory": "%s", "environment": {}}' "$d" "$d";;
+  "uninstall Fern") echo '{}' > "$LEGENDARY_CONFIG_PATH/installed.json";;
   "list --json")
     [ -f "$LEGENDARY_CONFIG_PATH/user.json" ] || { echo "Login failed, cannot continue!" >&2; exit 1; }
     [ -n "$OFFLINE" ] && { echo "ConnectionError" >&2; exit 1; }
     cat "$FAKE_LIST";;
 esac
-""" % GOOD
+""".replace("@GOOD@", GOOD)
 
 
 def _game(name, title, **meta):
@@ -115,7 +129,7 @@ def test_library_keeps_stores_apart(tmp_path, monkeypatch):
     assert not any(g.get("store") == "epic" for g in lib.games) and lib.by_id("5")
 
 
-def test_tabs_and_read_only_game_page():
+def test_tabs_and_epic_game_page():
     import pygame as pg
     pg.init()
     from itch_deck.theme import Theme
@@ -129,4 +143,74 @@ def test_tabs_and_read_only_game_page():
     sc.filt = "epic"
     assert [g["title"] for g in sc.shown] == ["Hades"]
     gp = Game(t, games[1])
-    assert gp.actions() == [] and gp.message()[1] == "Coming soon"
+    assert [a[0] for a in gp.actions()] == ["Install"] and gp.options() == []   # no Change build
+    games[1]["state"] = "installed"
+    assert Game(t, games[1]).options() == ["Uninstall", "Controls"]
+
+
+def test_epic_install_play_uninstall(tmp_path, monkeypatch):
+    """Install through legendary into <root>/<game>/files with one progress bar, then Play
+    starts it via umu with Epic's sign-in args kept out of the log; Uninstall tells legendary."""
+    from itch_deck import installer, runner
+    from test_install import _umu, _wait
+    st = _setup(tmp_path, monkeypatch)
+    st.login(GOOD)
+    _umu(tmp_path)                                  # GE-Proton + umu in place (no downloads)
+    lib = library.Library(None)
+    lib.epic = st
+    lib.games = [lib._prep(epic.game_from_json(LIST[0]))]
+    inst = installer.Installer(lib, lambda: tmp_path / "games")
+    seen = []
+    real = inst._upd
+    inst._upd = lambda gid, **kw: (seen.append(kw.get("progress")), real(gid, **kw))
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    g = lib.by_id("epic-Fern")
+    assert g["state"] == "installed", g.get("fail_reason")
+    info = inst.index["epic-Fern"]
+    assert info["store"] == "epic" and info["exe"] == "Binaries/Win64/Hades.exe"
+    assert inst.exe_path("epic-Fern").exists() and info["prefix"].endswith("_prefixes/hades")
+    prog = [p for p in seen if p not in (None, 0)]
+    assert prog and prog == sorted(prog) and max(prog) < 1        # 0.1 -> 0.555 -> 0.999
+    assert (paths.LOGS / "games/hades-install.log").read_text().count("Progress") == 3
+
+    lp = st.launch_params("Fern")
+    assert lp["egl_parameters"] == ["-AUTH_PASSWORD=SECRETCODE"]
+    exe = paths.HOME / "fake-game.sh"               # the game itself: a script that prints its args
+    exe.write_text("#!/bin/sh\necho args: \"$@\"\n")
+    exe.chmod(0o755)
+    rc, _ = runner.run(exe, "hades", args=lp["game_parameters"], secret_args=lp["egl_parameters"],
+                       cwd=lp["working_directory"])
+    log_ = (paths.LOGS / "games/hades.log").read_text()
+    assert rc == 0 and "args: -x -AUTH_PASSWORD=SECRETCODE" in log_      # the game gets it
+    assert log_.count("SECRETCODE") == 1 and "<Epic sign-in arguments hidden>" in log_   # our line doesn't
+
+    assert inst.uninstall("epic-Fern")
+    end = time.time() + 5
+    while st.installed().get("Fern") is not None and time.time() < end:
+        time.sleep(0.05)
+    assert "Fern" not in st.installed() and "epic-Fern" not in inst.index
+
+
+def test_epic_install_fails_plainly_and_cancels(tmp_path, monkeypatch):
+    from itch_deck import installer, words
+    from test_install import _umu, _wait
+    st = _setup(tmp_path, monkeypatch)
+    st.login(GOOD)
+    _umu(tmp_path)
+    lib = library.Library(None)
+    lib.epic = st
+    lib.games = [lib._prep(epic.game_from_json(LIST[0]))]
+    inst = installer.Installer(lib, lambda: tmp_path / "games")
+    monkeypatch.setenv("NOSPACE", "1")
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    g = lib.by_id("epic-Fern")
+    assert g["state"] == "failed" and words.short(g["fail_reason"]) == "Not enough space"
+    monkeypatch.delenv("NOSPACE")
+    monkeypatch.setenv("SLOW", "2")                 # cancel mid-download: legendary is stopped
+    inst.enqueue(lib.games[0])
+    time.sleep(1.0)
+    inst.cancel("epic-Fern")
+    _wait(inst, secs=15)
+    assert lib.by_id("epic-Fern")["state"] is None and "epic-Fern" not in inst.index

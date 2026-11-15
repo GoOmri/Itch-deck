@@ -44,6 +44,23 @@ class PlayMixin:
         pg = self.pg
         self.scene.toast, self.toast_until = None, 0
         self._splash(f"Starting {g['title']}…", sub or QUIT_HINT)
+        args, secret, cwd = (), (), None
+        if info.get("store") == "epic":           # legendary says how (and signs the game in)
+            from .stores.epic import EpicError
+            try:
+                lp = self.lib.epic.launch_params(info["app_name"]) if self.lib.epic else None
+            except EpicError as e:
+                log.info("play: epic launch params: %s", e)
+                lp = None
+            if not lp:
+                self.say(f"{g['title']} couldn't start. Connect Epic again in Settings.", error=True)
+                return
+            exe = Path(lp["game_directory"]) / lp["game_executable"]
+            args = list(lp.get("game_parameters") or []) + list(lp.get("user_parameters") or [])
+            secret = list(lp.get("egl_parameters") or [])
+            cwd = lp.get("working_directory") or None
+            log.info("play: epic %s -> %s (%d args, %d sign-in args)", info["app_name"],
+                     exe, len(args), len(secret))
         state = {"closed": False}
         mm = None
         eff = self.controls_of(g)[1]
@@ -64,7 +81,8 @@ class PlayMixin:
                     combo.start()
 
         rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump,
-                              size=self.screen.get_size(), umu=umu, extra_env=env, hold=hold)
+                              size=self.screen.get_size(), umu=umu, extra_env=env, hold=hold,
+                              args=args, secret_args=secret, cwd=cwd)
         if mm:
             mm.stop()
         combo.stop()

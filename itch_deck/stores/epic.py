@@ -185,3 +185,116 @@ class EpicStore:
                 games[g["id"]] = g
         log.info("epic sync: %d games", len(games))
         return list(games.values())
+
+    # --- step 2: install / launch / uninstall --------------------------------------
+    def _env(self):
+        from ..runner import child_env
+        return dict(child_env(), LEGENDARY_CONFIG_PATH=str(config_dir()))
+
+    def install(self, app_name, folder, on_progress=None, cancel=None, log_file=None):
+        """Download + install into folder (exactly). Resumes an interrupted install of the same
+        folder. on_progress(frac, mib_s, eta_s); cancel() -> True stops (raises Cancelled).
+        Returns the game's exe path relative to folder."""
+        from ..net import Cancelled
+        cmd = [str(bin_path()), "install", app_name, "-y", "--game-folder", str(folder),
+               "--platform", "Windows", "--skip-sdl", "--skip-dlcs"]
+        try:
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                 bufsize=1, env=self._env(), stdin=subprocess.DEVNULL,
+                                 start_new_session=True)
+        except OSError as e:
+            log.warning("epic: can't run legendary: %s", e)
+            raise EpicError("Couldn't start the Epic helper") from None
+        tail, speed = [], 0.0
+        out = open(log_file, "w") if log_file else None
+        stopper = None
+        try:
+            if cancel:                                # cancel even while legendary is quiet
+                import threading
+                stopper = threading.Event()
+
+                def watch():
+                    while not stopper.wait(0.5):
+                        if cancel() and p.poll() is None:
+                            _stop(p)
+                            return
+                threading.Thread(target=watch, daemon=True, name="epic-cancel").start()
+            for line in p.stdout:
+                if out:
+                    out.write(line)
+                tail = (tail + [line.rstrip()])[-15:]
+                m = PROGRESS.search(line)
+                if m and on_progress:
+                    h, mi, s = (int(x) for x in m.group(2, 3, 4))
+                    on_progress(float(m.group(1)) / 100, speed, h * 3600 + mi * 60 + s)
+                m = SPEED.search(line)
+                if m:
+                    speed = float(m.group(1)) * 1.048576     # MiB/s -> MB/s
+            p.wait()
+        finally:
+            if stopper:
+                stopper.set()
+            if out:
+                out.close()
+        if cancel and cancel():
+            raise Cancelled()
+        text = "\n".join(tail).lower()
+        if p.returncode != 0:
+            log.info("epic: install %s -> %s\n  %s", app_name, p.returncode, "\n  ".join(tail[-6:]))
+            if "disk space" in text:
+                raise EpicError("Not enough space")
+            if "login" in text and "fail" in text:
+                raise EpicError("Signed out of Epic")
+            raise EpicError("Couldn't install")
+        rec = self.installed().get(app_name) or {}
+        exe = rec.get("executable") or ""
+        if not exe:
+            raise EpicError("Couldn't install")
+        return exe.replace("\\", "/")
+
+    def installed(self):
+        """legendary's own record of what it installed: {app_name: {install_path, executable…}}."""
+        try:
+            return json.loads((config_dir() / "installed.json").read_text())
+        except (OSError, ValueError):
+            return {}
+
+    def launch_params(self, app_name):
+        """How to start the game: legendary's LaunchParameters (exe, args incl. Epic's sign-in
+        token for games that check it, working dir). Offline mode if Epic can't be reached."""
+        for extra in ([], ["--offline"]):
+            r = self._run(["launch", app_name, "--json", "--no-wine", "--skip-version-check", *extra],
+                          timeout=60)
+            try:
+                data = json.loads(r.stdout or "null")
+            except ValueError:
+                data = None
+            if r.returncode == 0 and isinstance(data, dict) and data.get("game_executable"):
+                return data
+        raise EpicError("Couldn't start")
+
+    def uninstall(self, app_name):
+        """Make legendary forget the install (SCRiTCH deletes the files itself)."""
+        if self.ready() and app_name in self.installed():
+            try:
+                self._run(["uninstall", app_name, "-y", "--keep-files", "--skip-uninstaller"],
+                          timeout=60)
+            except EpicError:
+                pass
+
+
+PROGRESS = re.compile(r"Progress: ([\d.]+)%.*?ETA: (\d+):(\d+):(\d+)")
+SPEED = re.compile(r"\+ Download\s*-\s*([\d.]+) MiB/s")
+
+
+def _stop(p):
+    """Stop legendary and its download workers (own process group); it keeps a resume file."""
+    import signal
+    try:
+        os.killpg(p.pid, signal.SIGTERM)
+        p.wait(10)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except OSError:
+            pass

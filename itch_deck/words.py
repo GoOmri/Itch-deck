@@ -13,6 +13,8 @@ _HINTS = (
     ("connection", "No internet"),
     ("online", "No internet"),
     ("API key", "Sign in to itch again"),
+    ("Signed out of Epic", "Connect Epic again"),
+    ("Connect Epic Games", "Connect Epic again"),
 )
 
 

@@ -446,6 +446,8 @@ class Installer:
             info, g = self.index.get(gid), self.lib.by_id(gid)
             if not info or g is None or gid == self.current or gid in self.queue:
                 continue
+            if info.get("store") == "epic":       # Epic updates: a later step
+                continue
             if not force and now - info.get("checked", 0) < UPDATE_EVERY_S:
                 continue
             try:
@@ -527,6 +529,8 @@ class Installer:
         return Path(self.root_fn()) / "_downloads"
 
     def _install(self, g):
+        if g.get("store") == "epic":
+            return self._install_epic(g)
         gid, store = g["id"], self.lib.store
         if not store:
             raise InstallError("Not connected to itch.io yet.")
@@ -647,6 +651,59 @@ class Installer:
         self._upd(gid, state="installed", phase=None, progress=0, fail_reason=None,
                   size_mb=used // 1_000_000, update=None)
 
+    def _install_epic(self, g):
+        """Epic game through legendary: GE-Proton + umu first (like an itch Windows build), then
+        `legendary install` straight into <root>/<game>/files (it resumes an interrupted one),
+        one progress bar from legendary's own progress lines."""
+        from .stores.epic import EpicError
+        gid, store = g["id"], self.lib.epic
+        if not store or not store.connected():
+            raise InstallError("Connect Epic Games in Settings first.")
+        t0 = time.time()
+        if not proton.proton_dir(self.cfg):
+            self._upd(gid, state="downloading", phase="ge", progress=0, speed_mbs=0, eta_s=0)
+            proton.fetch_ge(cancel=lambda: gid in self._cancel, on_bytes=self._meter(gid))
+        if not proton.umu_path():
+            self._upd(gid, state="downloading", phase="umu", progress=1)
+            proton.fetch_umu(cancel=lambda: gid in self._cancel)
+        root = Path(self.root_fn())
+        if config.card_missing(root):
+            raise InstallError("SD card missing. Insert it, or choose another install location "
+                               "in Settings.")
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            log.warning("install %s: can't write to %s: %s", gid, root, e)
+            raise InstallError(f"Can't write to the {config.drive_name(root)}.") from e
+        dest = self._game_dir(root, g)
+        files = dest / "files"
+        files.mkdir(parents=True, exist_ok=True)
+        logs = paths.LOGS / "games"
+        logs.mkdir(parents=True, exist_ok=True)
+        self._upd(gid, state="downloading", phase="download", progress=0, speed_mbs=0, eta_s=0)
+        log.info("install %s: epic %s -> %s", gid, g.get("app_name"), files)
+
+        def prog(frac, mbs, eta):
+            self._upd(gid, progress=min(frac, 0.999), speed_mbs=mbs, eta_s=eta)
+        try:
+            exe = store.install(g["app_name"], files, on_progress=prog,
+                                cancel=lambda: gid in self._cancel,
+                                log_file=logs / f"{dest.name}-install.log")
+        except EpicError as e:
+            raise InstallError(f"Couldn't install: {e}.") from None
+        used = sum(f.stat().st_size for f in files.rglob("*") if f.is_file() and not f.is_symlink())
+        info = {"game_id": gid, "title": g.get("title"), "store": "epic",
+                "app_name": g["app_name"], "upload_id": g["app_name"], "platform": "windows",
+                "filename": g["app_name"], "exe": exe, "alternatives": [], "size": used,
+                "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+                "dir": str(dest), "prefix": str(proton.prefix_dir(root, dest.name))}
+        _write_json(dest / "install.json", info)
+        self.index[gid] = info
+        _write_json(paths.INSTALLS, self.index)
+        log.info("install %s: done in %.0fs -> %s (exe %s)", gid, time.time() - t0, dest, exe)
+        self._upd(gid, state="installed", phase=None, progress=0, fail_reason=None,
+                  size_mb=used // 1_000_000, update=None)
+
     def _silent_install(self, gid, g, setup, tmp, root, dest):
         """Run setup.exe (Inno / NSIS) with no window into dest/files.inst, inside the game's
         own prefix, then put the result where the extracted files were (tmp). Returns the kind."""
@@ -737,6 +794,9 @@ class Installer:
         info = self.index.pop(gid, None)
         _write_json(paths.INSTALLS, self.index)
         self._upd(gid, state=None, phase=None)
+        if info and info.get("store") == "epic" and self.lib.epic:   # legendary forgets it too
+            threading.Thread(target=self.lib.epic.uninstall, args=(info.get("app_name"),),
+                             daemon=True, name="epic-uninstall").start()
         if info:
             log.info("uninstall %s: %s", gid, info["dir"])
             threading.Thread(target=shutil.rmtree, args=(info["dir"],), kwargs={"ignore_errors": True},

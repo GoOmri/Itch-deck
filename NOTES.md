@@ -626,6 +626,30 @@ DECISION (Omri 15 Nov): NO per-game Steam tiles for now. He starts games from SC
   Keys modes + the quit combo already cover what tiles would solve. Tiles need a Steam restart
   (shortcuts.vdf is read at Steam start) or a Decky plugin. If other players ask: an opt-in
   "Add to Steam" in a game's Options. Next: Epic step 2 (install / play Epic games).
+Epic step 2 (branch epic-install, NOT released - waits for "push"; Omri 15 Nov "start with epic install"):
+  - stores/epic.py EpicStore.install(app, folder, on_progress, cancel, log_file): `legendary install
+    <app> -y --game-folder <root>/<game>/files --platform Windows --skip-sdl --skip-dlcs` in its own
+    process group; progress from its log lines ("= Progress: N% … ETA: hh:mm:ss", "+ Download - N
+    MiB/s"); cancel = watcher thread SIGTERM to the group (legendary keeps a resume file, re-run
+    continues); exit != 0 -> EpicError("Not enough space" / "Signed out of Epic" / "Couldn't install");
+    exe from legendary's installed.json "executable" (backslashes -> /). Output -> logs/games/
+    <slug>-install.log. launch_params(app) = `launch --json --no-wine --skip-version-check`, retry
+    with --offline. uninstall(app) = `uninstall -y --keep-files --skip-uninstaller`.
+  - installer.Installer._install_epic: GE-Proton + umu first (like itch Windows), card/space checks,
+    index entry store "epic", app_name, upload_id = app_name, platform windows, prefix
+    <root>/_prefixes/<game> (saves kept). check_updates skips Epic. uninstall also tells legendary.
+  - app_play: Epic = launch_params -> exe/args/cwd; egl_parameters (Epic's one-time sign-in
+    token) passed as runner.run(secret_args=) and NEVER logged ("<Epic sign-in arguments hidden>").
+  - Game page: Epic games get Install/Play like itch; Options = Uninstall, Controls (no Change build).
+  - words: "Signed out of Epic" -> "Connect Epic again". Tests: tests/test_epic.py (stand-in legendary
+    installs with real-format progress lines, launch json, uninstall, no space, cancel).
+  Not yet: Epic updates (games play even if out of date), DLC, cloud saves.
+  UNVERIFIED on a real Epic game: progress line format of the current legendary, launch json,
+    how a real game runs under umu + GE-Proton (anti-cheat/EOS-online games won't).
+  Deck checklist (Epic step 2): 1 Update. 2 Pick a small free Epic game → Install: progress bar with
+    % / speed / time left. 3 Cancel halfway, Install again: continues. 4 Play: splash, game starts,
+    pad works; hold quit combo returns. 5 Options: Uninstall, Controls (no Change build). 6 Uninstall.
+    If broken: app.log "epic:", "install epic-…", logs/games/<game>-install.log and <game>.log.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

@@ -62,7 +62,9 @@ in, then copy the page of text Epic shows, paste it and tap Send. Your Epic libr
 own tab (All · Installed · itch · Epic). The code on that page works once and only for a few
 minutes, so do it in one go. SCRiTCH downloads the small open-source Epic helper
 ([legendary](https://github.com/legendary-gl/legendary)) the first time and keeps its own Epic
-sign-in, separate from Heroic. Installing Epic games from SCRiTCH comes in a later update.
+sign-in, separate from Heroic. Epic games install and play like itch Windows games (GE-Proton,
+saves kept on uninstall). Not yet: Epic game updates, DLC, cloud saves. Games with anti-cheat or
+online-only Epic features won't run (same as in Heroic).
 
 ### 4. GE-Proton (for Windows games)
 Nothing to do: the first time you install a Windows game, scritch downloads the newest
