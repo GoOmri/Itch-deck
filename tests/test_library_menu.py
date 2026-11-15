@@ -55,3 +55,27 @@ def test_old_recent_tab_falls_back_to_all():
     from itch_deck import fake
     from itch_deck.ui.scenes.library import Library
     assert Library(t, fake.library(), filt="recent").filt == "all"
+
+
+def test_each_tab_keeps_its_own_sort_and_filter():
+    """Omri 15 Nov: a filter set on All must not hide games on Installed."""
+    t, sc = _scene()
+    inst = [g for g in sc.games if g.get("state") in ("installed", "missing")]
+    sc.length, sc.sort = "short", "short"          # filter All
+    assert sc.filt == "all" and sc.filtered()
+    sc.next_tab(1)                                 # -> Installed
+    assert sc.filt == "installed" and not sc.filtered() and len(sc.shown) == len(inst)
+    sc.sort = "played"
+    sc.next_tab(-1)                                # back to All: its own settings again
+    assert (sc.sort, sc.length) == ("short", "short")
+    assert sc.views["installed"]["sort"] == "played"
+
+
+def test_old_single_filter_moves_to_all(tmp_path):
+    from itch_deck import app as A
+    a = A.App.__new__(A.App)
+    a.cfg = {"library_sort": "played", "library_length": "short"}
+    a.filt = "installed"
+    v = a._views()
+    assert v["all"]["length"] == "short" and v["all"]["genre"] == "any"
+    assert "library_sort" not in a.cfg and "installed" not in v

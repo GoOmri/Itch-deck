@@ -571,6 +571,23 @@ v0.7.4 RELEASED 15 Nov (Omri "push update"; branch v074-start-split = split inst
     Infinity (Windows) still start. 5 Stranger More: Install -> Play. 6 Settings: ▲▼ / A / B
     feel right. 7 Holding the D-pad scrolls at the same speed as before.
     If broken: logs/launcher.log + app.log. Rollback: rename itch-deck.old to itch-deck.
+v0.7.4 Deck test (15 Nov): faster start ✓ "no flicker, opens really quick". Library "37 games" = a
+  saved Length filter on All (sync was fine: 129 + 3 every time) -> Omri: filters per tab.
+  Bleed 2 ignores the DualSense unless the DualSense started the tile: Steam makes the launching
+  pad player 1 and Bleed 2 reads only player 1. Not ours; workaround = start SCRiTCH with the pad
+  you'll play with. Later idea (research): hide the other pads from single-player games.
+v0.7.5 (branch v075-tabs-splash, NOT released - waits for "push update"):
+  - Sort & filter per tab: Library.views {tab: {sort, show, genre, length}}, sort/show/genre/length
+    are properties on the current tab's view; cfg "library_views" (old library_* keys -> All on
+    first load, App._views). Installed starts unfiltered. Mockup 06d. tests/test_library_menu.py.
+  - Launch splash: open_display draws W.launch_splash (big logo, SPLASH_U 9u) as the first frame;
+    the first page fades in over it (fade_dir 0 = no slide). Steam's logo before our window stays
+    (can't draw there). Mockup 00_launch. Gallery updated (+ Settings sidebar 21a/21c/21d).
+  - itch answering {"errors": ...} mid-sync raises stores.itch.SyncError (library kept) instead of
+    being read as the end of the list.
+  Deck checklist v0.7.5: 1 Update. 2 Start from the tile: logo, then the library fades in. 3 All
+    keeps your filter; Installed shows every installed game; set a sort on Installed, switch tabs,
+    come back: each tab kept its own. 4 Restart SCRiTCH: both remembered.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

@@ -665,16 +665,27 @@ def tag(t, s, label, x, y, kind="neutral", anchor="topleft", icon_name=None):
     return r
 
 
-def wordmark(t, s, x, y, anchor="topleft"):
+def wordmark(t, s, x, y, anchor="topleft", size=3.2):
     """The logo: SCRiTCH in bold, letters purple, the lowercase i white. No pill.
-    Drawn letter by letter (advance = width of the text so far, so kerning stays right)."""
-    f = t.font("Bold", t.u * 3.2)
+    Drawn letter by letter (advance = width of the text so far, so kerning stays right).
+    size in u: 3.2 in the top bar / Setup, bigger on the launch splash."""
+    f = t.font("Bold", t.u * size)
     if anchor in ("baseleft", "baseright"):
         anchor, y = ("topleft" if anchor == "baseleft" else "topright"), y - f.get_ascent()
     box = pg.Rect(0, 0, f.size(APP_NAME)[0], f.get_height())
     setattr(box, anchor, (int(x), int(y)))
     s.blit(render_text(t, f, APP_NAME, None), box)      # same name rule as all text
     return box
+
+
+def launch_splash(t, s):
+    """The first frame when SCRiTCH opens: background + the logo, big and centred. The library
+    (or Setup) then fades in over it (App: fade_dir 0 = fade only, no slide)."""
+    s.blit(backdrop(t), (0, 0))
+    wordmark(t, s, t.cx, t.h / 2, anchor="center", size=SPLASH_U)
+
+
+SPLASH_U = 9.0          # logo size on the launch splash (u)
 
 
 def pill(t, s, label, x, y, fill=None, color=None, font=None, anchor="topleft"):

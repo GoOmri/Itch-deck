@@ -75,6 +75,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             self.inst.resume()
         else:
             self.go_setup("waiting")
+        if not self.windowed:                      # the logo fades into the first page
+            self.fade_from, self.fade_t0, self.fade_dir = self.screen.copy(), time.monotonic(), 0
 
     # --- display -------------------------------------------------------
     def open_display(self):
@@ -96,7 +98,10 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         pg.display.set_caption(W.APP_NAME)
         pg.mouse.set_visible(False)
         self.t = theme.Theme(pg, self.screen.get_size())
-        self.screen.blit(W.backdrop(self.t), (0, 0))   # first frame = our background, not black
+        if getattr(self, "scene", None) is None and not self.windowed:
+            W.launch_splash(self.t, self.screen)        # first frame = the logo, not black
+        else:
+            self.screen.blit(W.backdrop(self.t), (0, 0))
         pg.display.flip()
         log.info("display open %s driver=%s", self.screen.get_size(), pg.display.get_driver())
 
@@ -128,10 +133,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
 
     def go_library(self):
         from .ui.scenes.library import Library as LibScene
-        c = self.cfg
-        sc = LibScene(self.t, self.lib.games, filt=self.filt, sort=c.get("library_sort", "az"),
-                      show=c.get("library_show", "all"), genre=c.get("library_genre", "any"),
-                      length=c.get("library_length", "any"))
+        sc = LibScene(self.t, self.lib.games, filt=self.filt, views=self._views())
         self._set("library", sc)
         self._sync_library_scene()
         ids = [g["id"] for g in sc.shown]
@@ -163,12 +165,24 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         self._set("settings", Settings(self.t, self.settings_values(), VERSION,
                                        str(paths.LOGS / "app.log")))
 
-    def _shown(self):
-        from .ui.scenes.library import visible
+    def _views(self):
+        """Sort & filter per library tab (cfg "library_views"). Before v0.7.5 there was one
+        setting for every tab: it becomes All's, so Installed starts unfiltered."""
         c = self.cfg
-        return visible(self.lib.games, self.filt, c.get("library_sort", "az"),
-                       c.get("library_show", "all"), c.get("library_genre", "any"),
-                       c.get("library_length", "any"))
+        if not isinstance(c.get("library_views"), dict):
+            old = {k: c.pop(f"library_{k}") for k in ("sort", "show", "genre", "length")
+                   if f"library_{k}" in c}
+            c["library_views"] = {"all": old} if old else {}
+        from .ui.scenes.library import VIEW
+        for v in c["library_views"].values():
+            for k, d in VIEW.items():
+                v.setdefault(k, d)
+        return c["library_views"]
+
+    def _shown(self):
+        from .ui.scenes.library import VIEW, visible
+        v = self._views().get(self.filt, VIEW)
+        return visible(self.lib.games, self.filt, v["sort"], v["show"], v["genre"], v["length"])
 
     # --- per-scene input -----------------------------------------------
     def handle(self, act):
@@ -193,8 +207,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         if sc.overlay and sc.overlay[0] == "menu":   # X: Sort & filter
             if act in (A, LEFT, RIGHT):
                 sc.menu_next(sc.overlay[3][sc.overlay[4]][0], -1 if act == LEFT else 1)
-                self.cfg.update(library_sort=sc.sort, library_show=sc.show,
-                                library_genre=sc.genre, library_length=sc.length)
+                self.cfg["library_views"] = sc.views      # this tab's Sort & filter
                 config.save(self.cfg)
             elif act in (B, X):
                 sc.overlay = None

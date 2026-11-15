@@ -63,22 +63,39 @@ def visible(games, filt="all", sort="az", show="all", genre="any", length="any")
     return gs
 
 
+VIEW = {"sort": "az", "show": "all", "genre": "any", "length": "any"}   # a tab with no filter
+
+
+def _view_prop(name):
+    """sort / show / genre / length read and write the CURRENT tab's view (Omri 15 Nov: each tab
+    has its own Sort & filter; Installed must not lose games to a filter set on All)."""
+    return property(lambda self: self.view()[name],
+                    lambda self, v: self.view().__setitem__(name, v))
+
+
 class Library(Scene):
+    sort, show, genre, length = (_view_prop(n) for n in ("sort", "show", "genre", "length"))
+
     def __init__(self, t, games, filt="all", focus=0, syncing=None, sync_page=0,
                  offline_since=None, offline=False, sort="az", show="all", genre="any",
-                 length="any", stores=("itch",), **kw):
+                 length="any", stores=("itch",), views=None, **kw):
         super().__init__(t, **kw)
         self.stores = tuple(stores)
         if filt not in dict(self.tabs()):     # e.g. an old "recent" tab, or Epic disconnected
             filt = "all"
         self.games, self.filt, self.focus = games, filt, focus
-        self.sort, self.show = sort, show                   # X menu (saved in config by the app)
-        self.genre, self.length = genre, length
+        # X menu per tab: {tab: {sort, show, genre, length}} (saved in config by the app);
+        # without views, the sort/show/genre/length arguments are the current tab's
+        self.views = views if views is not None else \
+            {filt: dict(sort=sort, show=show, genre=genre, length=length)}
         self.syncing, self.sync_page = syncing, sync_page   # None | "first" | "bg"
         self.offline_since = offline_since
         self.offline = offline          # True with no cache yet: nothing to show
         self.activity = None            # "Covers 40/120", "Downloading 45% · Game"… (top bar)
         self.notice = None              # app update state (top bar, accent colour, no spinner)
+
+    def view(self):
+        return self.views.setdefault(self.filt, dict(VIEW))
 
     @property
     def shown(self):

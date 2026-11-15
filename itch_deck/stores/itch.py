@@ -11,6 +11,10 @@ API = "https://api.itch.io"
 MAX_PAGES = 200  # safety stop
 
 
+class SyncError(Exception):
+    """itch answered with an error mid-sync; the library on screen stays as it was."""
+
+
 def parse_owned_keys(data):
     """owned_keys comes back as a list, or as {} / an object when empty or oddly encoded."""
     ok = data.get("owned_keys") if isinstance(data, dict) else None
@@ -158,7 +162,11 @@ class ItchStore(Store):
         for page in range(1, MAX_PAGES + 1):
             if on_page:
                 on_page(page)
-            keys = parse_owned_keys(net.get_json(f"{API}/profile/owned-keys?page={page}", self.key))
+            data = net.get_json(f"{API}/profile/owned-keys?page={page}", self.key)
+            if isinstance(data, dict) and data.get("errors"):
+                # an error is not the end of the list: fail the sync so the library is kept
+                raise SyncError(f"owned-keys page {page}: {data['errors']}")
+            keys = parse_owned_keys(data)
             if not keys:
                 break
             for k in keys:

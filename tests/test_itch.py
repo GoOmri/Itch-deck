@@ -129,3 +129,17 @@ def test_cache_roundtrip(tmp_path):
     lib2 = library.Library()
     assert lib2.games[0]["platforms"] == {"linux", "windows"}
     assert json.loads(paths.LIBRARY.read_text())["games"][0]["title"] == "Game 5"
+
+
+def test_error_page_is_not_end_of_list(monkeypatch):
+    """itch answering {"errors": [...]} on page 2 must fail the sync (library kept), not end it."""
+    import pytest
+    from itch_deck import net
+    from itch_deck.stores import itch as it
+    page1 = {"owned_keys": [{"id": i, "game": {"id": i, "title": f"G{i}"}} for i in range(1, 51)]}
+
+    def fake(url, key=None, timeout=20):
+        return page1 if "page=1" in url else {"errors": ["rate limited"]}
+    monkeypatch.setattr(net, "get_json", fake)
+    with pytest.raises(it.SyncError):
+        it.ItchStore("k").sync()
