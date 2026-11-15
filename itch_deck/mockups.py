@@ -124,10 +124,6 @@ def _shots(t, version):
         def draw(self, s):
             W.splash(t, s, self.msg, self.sub)
 
-    class Launch:                      # first frame when SCRiTCH opens (fades into the library)
-        def draw(self, s):
-            W.launch_splash(t, s)
-
     if pads.current == "ps":           # DualSense set: the screens where its glyphs show
         return [
             ("ps_04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),
@@ -142,7 +138,6 @@ def _shots(t, version):
         ]
     return [
         ("25_starting", Splash("Starting Moss & Rivets…", QUIT_HINT)),
-        ("00_launch", Launch()),
         ("06d_library_installed_own_filter", Library(t, lib, filt="installed", focus=0, views={
             "all": dict(sort="az", show="all", genre="Puzzle", length="short"),
             "installed": dict(sort="played", show="all", genre="any", length="any")})),

@@ -89,9 +89,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   active filters ("Puzzle · 26 games"). **Each tab keeps its own Sort & filter** (Omri 15 Nov): a filter set on All never hides games on Installed; Installed starts unfiltered. Genre goes in the info line; time to beat gets its own
   dim line ("Main story ~4 h · Completionist ~9 h"), or nothing if HLTB doesn't know the game
   (strict title match: no time beats a wrong time).
-- **Launch:** the first frame is the logo, big and centred on the background
-  (`W.launch_splash`); the first page fades in over it (no slide). Steam's own logo shows
-  before our window exists; we can't draw there.
+- **Launch:** no splash. The first frame is the plain background, then the library at once
+  (Omri 15 Nov: start is so quick a logo only flashed). Steam's own logo shows before our window.
 - **Settings** (from the Library's ☰): a sidebar of categories (App · Account · Storage · Games ·
   Controls), the chosen one's settings on the right, like the Deck's own Settings. ▲▼ picks a
   category (its settings show right away), A / ▶ goes in, B / ◀ comes back. App is first: one

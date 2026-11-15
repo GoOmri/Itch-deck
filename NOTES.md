@@ -588,6 +588,9 @@ v0.7.5 RELEASED 15 Nov (Omri "push"; branch v075-tabs-splash):
   Deck checklist v0.7.5: 1 Update. 2 Start from the tile: logo, then the library fades in. 3 All
     keeps your filter; Installed shows every installed game; set a sort on Installed, switch tabs,
     come back: each tab kept its own. 4 Restart SCRiTCH: both remembered.
+v0.7.5 Deck test (15 Nov): all ✓. Omri: the launch logo only flashes (start too quick) -> removed
+  on branch v076-no-splash (first frame = plain background, no fade; W.launch_splash, mockup 00
+  and DESIGN line gone). NOT released.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

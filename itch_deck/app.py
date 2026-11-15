@@ -75,8 +75,6 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             self.inst.resume()
         else:
             self.go_setup("waiting")
-        if not self.windowed:                      # the logo fades into the first page
-            self.fade_from, self.fade_t0, self.fade_dir = self.screen.copy(), time.monotonic(), 0
 
     # --- display -------------------------------------------------------
     def open_display(self):
@@ -98,11 +96,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         pg.display.set_caption(W.APP_NAME)
         pg.mouse.set_visible(False)
         self.t = theme.Theme(pg, self.screen.get_size())
-        if getattr(self, "scene", None) is None and not self.windowed:
-            W.launch_splash(self.t, self.screen)        # first frame = the logo, not black
-        else:
-            self.screen.blit(W.backdrop(self.t), (0, 0))
-        pg.display.flip()
+        self.screen.blit(W.backdrop(self.t), (0, 0))   # first frame = our background, not black
+        pg.display.flip()                               # (a logo splash only flashed: start is too quick)
         log.info("display open %s driver=%s", self.screen.get_size(), pg.display.get_driver())
 
     # --- navigation ----------------------------------------------------
