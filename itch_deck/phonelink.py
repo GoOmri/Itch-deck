@@ -173,11 +173,12 @@ CSS = """body{margin:0;background:#10101e;color:#f0f0f0;font:17px/1.45 system-ui
 main{max-width:30rem;margin:0 auto;padding:1.4rem;
 padding-top:max(3rem,calc(env(safe-area-inset-top) + 1.6rem))}h1{font-size:1.35rem;margin:.2rem 0 1rem}
 ol{padding-left:1.2rem}li{margin:.7rem 0}small{color:#9a9ab0}
-.btn{display:inline-block;background:#2c2e48;color:#fff;padding:.6rem 1rem;border-radius:.6rem;
-text-decoration:none;font-weight:600}textarea{width:100%;box-sizing:border-box;min-height:6rem;
+.btn,button{display:inline-block;box-sizing:border-box;background:#2c2e48;color:#fff;
+padding:.9rem 1.1rem;border:0;border-radius:.6rem;text-decoration:none;text-align:center;
+font:700 1.05rem system-ui,sans-serif;cursor:pointer}textarea{width:100%;box-sizing:border-box;min-height:6rem;
 background:#1d1f33;color:#fff;border:1px solid #3a3c58;border-radius:.6rem;padding:.7rem;font:inherit}
-button{margin-top:.8rem;width:100%;padding:.9rem;border:0;border-radius:.6rem;background:#9d6bff;
-color:#fff;font:700 1.05rem system-ui,sans-serif}.btn.pri{background:#9d6bff}.err{color:#ff8a8a}
+button,.btn.pri{background:#9d6bff}form button{margin-top:.8rem;width:100%}
+/* ONE button style for <a class="btn"> and <button>: same size everywhere; purple = main */.err{color:#ff8a8a}
 .nm{color:#9d6bff}.nm i{color:#fff;font-style:normal}.note{color:#9a9ab0;font-size:.85rem}
 .wide{display:block;text-align:center}
 .res{min-height:72vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
@@ -254,7 +255,7 @@ def sent_page(token, preview=None):
             + result("ok", ok_h, ok_p, '<button onclick="closeTab()">Close this tab</button>'
                      '<p class="note" id="closed" hidden>You can close this tab now.</p>'
                      ).replace('<div class="res"', f'<div class="res"{hide("ok")}', 1)
-            + result("bad", bad_h, bad_p, f'<a class="btn wide" href="/?t={html.escape(token)}">'
+            + result("bad", bad_h, bad_p, f'<a class="btn pri wide" href="/?t={html.escape(token)}">'
                      'Try another key</a>').replace('<div class="res"', f'<div class="res"{hide("bad")}', 1))
     return _page("Sent", body + f"""
 <script>const t={t};let n=0;
