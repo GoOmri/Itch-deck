@@ -55,6 +55,10 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
         self.filt, self.lib_focus_id = "all", None
         self.key_result = None          # (status, key, file, user) from the checking thread
         self.pending_key = None         # key waiting for Retry after "offline"
+        self.phone = None               # PhoneLink while the Setup page is up (phone login)
+        self.phone_text = None          # what the phone sent (set from the server thread)
+        self.phone_status = ""          # what the phone page shows while it waits
+        self.phone_stop_at = 0
         self.tried_mtime = None
         self.next_poll = 0
         from .ui import widgets
@@ -100,12 +104,16 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
                 self.fade_from, self.fade_t0 = self.screen.copy(), time.monotonic()  # slide + fade
             except Exception:  # noqa: BLE001  - display closed (game running): no fade
                 self.fade_from = None
+        if kind != "setup" and self.phone and not self.phone_stop_at:
+            self.phone_stop_at = time.time() + 6   # let the phone read "Connected", then close
         self.kind, self.scene = kind, scene
         self.toast_until = 0
 
     def go_setup(self, status, back=False):
         from .ui.scenes.setup import Setup
-        self._set("setup", Setup(self.t, status, back=back))
+        self._phone_start()
+        self._set("setup", Setup(self.t, status, back=back, qr=self.phone and self.phone.qr(),
+                                 url=self.phone and self.phone.short_url))
         self.inp.set_text_mode(False)
 
     def go_library(self):
@@ -277,6 +285,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin):
             self.scene.toast, self.toast_until = None, 0
         if self.key_result and self.kind == "setup":
             self._key_done()
+        self._phone_tick(now)
         if self.lib.auth_failed:
             self.lib.auth_failed = False
             self.go_setup("rejected")
@@ -361,6 +370,28 @@ def selftest(screenshot=None):
     paths.use_root(tempfile.mkdtemp(prefix="itch-deck-selftest-"))
     app = App(windowed=True)
     assert app.kind == "setup"
+    # v0.7 phone login: the phone sends a key -> checked -> library; the page closes soon after
+    if app.phone:                                      # needs a network interface
+        assert app.scene.qr and app.scene.url
+        from .stores import itch as itch_mod
+        real_check = itch_mod.ItchStore.check_key
+        itch_mod.ItchStore.check_key = lambda self: "selftest-user"
+        try:
+            app._phone_got("Key: AbCdEf0123456789abcdefABCDEF")
+            for _ in range(100):
+                app.update()
+                if app.kind == "library":
+                    break
+                time.sleep(0.02)
+            assert app.kind == "library", app.kind
+            assert app.cfg["api_key"] == "AbCdEf0123456789abcdefABCDEF"
+            assert "Connected as selftest-user" in app.phone_status
+            app.phone_stop_at = time.time() - 1
+            app.update()
+            assert app.phone is None, "phone page still open after leaving Setup"
+        finally:
+            itch_mod.ItchStore.check_key = real_check
+        app = App(windowed=True)
     app.run(max_frames=3, script={1: RIGHT})
     app = App(windowed=True)
     app.lib.games = [dict(g) for g in fake.library()]

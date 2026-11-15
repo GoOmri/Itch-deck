@@ -68,6 +68,15 @@ def _shots(t, version):
     from .ui.scenes.settings import Settings
     from .ui.scenes.setup import Setup
 
+    PHONE_URL = "192.168.1.20:41817/?t=Xb2kQ9fA3mE"
+
+    def _qr():
+        import qrcode
+        q = qrcode.QRCode(border=0, error_correction=qrcode.constants.ERROR_CORRECT_M)
+        q.add_data("http://" + PHONE_URL)
+        q.make(fit=True)
+        return q.get_matrix()
+
     lib = fake.library()
     by = {g["title"]: g for g in lib}
     idx = {g["title"]: i for i, g in enumerate(lib)}
@@ -107,8 +116,9 @@ def _shots(t, version):
         return scene
 
     return [
-        ("01_setup_waiting", Setup(t, "waiting")),
-        ("02_setup_rejected", Setup(t, "rejected")),
+        ("01_setup_waiting", Setup(t, "waiting", qr=_qr(), url=PHONE_URL)),
+        ("01b_setup_no_network", Setup(t, "waiting")),
+        ("02_setup_rejected", Setup(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("02b_setup_typing", Setup(t, "waiting", typing=True, typed="Xk3vQ2b7f19aa0c4d6e8")),
         ("03_library_first_sync", Library(t, lib, syncing="first", sync_page=3)),
         ("04_library", Library(t, lib, focus=idx["Bramble Run"], syncing="bg")),

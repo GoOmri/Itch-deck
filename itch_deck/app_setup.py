@@ -1,17 +1,57 @@
 """Setup page: importing and checking the itch API key.
 Mixed into App (app.py); split out of app.py on 15 Nov, code unchanged."""
 import logging
+import re
 import threading
 
 from . import config, net, paths
 from .input import (A, B, TEXT, BKSP, ENTER, PASTE)
 from .stores.itch import ItchStore
 from .app_common import QUIT_DLG
+from .phonelink import PhoneLink
 
 log = logging.getLogger("itch-deck")
 
 
+def key_from_text(text):
+    """The itch API key out of whatever the phone pasted (the key, or a line around it)."""
+    words = re.findall(r"[A-Za-z0-9_-]{16,}", text or "")
+    return max(words, key=len) if words else (text or "").strip()
+
+
 class SetupMixin:
+    # --- phone login (QR) ------------------------------------------------
+    def _phone_start(self):
+        if self.phone and self.phone.httpd:
+            self.phone_stop_at = 0
+            return
+        self.phone = PhoneLink("itch", self._phone_got, lambda: self.phone_status)
+        if not self.phone.start():
+            self.phone = None
+
+    def _phone_got(self, text):          # server thread: hand over to the main loop
+        self.phone_status = "Checking it on your Deck…"
+        self.phone_text = text
+
+    def _phone_tick(self, now):
+        p = self.phone
+        if not p:
+            return
+        if self.phone_stop_at and now > self.phone_stop_at:
+            p.stop()
+            self.phone, self.phone_stop_at = None, 0
+            return
+        if self.kind != "setup":
+            return
+        sc = self.scene
+        if self.phone_text and sc.status != "testing":
+            text, self.phone_text = self.phone_text, None
+            sc.typing = False
+            self.check_key(key_from_text(text))
+        if p.tick():                      # the one-time password ran out: new QR
+            sc.qr, sc.url = p.qr(), p.short_url
+
+
     def try_import(self, auto=False):
         f = paths.KEY_FILE
         if not f.exists():
@@ -52,6 +92,10 @@ class SetupMixin:
         if status != "ok":
             self.pending_key = key if status == "offline" else None
             self.scene.status = status
+            self.phone_status = {"rejected": "Key rejected by itch. Generate a new one and paste "
+                                             "it again.",
+                                 "offline": "Your Deck can't reach itch.io. Check its Wi-Fi."
+                                 }.get(status, "")
             return
         self.cfg["api_key"] = key
         config.save(self.cfg)
@@ -61,6 +105,7 @@ class SetupMixin:
             except OSError:
                 log.warning("could not delete %s", file)
         self.pending_key = None
+        self.phone_status = f"Connected as {user}. Look at your TV."
         self.lib.store, self.lib.auth_failed = ItchStore(key), False
         self.go_library()
         self.lib.start_sync()
