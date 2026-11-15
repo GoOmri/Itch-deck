@@ -943,6 +943,26 @@ def modal(t, s, title, body, buttons=None, focus=0):
     return r
 
 
+def details_box(t, s, title, sub, lines):
+    """Game ⚙ → Details: the last lines of the game's log, small and dim (for troubleshooting;
+    the screen elsewhere keeps to short plain words)."""
+    shade(t, s)
+    pad = t.lg
+    w = min(t.w - 2 * t.m, int(t.read_w * 1.5))
+    lh = t.f_small.get_linesize()
+    room = t.h - t.hint_h - 2 * t.m - 2 * pad - t.f_h2.get_linesize() - lh - t.md
+    lines = lines[-max(1, room // lh):]
+    h = 2 * pad + t.f_h2.get_linesize() + lh + t.md + max(1, len(lines)) * lh
+    r = pg.Rect(0, 0, w, h)
+    r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
+    panel(t, s, r)
+    y = text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom
+    y = text(t, s, sub, r.x + pad, y, t.f_small, color=t.dim).bottom + t.md
+    for ln in lines or ["Nothing logged for this game yet."]:
+        y = text(t, s, ln, r.x + pad, y, t.f_small, color=t.text_c, maxw=w - 2 * pad).bottom
+    return r
+
+
 def menu(t, s, title, sub, items, focus, arrows=False):
     """THE small list dialog: build picker, game Options (☰), Sort & filter (X).
     items: [(label, value, sub)] like W.rows. Actions are in the footer."""

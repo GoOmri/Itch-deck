@@ -76,12 +76,14 @@ class Game(Scene):
             return []
         epic = g.get("store") == "epic"             # one build per game: no Change build
         if st == "installed":
-            return ["Uninstall", "Controls"] if epic else ["Uninstall", "Change build", "Controls"]
+            return (["Uninstall", "Controls"] if epic else
+                    ["Uninstall", "Change build", "Controls"]) + ["Details"]
         if st == "missing":
             return [] if g.get("missing") == "card" else ["Uninstall"]
         if st in ("downloading", "queued") or self.phase:
             return []
-        return [] if epic else ["Change build"]
+        more = ["Details"] if st == "failed" else []        # what went wrong, for troubleshooting
+        return ([] if epic else ["Change build"]) + more
 
     def open_options(self):
         if self.options():
@@ -95,6 +97,10 @@ class Game(Scene):
                 focus = max(0, min(len(items) - 1, focus + (1 if act == DOWN else -1)))
                 self.overlay = (kind, title, sub, items, focus)
             elif act == B:
+                self.overlay = None
+            return
+        if self.overlay and self.overlay[0] == "details":
+            if act in (B, A):
                 self.overlay = None
             return
         if self.overlay and self.overlay[0] == "viewer":
@@ -148,6 +154,8 @@ class Game(Scene):
             return [("A", "Select"), ("B", "Close")]
         if self.overlay[0] == "viewer":
             return [("◀", ""), ("▶", "Previous / next"), ("B", "Close")]
+        if self.overlay[0] == "details":
+            return [("B", "Close")]
         return super().overlay_hints()           # confirm dialog: same footer everywhere
 
     # --- drawing -------------------------------------------------------
@@ -421,6 +429,8 @@ class Game(Scene):
     def draw_overlay(self, s):
         if self.overlay[0] == "viewer":
             return self._viewer(s)
+        if self.overlay[0] == "details":
+            return W.details_box(self.t, s, *self.overlay[1:])
         if self.overlay[0] not in ("picker", "menu"):
             return super().draw_overlay(s)
         W.menu(self.t, s, *self.overlay[1:])

@@ -106,6 +106,7 @@ class Library:
         self.store = store
         self.epic = None               # EpicStore when connected (opt-in, read-only for now)
         self.epic_error, self.epic_syncing = None, False
+        self.on_epic_sync = None       # Installer: compare installed Epic builds with Epic's
         self.games, self.synced_at = [], None
         self.syncing = None            # None | "first" | "bg"
         self.page = 0
@@ -312,6 +313,11 @@ class Library:
         self.save_cache()
         self.queue_covers()
         self.queue_hltb()
+        if self.on_epic_sync:
+            try:
+                self.on_epic_sync()
+            except Exception:  # noqa: BLE001
+                log.exception("epic update check failed")
         return True
 
     def drop_epic(self):

@@ -310,6 +310,7 @@ class Installer:
         self._lock = threading.Lock()
         self.updating = set()     # gids queued as updates (same upload id may be reinstalled)
         lib.installs, lib.live = self.index, {}
+        lib.on_epic_sync = self.check_epic_updates
         lib.apply_installs()
 
     # --- queue (called from the UI thread) ---
@@ -471,6 +472,30 @@ class Installer:
                 info.pop("update", None)
             self._save_info(gid, info)
             g["update"] = info.get("update")
+        return found
+
+    def check_epic_updates(self):
+        """After each Epic sync: an installed Epic game whose build differs from Epic's newest
+        gets the Update badge/button (Update = legendary downloads only what changed)."""
+        store = self.lib.epic
+        if not store:
+            return 0
+        latest, have, found = getattr(store, "latest", {}), store.installed(), 0
+        for gid, info in list(self.index.items()):
+            if info.get("store") != "epic" or gid == self.current or gid in self.queue:
+                continue
+            app = info.get("app_name")
+            cur, new = (have.get(app) or {}).get("version"), latest.get(app)
+            if cur and new and cur != new:
+                info["update"] = {"upload_id": app, "filename": app, "updated": ""}
+                log.info("updates %s: epic build %s -> %s", gid, cur, new)
+                found += 1
+            else:
+                info.pop("update", None)
+            self._save_info(gid, info)
+            g = self.lib.by_id(gid)
+            if g is not None:
+                g["update"] = info.get("update")
         return found
 
     def _save_info(self, gid, info):
@@ -666,7 +691,8 @@ class Installer:
         if not proton.umu_path():
             self._upd(gid, state="downloading", phase="umu", progress=1)
             proton.fetch_umu(cancel=lambda: gid in self._cancel)
-        root = Path(self.root_fn())
+        old = self.index.get(gid)                  # Update: legendary patches where it is
+        root = Path(old["dir"]).parent if old else Path(self.root_fn())
         if config.card_missing(root):
             raise InstallError("SD card missing. Insert it, or choose another install location "
                                "in Settings.")
@@ -675,7 +701,7 @@ class Installer:
         except OSError as e:
             log.warning("install %s: can't write to %s: %s", gid, root, e)
             raise InstallError(f"Can't write to the {config.drive_name(root)}.") from e
-        dest = self._game_dir(root, g)
+        dest = Path(old["dir"]) if old else self._game_dir(root, g)
         files = dest / "files"
         files.mkdir(parents=True, exist_ok=True)
         logs = paths.LOGS / "games"

@@ -141,6 +141,8 @@ def fetch_legendary(cancel=None, on_bytes=None):
 class EpicStore:
     name = "epic"
 
+    latest = {}                      # app_name -> newest Windows build_version (from sync)
+
     def ready(self):
         b = bin_path()
         return b.is_file() and os.access(b, os.X_OK)
@@ -200,11 +202,16 @@ class EpicStore:
             data = None
         if r.returncode != 0 or not isinstance(data, list):
             raise EpicError("Couldn't reach Epic")
-        games = {}
+        games, latest = {}, {}
         for entry in data:
             g = game_from_json(entry)
             if g:
                 games[g["id"]] = g
+                win = next((v for k, v in (entry.get("asset_infos") or {}).items()
+                            if k.lower() == "windows"), None) or {}
+                if win.get("build_version"):
+                    latest[entry["app_name"]] = win["build_version"]
+        self.latest = latest
         log.info("epic sync: %d games", len(games))
         _log_text_fields(data)
         return list(games.values())

@@ -683,6 +683,16 @@ Steam genres (branch steam-genres, NOT released; Omri 15 Nov "yes"): steam.pick_
   Violent, Gore, Nudity, Sexual Content) and uses itch's words (RPG -> Role Playing, Education ->
   Educational). Page json keeps "steam_genres" (full list); v0.7.9 Epic pages without it are
   cleaned at read time (library._genre) and refetched once by the prefetch.
+v0.8.0 additions (Omri 15 Nov "yes"):
+  - Epic updates: EpicStore.sync keeps .latest {app: Windows build_version} from list --json;
+    Library.sync_epic -> on_epic_sync = Installer.check_epic_updates: installed.json "version" !=
+    latest -> info/g "update" (badge + Play · Update · ⚙). Update = same _install_epic (legendary
+    `install` on an installed game patches only what changed), in the game's existing folder
+    (old["dir"]), even if the install location changed since. Update needs lib.epic (not itch).
+  - Details (Omri's troubleshooting idea): game ⚙ → Details (installed, or failed) =
+    W.details_box with the last lines of logs/games/<slug>-install.log (failed) or <slug>.log
+    (last run), else app.log lines with the game id; api_key/key/token/password/code= values
+    blanked, tabs -> spaces, 160 chars max. Mockup 16b. Tests in tests/test_epic.py.
 Earlier: Epic descriptions (Omri 15 Nov): only the catalog's short "description" shows (game page header).
   v0.7.8 logs "epic text fields: {...}" after each Epic sync (counts of description /
   longDescription / shortDescription / technicalDetails / screenshot keyImages + one long sample).

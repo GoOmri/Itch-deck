@@ -64,8 +64,10 @@ class GameMixin:
                          "install it again any time.", "Uninstall", lambda: self._uninstall(g))
         elif label == "Play":
             self.play(g)
+        elif label == "Details":
+            self.scene.overlay = ("details", "Details", *self.details_lines(g))
         elif label == "Update":
-            if self.lib.offline or not self.lib.store:
+            if self.lib.offline or not (self.lib.epic if g.get("store") == "epic" else self.lib.store):
                 self.say("Updating needs internet.", error=True)
             elif self.inst.update(g) and self.inst.current and self.inst.current != gid:
                 self.say("Queued. The update starts after the current download.")
@@ -75,6 +77,35 @@ class GameMixin:
             self.cycle_controls(g)
         else:
             self.say(LATER)
+
+    def details_lines(self, g):
+        """(where from, last lines): the install log for a failed install, else the last run's
+        log; app.log lines about the game when neither exists. Keys / tokens blanked."""
+        import re
+        from . import paths
+        from .installer import slug_of
+        logs = paths.LOGS / "games"
+        slug = slug_of(dict(g))
+        tries = ([f"{slug}-install.log", f"{slug}.log"] if g.get("state") == "failed" else
+                 [f"{slug}.log", f"{slug}-install.log"])
+        lines, src = [], ""
+        for name in tries:
+            try:
+                lines = (logs / name).read_text(errors="replace").splitlines()
+                src = "Last install" if name.endswith("-install.log") else "Last time it ran"
+                break
+            except OSError:
+                continue
+        if not lines:
+            try:
+                lines = [ln for ln in (paths.LOGS / "app.log").read_text(errors="replace").splitlines()
+                         if g["id"] in ln]
+                src = "SCRiTCH's log"
+            except OSError:
+                pass
+        secret = re.compile(r"((?:api_key|key|token|password|AUTH_PASSWORD|code)=)\S+", re.I)
+        lines = [secret.sub(r"\1…", ln.rstrip().expandtabs(2))[:160] for ln in lines if ln.strip()][-40:]
+        return f"{src} · {g['title']}" if src else g["title"], lines
 
     def change_build(self, g):
         if self.lib.offline or not self.lib.store:

@@ -228,6 +228,13 @@ def _shots(t, version):
         ("06e_library_two_stores", Library(t, both, focus=1, stores=("itch", "epic"))),
         ("06f_library_epic_tab", Library(t, both, filt="epic", focus=0, stores=("itch", "epic"))),
         ("15d_game_epic", Game(t, epic_games[1], pos=(2, len(epic_games)))),
+        ("16b_game_details", _with(game("Grave Gardener"), overlay=(
+            "details", "Details", "Last install · Grave Gardener",
+            ["[DLManager] INFO: = Progress: 41.20% (812/1971), Running for 00:02:11, ETA: 00:03:07",
+             "[DLManager] INFO:  + Download  - 12.31 MiB/s (raw) / 18.02 MiB/s (decompressed)",
+             "[DLManager] ERROR: Failed to write file Content/Paks/pakchunk0.pak: [Errno 28] No space left on device",
+             "[cli] ERROR: Download failed, check the log above.",
+             "install 1234: Couldn't install: Not enough space."]))),
         ("15e_game_epic_details", Game(t, dict(epic_games[1], screens=4, details_from="Epic", comments=None,
                                                 details_at="2026-11-15T18:00:00",
                                                 description=["Tend a moonlit orchard that drifts between planets.",
@@ -242,6 +249,12 @@ def _shots(t, version):
                  "To revoke it: itch.io → Settings → API keys."],
                 [("A", "Sign out"), ("B", "Cancel")]))),
     ]
+
+
+def _with(scene, **kw):
+    for k, v in kw.items():
+        setattr(scene, k, v)
+    return scene
 
 
 def render(outdir, version, real=None):
