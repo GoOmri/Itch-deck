@@ -56,6 +56,12 @@ The key is stored only in `~/.config/itch-deck/config.json`, which only your use
 Settings → **Disconnect itch** makes scritch forget it; to revoke it as well, delete it on itch.io
 → Settings → API keys.
 
+### Epic Games (optional, early)
+If you use **Heroic** and are signed in to Epic there, Settings → Account → **Epic Games** → A
+adds your Epic library as its own tab (All · Installed · itch · Epic). SCRiTCH only reads the
+list Heroic keeps, so open Heroic once in a while to keep it fresh. Installing Epic games from
+SCRiTCH comes in a later update. Disconnecting removes the tab; Heroic stays signed in.
+
 ### 4. GE-Proton (for Windows games)
 Nothing to do: the first time you install a Windows game, scritch downloads the newest
 **GE-Proton** (about 0.5 GB, once) into Steam's compatibility tools folder, where Steam and
