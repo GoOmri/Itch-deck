@@ -193,7 +193,7 @@ class Library:
 
     def save_cache(self):
         keep = ("id", "title", "author", "cover_url", "url", "short_text", "platforms",
-                "download_key_id", "classification", "source", "store", "app_name")
+                "download_key_id", "classification", "source", "store", "app_name", "long_text")
         games = [{k: (sorted(g[k]) if k == "platforms" else g.get(k)) for k in keep} for g in self.games]
         _write_json(paths.LIBRARY, {"synced_at": self.synced_at, "games": games})
 
@@ -313,8 +313,14 @@ class Library:
         """Background page fetch: games never fetched, and caches from before Genre /
         Average session were read (so filters fill in without opening every game)."""
         for g in self.games:
-            if g.get("url") and g["platforms"] & {"linux", "windows"} and not self._has_page_fields(g):
+            if self._has_details(g) and g["platforms"] & {"linux", "windows"} \
+                    and not self._has_page_fields(g):
                 self._put(5, "page", g["id"])
+
+    @staticmethod
+    def _has_details(g):
+        """itch games: their itch page. Epic games: Epic's text + Steam (screenshots, genre)."""
+        return bool(g.get("url")) or g.get("store") == "epic"
 
     def _has_page_fields(self, g):
         try:
@@ -438,7 +444,7 @@ class Library:
             stale = _now() - dt.datetime.fromisoformat(g["details_at"]) > PAGE_MAX_AGE
         except (KeyError, TypeError, ValueError):
             pass
-        if stale and g.get("url") and not self.offline:
+        if stale and self._has_details(g) and not self.offline:
             self._put(0, "page", g["id"])
 
     def _apply_page(self, g):
@@ -459,10 +465,13 @@ class Library:
         g["comment_count"] = d.get("comment_count", len(cs))
         g["inputs"] = d.get("inputs") or []
         g["genre"] = (d.get("genre") or [""])[0]
+        g["details_from"] = d.get("source") or "itch"
         # pages cached before Genre/Average session were read: stale, so they refetch once
         g["details_at"] = d.get("fetched") if "inputs" in d and "genre" in d else None
 
     def _fetch_page(self, g):
+        if g.get("store") == "epic":
+            return self._fetch_epic_page(g)
         if not g.get("url"):
             return
         html = net.get(g["url"], timeout=25).decode("utf-8", "replace")
@@ -482,6 +491,33 @@ class Library:
             "inputs": p["inputs"], "genre": p["genre"]})
         log.info("page %s: %d paras, %d shots, %d comments", g["id"], len(p["description"]), n,
                  len(p["comments"]))
+        g.pop("details_at", None)
+        self._apply_page(g)
+
+    def _fetch_epic_page(self, g):
+        """Epic game page: Epic's own long description; from Steam (same title only) the
+        screenshots and genre, and the text when Epic has none. Saved like an itch page."""
+        from .stores import steam
+        paras = steam.html_paras(g.get("long_text"))
+        src, info = ("Epic" if paras else None), None
+        try:
+            appid = steam.find(g["title"])
+            info = steam.details(appid) if appid else None
+        except net.Offline:
+            raise
+        except Exception as e:  # noqa: BLE001  - Steam is a bonus: never fail the page
+            log.info("page %s: steam lookup failed: %s", g["id"], e)
+        if info and not paras and info["paras"]:
+            paras, src = info["paras"], "Steam"
+        n = self._save_shots(g, (info or {}).get("shots", [])[:MAX_SHOTS])
+        genre = (info or {}).get("genre")
+        _write_json(self._page_file(g), {
+            "fetched": _now().isoformat(timespec="seconds"), "description": paras,
+            "comments": [], "comment_count": 0, "shots": n, "inputs": [],
+            "genre": [genre] if genre else [], "source": src,
+            "shots_from": "Steam" if n else None})
+        log.info("page %s: epic, text from %s, %d shots, steam %s", g["id"], src,
+                 n, "matched" if info else "no match")
         g.pop("details_at", None)
         self._apply_page(g)
 

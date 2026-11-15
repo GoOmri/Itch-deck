@@ -87,6 +87,7 @@ def game_from_json(data):
         "cover_url": _cover(meta),
         "url": None,                                 # no itch page to read
         "short_text": (meta.get("description") or "").strip(),
+        "long_text": (meta.get("longDescription") or "").strip(),   # game page "About"
         "platforms": sorted(plats) or ["other"],
         "store": "epic",
         "app_name": data["app_name"],

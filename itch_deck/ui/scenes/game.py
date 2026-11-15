@@ -288,9 +288,17 @@ class Game(Scene):
             w = min(t.w - 2 * t.m, t.read_w * 1.4)   # long reading: ~95 chars per line
             for para in paras:
                 y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=t.text_c) + t.md
-            y = W.text(t, s, "From the game's itch.io page", t.m, y, t.f_small, color=t.dim).bottom
+            src = {"Epic": "From Epic Games", "Steam": "From Steam"}.get(
+                g.get("details_from"), "From the game's itch.io page")
+            if g.get("details_from") == "Epic" and n:
+                src += " · screenshots from Steam"
+            y = W.text(t, s, src, t.m, y, t.f_small, color=t.dim).bottom
         elif not n and g.get("store") == "epic":
-            pass                                  # no itch page: Epic's text is in the header
+            msg = ("Loading details…" if g.get("details_loading") or not self.offline
+                   and not g.get("details_at") else
+                   "More details load the next time you're online." if self.offline else
+                   "No more details for this game.")
+            y = W.text(t, s, msg, t.m, y, t.f_body, color=t.dim).bottom
         elif not n:
             msg = ("This game's itch.io page no longer exists." if g.get("page_missing") else
                    "Loading details from itch.io…" if g.get("details_loading") or not self.offline

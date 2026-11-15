@@ -254,3 +254,47 @@ def test_big_covers_are_shrunk(tmp_path):
     small = Path(tmp_path) / "5.png"
     pg.image.save(pg.Surface((315, 250)), str(small))
     assert library.shrink_cover(small) == small                     # itch-sized: untouched
+
+
+def test_epic_page_text_from_epic_shots_from_steam(tmp_path, monkeypatch):
+    """Epic's long text first; Steam (exact title match only) adds screenshots + genre, and the
+    text when Epic has none. A near-miss Steam title is never used."""
+    import io
+    import pygame as pg
+    from itch_deck import net
+    from itch_deck.stores import steam
+    paths.use_root(tmp_path)
+    buf = io.BytesIO()
+    pg.image.save(pg.Surface((64, 36)), buf, "x.png")
+    png = buf.getvalue()
+    search = {"items": [{"id": 7, "name": "Hades II", "type": "app"},
+                        {"id": 9, "name": "HADES™", "type": "app"}]}
+    app = {"9": {"success": True, "data": {
+        "about_the_game": "<h2>Defy the god</h2><p>Battle out of <b>hell</b>.</p><ul><li>Fast</li></ul>",
+        "screenshots": [{"path_full": "https://s/1.jpg"}, {"path_full": "https://s/2.jpg"}],
+        "genres": [{"description": "Action"}, {"description": "Indie"}]}}}
+    asked = []
+
+    def get_json(url, key=None, timeout=20):
+        asked.append(url)
+        return search if "storesearch" in url else app
+    monkeypatch.setattr(net, "get_json", get_json)
+    monkeypatch.setattr(net, "get", lambda url, *a, **k: png)
+    lib = library.Library(None)
+    g = lib._prep(dict(epic.game_from_json(LIST[0]), long_text="# Hades\n\nA **rogue-like** [dungeon](https://x) crawler."))
+    lib.games = [g]
+    lib._fetch_page(g)
+    assert g["description"] == ["Hades", "A rogue-like dungeon crawler."] and g["details_from"] == "Epic"
+    assert g["screens"] == 2 and g["genre"] == "Action" and g["comments"] is None
+    assert any("appids=9" in u for u in asked)                       # HADES™ matched, Hades II not
+
+    g2 = lib._prep(dict(epic.game_from_json(LIST[0]), long_text=""))
+    lib._fetch_page(g2)
+    assert g2["details_from"] == "Steam"
+    assert g2["description"] == ["Defy the god", "Battle out of hell.", "• Fast"]
+
+    search["items"] = [{"id": 7, "name": "Hades II", "type": "app"}]  # no exact match: nothing
+    g3 = lib._prep(dict(epic.game_from_json(LIST[0]), id="epic-X", long_text=""))
+    lib._fetch_page(g3)
+    assert g3["description"] == [] and g3["screens"] == 0 and g3["details_at"]
+    assert steam.norm("Tom Clancy's® Ghost & Recon™") == "tom clancy s ghost and recon"

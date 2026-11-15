@@ -225,6 +225,12 @@ def _shots(t, version):
         ("06e_library_two_stores", Library(t, both, focus=1, stores=("itch", "epic"))),
         ("06f_library_epic_tab", Library(t, both, filt="epic", focus=0, stores=("itch", "epic"))),
         ("15d_game_epic", Game(t, epic_games[1], pos=(2, len(epic_games)))),
+        ("15e_game_epic_details", Game(t, dict(epic_games[1], screens=4, details_from="Epic", comments=None,
+                                                details_at="2026-11-15T18:00:00",
+                                                description=["Tend a moonlit orchard that drifts between planets.",
+                                                             "Plant, graft and trade with the travellers who stop by. "
+                                                             "Every season the orbit shifts and new fruit grows."]),
+                                       pos=(2, len(epic_games)), section="shots")),
         ("21d_settings_update", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=0)),
         ("21b_settings_disconnect", with_overlay(
             Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=2), (
