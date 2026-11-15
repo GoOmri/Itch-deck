@@ -173,24 +173,26 @@ CSS = """body{margin:0;background:#10101e;color:#f0f0f0;font:17px/1.45 system-ui
 main{max-width:30rem;margin:0 auto;padding:1.4rem;
 padding-top:max(3rem,calc(env(safe-area-inset-top) + 1.6rem))}h1{font-size:1.35rem;margin:.2rem 0 1rem}
 ol{padding-left:1.2rem}li{margin:.7rem 0}small{color:#9a9ab0}
-.btn,button{display:inline-block;box-sizing:border-box;background:#2c2e48;color:#fff;
-padding:.9rem 1.1rem;border:0;border-radius:.6rem;text-decoration:none;text-align:center;
+.btn,button{display:inline-block;box-sizing:border-box;min-width:11rem;background:#2c2e48;color:#fff;
+padding:.9rem 1.6rem;border:0;border-radius:.6rem;text-decoration:none;text-align:center;
 font:700 1.05rem system-ui,sans-serif;cursor:pointer}textarea{width:100%;box-sizing:border-box;min-height:6rem;
 background:#1d1f33;color:#fff;border:1px solid #3a3c58;border-radius:.6rem;padding:.7rem;font:inherit}
-button,.btn.pri{background:#9d6bff}form button{margin-top:.8rem;width:100%}
-/* ONE button style for <a class="btn"> and <button>: same size everywhere; purple = main */.err{color:#ff8a8a}
+button,.btn.pri{background:#6846b8}button:active,.btn.pri:active{background:#9d6bff}
+form button{margin-top:.8rem}
+/* ONE button style (DESIGN rule 5b): white text; main = deep purple, bright while pressed
+   (same as the app: deep at rest, bright when focused); sized to its text, min width */.err{color:#ff8a8a}
 .nm{color:#9d6bff}.nm i{color:#fff;font-style:normal}.note{color:#9a9ab0;font-size:.85rem}
 .wide{display:block;text-align:center}
-.res{min-height:72vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
-text-align:center;padding-top:6vh}.res[hidden]{display:none}
+.res{min-height:calc(100vh - 6rem);display:flex;flex-direction:column;justify-content:center;
+align-items:center;text-align:center}.res[hidden]{display:none}
 .ico{width:6.5rem;height:6.5rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
-font:800 3.4rem/1 system-ui,sans-serif;margin-bottom:1.4rem}
+margin-bottom:1.4rem}.ico svg{width:3.2rem;height:3.2rem}
 .ico.ok{background:rgba(95,211,138,.16);color:#5fd38a}.ico.bad{background:rgba(255,138,138,.16);color:#ff8a8a}
 .ico.old{background:#1d1f33;color:#9a9ab0}
 .spin{width:4.6rem;height:4.6rem;border:.45rem solid #2c2e48;border-top-color:#9d6bff;border-radius:50%;
 animation:r .9s linear infinite;margin:1rem 0 2.3rem}@keyframes r{to{transform:rotate(360deg)}}
 .res h2{font-size:1.75rem;line-height:1.2;margin:0 0 .5rem}.res p{color:#9a9ab0;margin:0 0 1.8rem;max-width:20rem}
-.res .btn,.res button{width:100%;max-width:20rem;box-sizing:border-box;margin:0}"""
+.res .btn,.res button{margin:0}"""
 
 
 NAME_HTML = '<span class="nm">SCR<i>i</i>TCH</span>'   # the name rule: purple, white i
@@ -205,8 +207,12 @@ def result(kind, head, line, action=""):
     """THE phone result block (Omri): centred and lowered, big icon + headline + one line.
     kind: wait (purple spinner) | ok (green ✓ — the ONLY green, phone pages only) |
     bad (red ✗) | old (grey ↻)."""
-    icon = {"wait": '<div class="spin"></div>', "ok": '<div class="ico ok">&#10003;</div>',
-            "bad": '<div class="ico bad">&#10007;</div>', "old": '<div class="ico old">&#8635;</div>'}
+    svg = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '
+           'stroke-linecap="round" stroke-linejoin="round">{}</svg>')    # drawn, exactly centred
+    icon = {"wait": '<div class="spin"></div>',
+            "ok": f'<div class="ico ok">{svg.format("<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>")}</div>',
+            "bad": f'<div class="ico bad">{svg.format("<path d=\"M7 7l10 10M17 7L7 17\"/>")}</div>',
+            "old": f'<div class="ico old">{svg.format("<path d=\"M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5\"/>")}</div>'}
     return (f'<div class="res" id="{kind}">{icon[kind]}<h2 id="{kind}h">{named(head)}</h2>'
             f'<p id="{kind}p">{named(line)}</p>{action}</div>')
 
@@ -255,7 +261,7 @@ def sent_page(token, preview=None):
             + result("ok", ok_h, ok_p, '<button onclick="closeTab()">Close this tab</button>'
                      '<p class="note" id="closed" hidden>You can close this tab now.</p>'
                      ).replace('<div class="res"', f'<div class="res"{hide("ok")}', 1)
-            + result("bad", bad_h, bad_p, f'<a class="btn pri wide" href="/?t={html.escape(token)}">'
+            + result("bad", bad_h, bad_p, f'<a class="btn pri" href="/?t={html.escape(token)}">'
                      'Try another key</a>').replace('<div class="res"', f'<div class="res"{hide("bad")}', 1))
     return _page("Sent", body + f"""
 <script>const t={t};let n=0;

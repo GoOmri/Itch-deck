@@ -65,6 +65,19 @@ TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCAS
   scrolls instead of squeezing rows. Settings is reached from the Library's ☰.
 - All small lists (Options, Sort & filter, build picker) are the same `W.menu`.
 
+## 5c. Buttons (app AND phone pages — one rule)
+- Button text is always **white**. A main (purple) button is **deep purple at rest** (#6846b8,
+  white 6.7:1) and **bright purple when focused (app) or pressed (phone)** (#9d6bff). Red
+  buttons (Quit, Uninstall) work the same with red. Grey = everything else.
+- Buttons are sized to their text with a minimum width (app `W.button_w`, phone `min-width:11rem`),
+  never stretched across the screen. Same height and text size everywhere.
+
+## 5d. Phone pages (`phonelink.py`)
+- Same look as the app: dark page, the name rule, the button rule above, grey notes #9a9ab0.
+- Content starts below the phone's notch / camera (safe-area top padding).
+- Results (checking / connected / rejected / expired) = `phonelink.result()`: centred on the
+  screen, big round icon drawn as SVG (never a text glyph), headline + one grey line, one button.
+
 ## 6. Actions: footer, and buttons in dialogs
 Every pad action is in the footer: right-aligned, B always last. Empty states don't repeat
 them. Yes/no dialogs (Quit, Uninstall) DO show their buttons inside: [action, Cancel], the
