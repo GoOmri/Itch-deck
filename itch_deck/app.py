@@ -284,7 +284,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
                 "ready": f"v{u.new_version} installed · restart in Settings"}.get(u.state)
 
     def _activity(self):
-        """Top-bar background work: a running download first, then sync/covers/details."""
+        """Footer-left background work (every screen): a running download first, then sync/covers/details."""
         gid = self.inst.current
         g = self.lib.by_id(gid) if gid else None
         if g and g.get("state") == "downloading":
@@ -354,6 +354,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
         if now > self.next_mount_check:               # SD card in/out: refresh install states
             self.next_mount_check = now + 2
             self._check_mounts()
+        self.scene.activity, self.scene.notice = self._activity(), self._update_notice()
         if self.kind == "library":
             self._sync_library_scene()
             if self.lib.sync_error and not self.lib.syncing:
@@ -506,15 +507,6 @@ def selftest(screenshot=None):
     app.go_library()
     steps = [RIGHT, DOWN, X, X, A, DOWN, DOWN, UP, UP, R1, L1, A, START, DOWN, B, B, Y, START, B]
     app.run(max_frames=len(steps) * 2 + 2, script={i * 2: s for i, s in enumerate(steps)})
-    # Settings -> Re-import API key -> B returns to Settings (not a quit dialog)
-    app = App(windowed=True)
-    app.lib.games = [dict(g) for g in fake.library()]
-    app.go_library()
-    app.go_settings()
-    app.scene.focus = next(i for i, r in enumerate(app.scene.items()) if r[0] == "Re-import API key")
-    app.run(max_frames=6, script={1: A, 3: B})
-    assert app.kind == "settings" and not app.scene.overlay and app.settings_back == "library", \
-        (app.kind, app.scene.overlay)
     # M6 Settings: every row does something; leftover saves found and deleted after Delete
     pre = config.install_root(app.cfg) / "_prefixes" / "old-game"
     pre.mkdir(parents=True, exist_ok=True)

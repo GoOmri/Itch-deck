@@ -142,7 +142,7 @@ def _shots(t, version):
                                           install_path="/run/media/deck/SD/itch/moss-and-rivets")),
             ("ps_21_settings", Settings(t, dict(settings_vals, symbols="Auto · PlayStation"),
                                         version, "~/.local/state/itch-deck/logs/app.log",
-                                        focus=8)),        # Button symbols
+                                        focus=7)),        # Button symbols
             ("ps_25_starting", Splash("Starting Moss & Rivets…", QUIT_HINT)),
             ("ps_02b_setup_typing", Setup(t, "waiting", typing=True, typed="Xk3vQ2b7f19aa0c4d6e8")),
         ]
@@ -163,6 +163,8 @@ def _shots(t, version):
         ("05d_library_update", _note(_act(Library(t, lib, focus=1), "Covers 40/120"),
                                      "Update v0.3.4 available · Settings")),
         ("06_library_installed", Library(t, lib, filt="installed", focus=1)),
+        ("06g_library_filtered", Library(t, lib, focus=0, length="short")),
+        ("06h_library_filtered_two", Library(t, lib, focus=0, genre="Puzzle", length="short")),
         ("06b_library_recent", Library(t, lib, sort="played", focus=0)),   # Recent = a sort now
         ("06c_library_sort_filter", _menu(Library(t, lib, focus=0, sort="short", genre="Puzzle"), 3)),
         ("07_library_offline", Library(t, lib, focus=0, offline_since="12 Nov")),
@@ -185,6 +187,7 @@ def _shots(t, version):
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
         ("15c_game_update", game("Harbor Ghosts")),
+        ("15f_game_other_downloading", _act(game("Moss & Rivets"), "Downloading 42% · Quiet Quarry (+1)")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "", "")], 0))),
@@ -210,11 +213,12 @@ def _shots(t, version):
             0))),
         ("21_settings", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log")),
         ("21a_settings_account", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=2)),
-        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=5)),
-        ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
-        ("21f_settings_epic_in", Settings(t, dict(settings_vals, epic="Connected as omri"), version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
+        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
+        ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=3)),
+        ("21f_settings_epic_in", Settings(t, dict(settings_vals, epic="Connected as omri"), version, "~/.local/state/itch-deck/logs/app.log", focus=3)),
+        ("21i_settings_downloading", _act(Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=2), "Downloading 42% · Quiet Quarry")),
         ("21g_settings_app_refresh", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=1)),
-        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=7)),
+        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=6)),
         ("26_epic_connect", EpicConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("26b_epic_getting_ready", EpicConnect(t, "prep", qr=_qr(), url=PHONE_URL, progress=0.4)),
         ("26c_epic_rejected", EpicConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),

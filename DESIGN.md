@@ -77,16 +77,25 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
 - **Install progress is one module** next to Cancel: Starting…, Queued, Getting GE-Proton,
   Downloading %, Extracting…. No boxes appearing and disappearing under it.
 - **Messages about a game** go in ONE box under its buttons (`W.notice`). Never above.
-- **Pad actions** are in the footer: right-aligned, B always last; empty states don't repeat
+- **The footer has two sides.** Right: pad actions, B always last. Left: what runs in the
+  background on every screen (chasing spinner + dim "Downloading 42% · Quiet Quarry (+1)",
+  refresh, covers), else update news in purple; empty when nothing runs. The game page hides
+  its own download there (it's already by its button). The top bar only describes the list
+  (filter tag, count, offline).
+- Pad actions: empty states don't repeat
   them. **Yes/no dialogs** (Quit, Uninstall) show their buttons inside: [action, Cancel],
   action focused first, ◀ ▶ to switch.
+- **Library grid** never scrolls past its last row, and a long A–Z list shows an A–Z strip in
+  the right margin (current letter purple); it slides in from the right while you move and
+  slides out 1.5 s after you stop, so it never sits there as clutter.
 - **Library:** tabs All · Installed, plus one per store (itch · Epic) once a second store is
   connected (L1/R1) — no more tabs. **X = Sort & filter:**
   Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
   the library's genres), Length (Any / Under 2 h / 2–10 h / 10 h+ from HowLongToBeat main
   story; unknown only under Any, sorted last). Remembered per tab. ◀ ▶ or A change a value, each value
-  shows its count, the title the live total, "Clear filters" when filtering; the top bar shows only the
-  game count (Omri: the filter summary up there was noise). **Each tab keeps its own Sort & filter** (Omri 15 Nov): a filter set on All never hides games on Installed; Installed starts unfiltered. Genre goes in the info line; time to beat gets its own
+  shows its count, the title the live total, "Clear filters" when filtering; when a filter is on the top bar
+  shows a purple FILTER: … tag and "12 of 30 games" (plain words alone read like playtime; the
+  "of 30" says games are hidden), and an empty result says "No games match this filter." **Each tab keeps its own Sort & filter** (Omri 15 Nov): a filter set on All never hides games on Installed; Installed starts unfiltered. Genre goes in the info line; time to beat gets its own
   dim line ("Main story ~4 h · Completionist ~9 h"), or nothing if HLTB doesn't know the game
   (strict title match: no time beats a wrong time).
 - **Launch:** no splash. The first frame is the plain background, then the library at once
@@ -96,7 +105,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   picks a category (its settings show right away), A / ▶ goes in, B / ◀ comes back. App is
   first: the version + update card, then Refresh library (it syncs every store); a purple dot
   on App when an update waits. Accounts: every store reads the same, "Sign in to X" /
-  "Sign out of X" with the account name on the right. Plain names ("Install games to", "Old
+  "Sign out of X" with the account name on the right, one row per store (a broken or
+  different key = sign out, sign in again). Plain names ("Install games to", "Old
   save data", "Windows support"). New stores or options = rows in an existing category first,
   a new category only when one gets long.
 *Why:* when everything has one home, people stop searching. Buttons scattered over a page

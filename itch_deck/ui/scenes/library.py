@@ -43,6 +43,12 @@ def genres(games):
     return [x for x, _ in Counter(g["genre"] for g in games if g.get("genre")).most_common()]
 
 
+def letter(title):
+    """A–Z bucket of a title ('#' for digits and symbols)."""
+    c = title.strip()[:1].upper()
+    return c if "A" <= c <= "Z" else "#"
+
+
 def visible(games, filt="all", sort="az", show="all", genre="any", length="any"):
     """The games a tab shows, in order (the app uses it too, for L1/R1 on the game page)."""
     gs = [g for g in games if playable(g)] if show == "playable" else list(games)
@@ -237,6 +243,9 @@ class Library(Scene):
             return self._center_msg(s, y, f"Syncing library… page {self.sync_page}",
                                     "This is only slow the first time.", spinner=True)
         if not self.shown:
+            if self.filtered():                 # games exist, the filter hides them all
+                return self._center_msg(s, y, "No games match this filter.",
+                                        f"Press {pads.name('X')} to change it.")
             if self.filt == "installed":
                 return self._center_msg(s, y, "Nothing installed yet.",
                                         "Install a game from All and it shows up here.")
@@ -270,20 +279,43 @@ class Library(Scene):
         if self.offline_since:
             right = W.offline_mark(t, s, right, base, self.offline_since)
         count = f"{n} game{'s' if n != 1 else ''}"
+        if self.filtered():                     # say it's a filter, and that games are hidden
+            count = f"{n} of {self._count(show='all', genre='any', length='any')} games"
         rr = W.text(t, s, count, right, base, t.f_small, color=t.dim, anchor="baseright")
-        act = self.activity or ("Refreshing library" if self.syncing == "bg" else None)
-        if act:                         # background work, hidden when done
-            sep = W.text(t, s, "·", rr.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright")
-            ar = W.text(t, s, act, sep.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright",
-                        maxw=int(t.w * 0.38))
-            sr = int(t.u * 1.2)
-            W.spinner(t, s, (int(ar.x - t.sm - sr), int(base - W.x_mid(t.f_small))), sr, 0.15)
-            rr = pg.Rect(ar.x - t.sm - sr * 2, ar.y, 0, ar.h)
-        if self.notice:                 # e.g. app update ready: purple = "happening"
-            sep = W.text(t, s, "·", rr.x - t.sm, base, t.f_small, color=t.dim, anchor="baseright")
-            W.text(t, s, self.notice, sep.x - t.sm, base, t.f_small, color=t.accent,
-                   anchor="baseright", maxw=int(t.w * 0.3))
-        return int(base + t.lg)
+        if self.filtered():
+            rr = W.tag(t, s, "Filter: " + self.filter_summary().replace("  ·  ", " · "),
+                       rr.x - t.md, base - W.x_mid(t.f_small), kind="accent", anchor="midright")
+        return int(base + t.lg)                 # background work lives in the footer now
+
+    def footer_status(self):
+        return self.activity or ("Refreshing library" if self.syncing == "bg" else None), self.notice
+
+    ABC_HOLD_S = 1.5                     # strip stays this long after the last move
+
+    def _letters(self, s, area, long_az):
+        """A–Z strip in the right margin: slides in from the right while you move through a
+        long A–Z list, slides out when you stop. Focused game's letter purple, letters with
+        games dim, the rest faint. Shows only; L2/R2 still page."""
+        import time
+        t = self.t
+        now = time.monotonic()
+        if not hasattr(self, "_abc_f"):                           # opening the page isn't a move
+            self._abc_f, self._abc_t = self.focus, -1e9
+        if self._abc_f != self.focus:                             # moved: slide in / stay in
+            self._abc_f, self._abc_t = self.focus, now
+        on = long_az and (not W.LIVE or now - self._abc_t < self.ABC_HOLD_S)
+        k = W.anim(("abc", "in"), 1.0 if on else 0.0)
+        if k < 0.01:
+            return
+        dx = int((1 - k) * t.m)                                  # off the right edge when out
+        have = {letter(g.get("title", "")) for g in self.shown}
+        cur = letter(self.shown[self.focus].get("title", "")) if self.shown else ""
+        abc = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        top, step = area.y + t.sm, (area.h - 2 * t.sm) / len(abc)
+        x = t.w - t.m // 2 + dx
+        for i, ch in enumerate(abc):
+            col = t.accent if ch == cur else (t.dim if ch in have else t.faint)
+            W.text(t, s, ch, x, int(top + step * (i + 0.5)), t.f_hint, color=col, anchor="center")
 
     def _center_msg(self, s, y, title, sub, spinner=False, refresh=False):
         t = self.t
@@ -307,7 +339,9 @@ class Library(Scene):
         first = getattr(self, "_first", 0)          # scroll only when focus leaves the view
         first = min(max(first, frow - visible + 1), frow)
         self._first = first
-        self._sy = W.ease(getattr(self, "_sy", None), first * row_h, back=0)   # scroll: no bounce
+        rows = -(-len(self.shown) // cols)
+        end = max(0, rows * row_h - t.gap + 2 * pad - area.h)   # last row sits on the bottom edge:
+        self._sy = W.ease(getattr(self, "_sy", None), min(first * row_h, end), back=0)  # never a lone row
         sy = self._sy[0]
         r0 = int(sy // row_h)
         s.set_clip(area)
@@ -326,3 +360,4 @@ class Library(Scene):
                            int(tw), int(th))
             W.tile(t, s, self.shown[self.focus], rect, focused=True)
         s.set_clip(None)
+        self._letters(s, area, self.sort == "az" and rows * row_h > area.h)

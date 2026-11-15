@@ -812,3 +812,17 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - Expect more moves while Epic lands; categories are cheap to reshuffle in `Settings.groups()`
   (app acts on internal labels, `shown()` makes the words).
 - Library top bar: filter summary removed (count only).
+
+## Filter visible as a filter (15 Nov)
+- Omri removed the plain "Under 2 h" because it read like his playtime, then games looked missing.
+  Now: purple tag "FILTER: UNDER 2 H" + "12 of 30 games" in the top bar; a tab the filter
+  empties says "No games match this filter. Press X to change it." (not "No games yet").
+- Footer left = background work on every screen (spinner + text) or the update notice; the
+  Library top bar keeps only filter tag, count and offline. `Scene.footer_status()`; the app
+  sets `scene.activity` / `scene.notice` every frame.
+- Grid never scrolls past the last row (last row sits on the bottom edge; a tab that fits
+  doesn't scroll). A–Z strip in the right margin when sorted A–Z and the list scrolls: the
+  focused game's letter purple, letters with games dim, others faint. Indicator only.
+- "Use a new itch key" removed (Omri): sign out + sign in covers a revoked key and a different
+  account, and itch now reads like Epic (one row). Rejected-key error: "Sign in to itch again".
+- A–Z strip slides in from the right while moving, out 1.5 s after the last move (`ABC_HOLD_S`).

@@ -20,6 +20,10 @@ SHOT_GROW = 1.12   # focused screenshot grows more than tiles: it's what you're 
 MAIN_ACTIONS = ("Install", "Retry install", "Play")
 
 class Game(Scene):
+    def footer_status(self):
+        act = self.activity                     # this game's own download shows by its button
+        return (None if act and self.g.get("title", "") in act else act), self.notice
+
     """phase (optional): 'download' | 'extract' | 'installing' | 'proton' — what an active
     install is doing right now. fail_reason: text for a failed install."""
 

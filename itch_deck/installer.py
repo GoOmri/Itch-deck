@@ -404,7 +404,7 @@ class Installer:
                 self._fail(gid, title, "Lost the connection to itch.io. Retry when you're online "
                                        "(the download continues where it stopped).")
             except net.AuthError:
-                self._fail(gid, title, "itch.io rejected the API key. Use a new itch key in Settings.")
+                self._fail(gid, title, "itch.io rejected the API key. Sign in to itch again in Settings.")
             except (InstallError, proton.ProtonError) as e:
                 log.info("install %s: %s", gid, e)
                 self._fail(gid, title, str(e))
