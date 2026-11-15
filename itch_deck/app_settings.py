@@ -53,7 +53,7 @@ class SettingsMixin:
         self.lib.store = None
         log.info("settings: itch disconnected")
         self.go_setup("waiting")
-        self.say("itch disconnected. Connect again any time.")
+        self.say("Signed out of itch. Sign in again any time.")
 
     def _get_ge(self):
         """Settings: download GE-Proton now instead of with the first Windows game."""
@@ -132,7 +132,9 @@ class SettingsMixin:
 
     def _h_settings(self, act):
         sc = self.scene
-        if act in (B, START):
+        if (act == B and not sc.side) or (act == A and sc.side):
+            sc.handle(act)                              # in/out of a category (sidebar)
+        elif act in (B, START):
             back = getattr(self, "settings_back", "library")
             if back == "game" and self.lib.by_id(self.lib_focus_id):
                 self.go_game(self.lib.by_id(self.lib_focus_id))
@@ -200,9 +202,9 @@ class SettingsMixin:
                 self.go_setup("waiting", back=True)
                 self.try_import(auto=True)
             elif label == "Disconnect itch":
-                self.confirm("Disconnect itch?",
+                self.confirm("Sign out of itch?",
                              ["SCRiTCH forgets the key. Installed games still play.",
                               "To revoke it: itch.io → Settings → API keys."],
-                             "Disconnect", self._disconnect_itch)
+                             "Sign out", self._disconnect_itch)
         elif not isinstance(act, tuple):
             sc.handle(act)

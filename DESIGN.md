@@ -89,14 +89,18 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   active filters ("Puzzle · 26 games"). Genre goes in the info line; time to beat gets its own
   dim line ("Main story ~4 h · Completionist ~9 h"), or nothing if HLTB doesn't know the game
   (strict title match: no time beats a wrong time).
-- **Settings** (from the Library's ☰): grouped Library · Storage · Games · App under
-  LABEL-style headings; the list scrolls instead of squeezing.
+- **Settings** (from the Library's ☰): a sidebar of categories (App · Account · Storage · Games ·
+  Controls), the chosen one's settings on the right, like the Deck's own Settings. ▲▼ picks a
+  category (its settings show right away), A / ▶ goes in, B / ◀ comes back. App is first: one
+  card with the version and the update button; a purple dot on App when an update waits. Plain
+  names ("Use a new itch key", "Sign out", "Install games to", "Old save data", "Windows
+  support"). New platforms or options = a new category, not a longer list.
 *Why:* when everything has one home, people stop searching. Buttons scattered over a page
 read as "too much".
 
 ## 7. Type: five sizes
 TITLE 5.2u · SECTION 3.2u · BODY 2.7u · META 2.4u · LABEL 2.0u bold UPPERCASE.
-Every section header is SECTION; LABEL is only for the footer, tags and Settings headings;
+Every section header is SECTION; LABEL is only for the footer and tags;
 sentence case everywhere else ("Change build").
 *Why:* fewer sizes = clear hierarchy from couch distance.
 
@@ -104,7 +108,7 @@ sentence case everywhere else ("Change build").
 - Space: XS 1u · S 2u · M 3u · L 5u · XL 8u, page margin 6u. Inside a component XS/S, padding
   M; between items M; between sections L.
 - Width: **read** (`read_w` 80u) for short text, dialogs, status (long reading up to 1.4×);
-  **page** (`page_w` 110u) for Setup and Settings; grid and screenshot strip use the margins.
+  **page** (`page_w` 110u) for Setup and the Settings pane; grid and screenshot strip use the margins.
 *Why:* consistent gaps make things line up without thinking about it. Re-check with
 `grep -n "t\.u \*" itch_deck/ui/scenes/*.py` — what's left should be sizes, not gaps.
 

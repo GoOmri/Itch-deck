@@ -196,12 +196,15 @@ def _shots(t, version):
             [(n, "Installed" if i == 0 else "", sub) for i, (n, sub, _r) in enumerate(fake.uploads())],
             0))),
         ("21_settings", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log")),
+        ("21a_settings_account", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=1)),
+        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=4)),
+        ("21d_settings_update", Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=0)),
         ("21b_settings_disconnect", with_overlay(
-            Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log"), (
-                "confirm", "Disconnect itch?",
+            Settings(t, settings_vals, version, "~/.local/state/itch-deck/logs/app.log", focus=3), (
+                "confirm", "Sign out of itch?",
                 ["SCRiTCH forgets the key. Installed games still play.",
                  "To revoke it: itch.io → Settings → API keys."],
-                [("A", "Disconnect"), ("B", "Cancel")]))),
+                [("A", "Sign out"), ("B", "Cancel")]))),
     ]
 
 

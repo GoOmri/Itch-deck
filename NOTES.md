@@ -660,3 +660,12 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   motion as an SVG dash animation. Mockups draw one still pose.
 - DESIGN.md rewritten as 10 principles, each with its reason. Rules unchanged except buttons:
   "a button is as wide as the block it belongs to".
+
+## Settings sidebar (15 Nov, Omri picked option A)
+- Settings = categories left (App · Account · Storage · Games · Controls), settings right.
+  Omri: more future proof for more platforms and settings. Version + update live in the App
+  card (the version line at the bottom that overlapped the list is gone).
+- `Settings.focus` is still a flat index (app + selftest act on `items()[focus]`); setting it
+  jumps into that category. `side` = focus on the category list; app_settings routes A/B to
+  the scene while on the sidebar / to leave a category.
+- Shown names differ from internal labels (`settings.SHOWN`); the app still acts on the old ones.
