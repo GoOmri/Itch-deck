@@ -24,6 +24,11 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - After ANY UI change: re-render mockups (`python run.py --render-mockups DIR`) and publish them as
   `after/` to the gallery artifact https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (Omri expects it current).
 - Ask Omri before big changes.
+- CI (GitHub runner) HAS internet and runs as a normal user; this workspace has NO itch/GitHub
+  access and runs as root. So: tests/selftest must never depend on the network (stub downloads;
+  never leave a fake api_key in the selftest config), and file modes matter in CI. Before a
+  release, run the selftest with itch.io rejecting every key (net.get -> AuthError for itch URLs).
+  v0.7.0 needed 3 CI rounds for exactly these (15 Nov).
 - A push to main = a release (CI publishes the VERSION in app.py). Bump VERSION for every
   release; since v0.6.3 CI refuses to re-release an existing version (warning, no release). Omri 14 Nov: no release
   until he says, so finished work waits on its branch.
