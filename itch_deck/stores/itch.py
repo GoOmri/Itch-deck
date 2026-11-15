@@ -1,6 +1,7 @@
 """itch.io API: owned keys (with pagination and the list/object quirk) + games in the user's
 collections (free / no-price games never get a download key, so they only show up there)."""
 import logging
+import re
 
 from .. import net
 from .base import Store
@@ -102,10 +103,35 @@ def parse_uploads(data):
 _BAD_ARCH = ("arm", "aarch64", "i386", "i686", "x86_32", "32bit", "32-bit", "linux32")
 
 
+_PART = re.compile(r"^(.+)-\d+[a-z]?\.bin$", re.I)     # Inno disk slices: setup-1.bin, setup-2a.bin
+
+
+def _part_like(u):
+    return bool(_PART.match(u["filename"])) and not u["linux"] and u["storage"] != "external"
+
+
+def split_parts(build, uploads):
+    """Uploads that belong to a Windows setup.exe split into pieces (Inno: setup.exe +
+    setup-1.bin, -2.bin… uploaded separately, e.g. Stranger More). Same name first; if the
+    exe was renamed, every slice-named .bin of the game. They go next to the exe before it runs."""
+    if not build["filename"].lower().endswith(".exe"):
+        return []
+    stem = build["filename"][:-4].lower()
+    cands = [u for u in uploads if u is not build and u["id"] != build["id"] and _part_like(u)]
+    same = [u for u in cands if _PART.match(u["filename"]).group(1).lower() == stem]
+    return sorted(same or cands, key=lambda u: u["filename"].lower())
+
+
+def is_part(u, uploads):
+    """A slice of a split installer is never a build of its own (hidden from Change build)."""
+    return _part_like(u) and any(o["filename"].lower().endswith(".exe") for o in uploads)
+
+
 def pick_build(uploads, platform="linux"):
-    """Pitfall #3 rules: skip soundtracks/books/other-OS/external links, prefer full game over
-    demo, 64-bit over 32-bit/ARM, then the newest. Returns (best, other candidates)."""
-    c = [u for u in uploads if u[platform] and u["type"] == "default" and u["storage"] != "external"]
+    """Pitfall #3 rules: skip soundtracks/books/other-OS/external links and installer slices,
+    prefer full game over demo, 64-bit over 32-bit/ARM, then the newest. Returns (best, others)."""
+    c = [u for u in uploads if u[platform] and u["type"] == "default" and u["storage"] != "external"
+         and not is_part(u, uploads)]
     if not c:
         return None, []
 

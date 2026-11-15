@@ -356,6 +356,7 @@ mkdir -p "$d/bin" "$WINEPREFIX"
 printf 'MZgame' > "$d/bin/Quiet Quarry.exe"; printf 'MZ' > "$d/unins000.exe"
 touch "$WINEPREFIX/system.reg"
 echo "installed $setup into $d"
+echo "beside setup: $(ls "$(dirname "$setup")" | tr '\n' ' ')"
 """
 INNO = b"MZ" + b"\0" * 200 + b"Inno Setup Setup Data (6.2.0)" + b"\0" * 2000
 
@@ -385,6 +386,48 @@ def test_silent_inno_install(tmp_path, server):
     assert "installing" in phases or "proton" in phases
     log_ = (paths.LOGS / "games/quiet-quarry-install.log").read_text()
     assert "/VERYSILENT" in log_ and "/DIR=Z:" in log_
+
+
+def test_split_parts_rules():
+    ups = itch.parse_uploads({"uploads": [
+        _up(1, "StrangerMore_setup.exe", p_linux=False, p_windows=True),
+        _up(2, "StrangerMore_setup-1.bin", p_linux=False),
+        _up(3, "StrangerMore_setup-2a.bin", p_linux=False, p_windows=True),
+        _up(4, "game-linux-64.bin"),                       # a Linux build, not a slice
+        _up(5, "soundtrack.zip", p_linux=False, type="soundtrack"),
+    ]})
+    best, others = itch.pick_build(ups, "windows")
+    assert best["id"] == 1 and others == []                # slices never picked, even tagged Windows
+    assert itch.pick_build(ups, "linux")[0]["id"] == 4
+    assert [u["id"] for u in itch.split_parts(best, ups)] == [2, 3]
+    renamed = itch.parse_uploads({"uploads": [_up(1, "Stranger More.exe", p_linux=False, p_windows=True),
+                                              _up(2, "setup-1.bin", p_linux=False)]})
+    assert [u["id"] for u in itch.split_parts(renamed[0], renamed)] == [2]   # exe renamed: all slices
+    assert itch.split_parts(ups[3], ups) == []             # only for .exe builds
+
+
+def test_split_installer_downloads_all_pieces(tmp_path, server):
+    bin1, bin2 = os.urandom(200_000), os.urandom(150_000)
+    _Handler.files, _Handler.slow = {"/setup.exe": INNO, "/setup-1.bin": bin1, "/setup-2.bin": bin2}, False
+    lib, inst = _setup(tmp_path, server, [
+        _up(7, "setup.exe", p_linux=False, p_windows=True, size=len(INNO)),
+        _up(8, "setup-1.bin", p_linux=False, size=len(bin1)),
+        _up(9, "setup-2.bin", p_linux=False, size=len(bin2))])
+    _umu(tmp_path)
+    progress = []
+    real = inst._upd
+    inst._upd = lambda gid, **kw: (progress.append(kw["progress"]) if "progress" in kw else None,
+                                   real(gid, **kw))
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    g = lib.by_id("5")
+    assert g["state"] == "installed", g.get("fail_reason")
+    log_ = (paths.LOGS / "games/quiet-quarry-install.log").read_text()
+    assert "setup-1.bin" in log_ and "setup-2.bin" in log_ and "setup.exe" in log_
+    dl = [p for p in progress if p not in (0, 1)]
+    assert dl == sorted(dl) and max(dl) <= 1              # one bar across all pieces, never back
+    assert not list((tmp_path / "games/_downloads").glob("5-*"))   # downloads cleaned up
+    assert inst.index["5"]["upload_id"] == 7
 
 
 def test_installer_failures(tmp_path, server, monkeypatch):

@@ -19,7 +19,7 @@ import zipfile
 from pathlib import Path
 
 from . import config, net, paths, proton, words
-from .stores.itch import pick_build
+from .stores.itch import pick_build, split_parts
 
 log = logging.getLogger("itch-deck")
 SPACE_FACTOR = 2.5            # download + extracted copy + slack
@@ -127,6 +127,23 @@ def extract(archive, dest, allow_exe=False):
     out = dest / re.sub(r"^\d+-\d+-", "", archive.name)   # drop our "<game>-<upload>-" prefix
     shutil.copyfile(archive, out)
     os.chmod(out, 0o755)
+
+
+def _size(path):
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def _place(src, dst):
+    """Hard link (same drive: instant, no extra space), else copy. The download stays until the
+    install succeeds, so Retry doesn't download again."""
+    dst.unlink(missing_ok=True)
+    try:
+        os.link(src, dst)
+    except OSError:
+        shutil.copyfile(src, dst)
 
 
 # --- find the executable --------------------------------------------------------------------
@@ -522,7 +539,11 @@ class Installer:
         if platform == "windows" and not proton.proton_dir(self.cfg):
             self._upd(gid, state="downloading", phase="ge", progress=0, speed_mbs=0, eta_s=0)
             proton.fetch_ge(cancel=lambda: gid in self._cancel, on_bytes=self._meter(gid))
-        size = build["size"]
+        parts = split_parts(build, builds) if platform == "windows" else []
+        if parts:
+            log.info("install %s: installer comes in %d more pieces %s", gid, len(parts),
+                     [p["filename"] for p in parts])
+        size = build["size"] + sum(p["size"] for p in parts)
         self._upd(gid, size_mb=size // 1_000_000)
 
         root = Path(self.root_fn())
@@ -536,23 +557,31 @@ class Installer:
             log.warning("install %s: can't write to %s: %s", gid, root, e)
             raise InstallError(f"Can't write to the {config.drive_name(root)}. Check it isn't full "
                                "or read-only.") from e
-        dl = self._dl_dir() / f"{gid}-{build['id']}-{re.sub(r'[^A-Za-z0-9._-]', '_', build['filename'])}"
-        have = dl.with_name(dl.name + ".part")
-        have = have.stat().st_size if have.exists() else 0
+        dls = [(b, self._dl_dir() / f"{gid}-{b['id']}-{re.sub(r'[^A-Za-z0-9._-]', '_', b['filename'])}")
+               for b in [build, *parts]]
+        dl = dls[0][1]
+        have = sum(_size(f) or _size(f.with_name(f.name + ".part")) for _b, f in dls)
         if size and free + have < size * SPACE_FACTOR:
             raise InstallError(f"Not enough space on the {config.drive_name(root)}: needs about "
                                f"{_gb(size * SPACE_FACTOR)}, {_gb(free)} free.")
         dl.parent.mkdir(parents=True, exist_ok=True)
         for old in dl.parent.glob(f"{gid}-*"):          # an older build's leftovers
-            if not old.name.startswith(dl.name):
+            if not any(old.name.startswith(f.name) for _b, f in dls):
                 old.unlink(missing_ok=True)
 
-        if not dl.exists():
-            self._upd(gid, state="downloading", phase="download", progress=0, speed_mbs=0, eta_s=0)
-            log.info("install %s: download %s (%d MB)%s", gid, build["filename"], size // 1_000_000,
-                     f", resuming at {have // 1_000_000} MB" if have else "")
-            net.download(store.download_url(g, build), dl, key=getattr(store, "key", None),
-                         resume=True, cancel=lambda: gid in self._cancel, on_bytes=self._meter(gid))
+        meter, done = self._meter(gid), 0               # one bar for all pieces
+        for b, f in dls:
+            if not f.exists():
+                self._upd(gid, state="downloading", phase="download", progress=done / size if size else 0,
+                          speed_mbs=0, eta_s=0)
+                part = f.with_name(f.name + ".part")
+                at = part.stat().st_size if part.exists() else 0
+                log.info("install %s: download %s (%d MB)%s", gid, b["filename"], b["size"] // 1_000_000,
+                         f", resuming at {at // 1_000_000} MB" if at else "")
+                net.download(store.download_url(g, b), f, key=getattr(store, "key", None),
+                             resume=True, cancel=lambda: gid in self._cancel,
+                             on_bytes=lambda d, t, off=done: meter(off + d, max(size, off + t)))
+            done += f.stat().st_size
         if platform == "windows" and not proton.umu_path():
             self._upd(gid, state="downloading", phase="umu", progress=1)
             proton.fetch_umu(cancel=lambda: gid in self._cancel)
@@ -576,6 +605,8 @@ class Installer:
                 elif not exe:
                     setup = find_installer(tmp)
             if setup:
+                for _b, f in dls[1:]:                   # the pieces sit next to setup.exe
+                    _place(f, setup.parent / re.sub(r"^\d+-\d+-", "", f.name))
                 kind = self._silent_install(gid, g, setup, tmp, root, dest)
                 exe, alts = find_exe(tmp, g, platform)
                 if not exe:
@@ -609,7 +640,8 @@ class Installer:
         _write_json(dest / "install.json", info)
         self.index[gid] = info
         _write_json(paths.INSTALLS, self.index)
-        dl.unlink(missing_ok=True)
+        for _b, f in dls:
+            f.unlink(missing_ok=True)
         log.info("install %s: done in %.0fs -> %s (exe %s; %d other candidates)", gid,
                  time.time() - t0, dest, exe, len(alts))
         self._upd(gid, state="installed", phase=None, progress=0, fail_reason=None,

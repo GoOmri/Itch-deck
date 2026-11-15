@@ -282,7 +282,7 @@ v0.5.3: collections sync. After owned keys: GET /profile/collections, then per c
   Any collections error (403, offline, odd JSON) is logged and the owned list is still used.
   UNVERIFIED against live itch (blocked here). Deck: app.log "itch sync: collections [...] -> N
   free games added, M paid skipped". Panzer Marshal is in Omri's "cats" collection = test game.
-  Not handled: Inno split installers (setup.exe + setup-1.bin as separate uploads, e.g. Stranger More).
+  Inno split installers (setup.exe + setup-1.bin as separate uploads, e.g. Stranger More): v0.7.4.
 
 v0.5.3 Deck test 14 Nov (Panzer Marshal via "cats" collection): collections sync ✓ ("cats" -> 3
   free games). NSIS silent install ✓ (3.2.13 x64-Setup.exe, /S /D=, exit 0 after 69 s, exe
@@ -536,6 +536,20 @@ v0.7.3 RELEASED 15 Nov (Omri "push update"; branch filter-and-ps-glyphs). From O
     app.log for "updates" lines (no errors); if a game of yours got a new build, it shows Update.
   Plan agreed 15 Nov (Omri "okay" to all): v0.7.4 = faster start (onedir?) + Inno split installers;
     then M7 browser games; Epic v0.8/v0.9 with "each game as its own Steam tile" in the same step.
+v0.7.4 (branch v074-start-split, NOT released - waits for "push update"):
+  - Split installers (BUILT): stores/itch.split_parts(build, uploads) = Inno slices uploaded
+    separately (setup.exe + setup-1.bin, -2a.bin…; same stem first, else every slice-named .bin
+    without a Linux tag when the exe was renamed). pick_build skips slices (is_part), so they never
+    show in Change build. Installer downloads build + slices as _downloads/<gid>-<upload>-<file>,
+    one progress bar over the total, space check on the total, hard-links the slices next to
+    setup.exe (copy if another drive) before the silent install; downloads kept until success.
+    UNVERIFIED against live itch: whether itch tags the .bin uploads with a platform. Deck test:
+    Stranger More -> Install; app.log "installer comes in N more pieces".
+  - Faster start (PLAN sent to Omri, waiting for go): folder build behind a self-unpacking
+    `itch-deck` launcher (same file name + tile path; unpacks to app/, keeps app.old/), strip
+    the folder's lib path from games (child_env), skip audio init, paint backdrop right after
+    set_mode, borderless desktop-size window with a config fallback. Measured here: 0.46 s
+    (onefile) vs 0.15 s (folder) to display open.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
