@@ -93,6 +93,27 @@ def game_from_json(data):
     }
 
 
+def _log_text_fields(data):
+    """Which text Epic's catalog gives us (for a fuller game page later): how many games have
+    each field, and one short sample of the long description so we can see its format."""
+    counts, sample = {}, None
+    for e in data:
+        meta = (e or {}).get("metadata") or {}
+        if meta.get("mainGameItem"):
+            continue
+        for k in ("description", "longDescription", "shortDescription", "technicalDetails"):
+            v = meta.get(k)
+            if isinstance(v, str) and v.strip():
+                counts[k] = counts.get(k, 0) + 1
+                if k == "longDescription" and sample is None:
+                    sample = (e.get("app_title"), v.strip()[:160])
+        shots = [i for i in meta.get("keyImages") or [] if "screenshot" in str(i.get("type", "")).lower()]
+        if shots:
+            counts["screenshots"] = counts.get("screenshots", 0) + 1
+    log.info("epic text fields: %s%s", counts or "none",
+             f"; long description sample ({sample[0]}): {sample[1]!r}" if sample else "")
+
+
 def fetch_legendary(cancel=None, on_bytes=None):
     """One-time download of legendary (a single Linux program, a few MB)."""
     dest = bin_path()
@@ -184,6 +205,7 @@ class EpicStore:
             if g:
                 games[g["id"]] = g
         log.info("epic sync: %d games", len(games))
+        _log_text_fields(data)
         return list(games.values())
 
     # --- step 2: install / launch / uninstall --------------------------------------
