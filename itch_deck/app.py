@@ -380,6 +380,7 @@ def selftest(screenshot=None):
         from .stores import itch as itch_mod
         real_check = itch_mod.ItchStore.check_key
         itch_mod.ItchStore.check_key = lambda self: "selftest-user"
+        app.lib.start_sync = lambda *a, **k: None      # the fake key never goes online
         try:
             app._phone_got("Key: AbCdEf0123456789abcdefABCDEF")
             for _ in range(100):
@@ -390,9 +391,10 @@ def selftest(screenshot=None):
             assert app.kind == "library", app.kind
             assert app.cfg["api_key"] == "AbCdEf0123456789abcdefABCDEF"
             assert "Connected as selftest-user" in app.phone_status
+            page = app.phone
             app.phone_stop_at = time.time() - 1
             app.update()
-            assert app.phone is None, "phone page still open after leaving Setup"
+            assert app.phone is None and page.httpd is None, "phone page still open after Setup"
         finally:
             itch_mod.ItchStore.check_key = real_check
         app = App(windowed=True)
