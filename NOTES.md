@@ -626,7 +626,7 @@ DECISION (Omri 15 Nov): NO per-game Steam tiles for now. He starts games from SC
   Keys modes + the quit combo already cover what tiles would solve. Tiles need a Steam restart
   (shortcuts.vdf is read at Steam start) or a Decky plugin. If other players ask: an opt-in
   "Add to Steam" in a game's Options. Next: Epic step 2 (install / play Epic games).
-Epic step 2 (branch epic-install, NOT released - waits for "push"; Omri 15 Nov "start with epic install"):
+Epic step 2 RELEASED v0.7.7 15 Nov (Omri "All": with fix-dupes + design branch settings-accounts):
   - stores/epic.py EpicStore.install(app, folder, on_progress, cancel, log_file): `legendary install
     <app> -y --game-folder <root>/<game>/files --platform Windows --skip-sdl --skip-dlcs` in its own
     process group; progress from its log lines ("= Progress: N% … ETA: hh:mm:ss", "+ Download - N
