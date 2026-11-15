@@ -467,6 +467,12 @@ v0.7.1 (branch v071-fixes, NOT released):
     releasing also run `python3.11 -m pytest -q tests` (3.11 + deps are installed in the workspace).
   Deck checklist +6: library X -> Length / Shortest first fill in after a minute; game page shows
     the time line for a known game (Circa Infinity), nothing for an obscure one.
+v0.7.1 RELEASED 15 Nov (main cbc5e2d; first build failed on Python 3.11 f-string backslashes).
+NEXT (not started, Omri asked): per-controller button glyphs. Detect the last-used pad (name /
+  GUID vendor: 054c = Sony, 28de = Valve/Deck), draw DualSense shapes ✕ ○ □ △ + Create/Options,
+  Deck ⧉ + ☰, Xbox letters; texts too (quit hint "hold ⧉ + ☰" / "hold Create + Options").
+  Unknown: under Steam the DualSense may show up as a Steam virtual (Xbox-like) pad -> first get
+  Omri's app.log "pad added: <name> guid=..." lines with the DualSense connected. Size it, ask, build.
 
 ## Epic decision (Omri 15 Nov): ONE codebase, no fork, no second build. Epic is (1) opt-in: the
   Epic tab only exists after Settings -> Connect Epic; until then scritch = itch only, exactly as
