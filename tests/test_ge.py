@@ -13,7 +13,7 @@ def _tar(path, members):
         for name, kind, data in members:
             ti = tarfile.TarInfo(name)
             if kind == "dir":
-                ti.type = tarfile.DIRTYPE
+                ti.type, ti.mode = tarfile.DIRTYPE, 0o755
                 tf.addfile(ti)
             elif kind == "sym":
                 ti.type, ti.linkname = tarfile.SYMTYPE, data

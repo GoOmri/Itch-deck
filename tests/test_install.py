@@ -18,6 +18,17 @@ ELF64 = b"\x7fELF\x02\x01\x01" + b"\0" * 9 + b"\x02\x00\x3e\x00" + b"\0" * 100
 ELF32 = b"\x7fELF\x01\x01\x01" + b"\0" * 9 + b"\x02\x00\x03\x00" + b"\0" * 100
 
 
+@pytest.fixture(autouse=True)
+def no_ge_download(monkeypatch):
+    """Never fetch the real GE-Proton (0.5 GB) in tests: act like the download failed."""
+    from itch_deck import proton
+
+    def offline(*a, **k):
+        raise proton.ProtonError("Couldn't download GE-Proton (needed once for Windows games). "
+                                 "Retry when you're online.")
+    monkeypatch.setattr(proton, "fetch_ge", offline)
+
+
 def _up(i, fn, **kw):
     u = {"id": i, "filename": fn, "type": "default", "p_linux": True, "updated_at": "2024-01-01"}
     u.update(kw)
