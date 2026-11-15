@@ -156,6 +156,25 @@ class Library(Scene):
 
     def draw_page(self, s):
         t = self.t
+        state = (self.sort, self.show, self.genre, self.length)
+        if self.overlay and self.overlay[0] == "menu":
+            # Sort & filter open: the library behind stays STILL (Omri, v0.7.2: ◀ ▶ re-sorted
+            # and scrolled the grid under the shade). The menu title shows the live count; the
+            # new result fades in when the menu closes.
+            if getattr(self, "_frozen", None) is None or self._frozen[0] != s.get_size():
+                buf = pg.Surface(s.get_size(), pg.SRCALPHA)
+                self._draw_live(buf)
+                self._frozen = (s.get_size(), buf, state)
+            s.blit(self._frozen[1], (0, 0))
+            return
+        frozen, self._frozen = getattr(self, "_frozen", None), None
+        if frozen is not None and frozen[2] != state:      # filters changed: fade the new grid in
+            self._tab_dir = 0
+            W._ANIM.pop(("tabswipe", id(self)), None)
+        self._draw_live(s)
+
+    def _draw_live(self, s):
+        t = self.t
         y = self._top_bar(s)
         key = ("tabswipe", id(self))
         if getattr(self, "_tab_filt", self.filt) != self.filt:      # tab changed: swipe in
