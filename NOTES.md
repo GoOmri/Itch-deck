@@ -468,7 +468,10 @@ v0.7.1 (branch v071-fixes, NOT released):
   Deck checklist +6: library X -> Length / Shortest first fill in after a minute; game page shows
     the time line for a known game (Circa Infinity), nothing for an obscure one.
 v0.7.1 RELEASED 15 Nov (main cbc5e2d; first build failed on Python 3.11 f-string backslashes).
-Per-controller glyphs (branch pad-glyphs, 15 Nov, NOT released - Omri: no release until he says):
+v0.7.2 RELEASED 15 Nov (Omri "push update"): pad-glyphs + single-instance + phone-result (phone
+  Connected page: no 'Close this tab', plain note). Checked: pytest 3.13 + 3.11 (79), selftest
+  3.13 + 3.11, selftest with itch rejecting every key, mockups. Deck checklist = the two below.
+Per-controller glyphs (in v0.7.2):
   Deck log answered the open question: under Steam BOTH pads are Valve virtual pads (GUID vendor
   28de: Deck 030079f6de28..., DualSense 0300b836de28...), so GUIDs are useless. NAMES work:
   "Steam Deck Controller" / "DualSense Wireless Controller"; a pad hot-plugged while we run is
@@ -495,7 +498,7 @@ Per-controller glyphs (branch pad-glyphs, 15 Nov, NOT released - Omri: no releas
     3 Press a Deck button: back to Deck glyphs. 4 Start a game with the DualSense: splash says
     hold CREATE + OPTIONS. 5 Settings → Button symbols cycles; Auto shows what's detected.
     If wrong: send app.log lines "pad added", "pad in use", "pad ... = ".
-Two copies bug (branch single-instance, 15 Nov, NOT released): v0.7.1 Deck log shows two app
+Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
   after the execve restart). Fix: paths.lock_instance() (flock DATA/scritch.lock, freed on
