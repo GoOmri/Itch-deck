@@ -895,11 +895,28 @@ def progress(t, s, rect, frac=None, phase=0.3):
         x = rect.x + int((rect.w - seg) * max(0.0, min(1.0, phase)))
         pg.draw.rect(s, t.accent, (x, rect.y, seg, rect.h), border_radius=rect.h // 2)
     elif frac > 0:
-        pg.draw.rect(s, t.accent, (rect.x, rect.y, max(rect.h, int(rect.w * frac)), rect.h),
-                     border_radius=rect.h // 2)
+        fill = pg.Rect(rect.x, rect.y, max(rect.h, int(rect.w * frac)), rect.h)
+        if not LIVE or frac >= 1:
+            pg.draw.rect(s, t.accent, fill, border_radius=rect.h // 2)
+            return
+        import time                              # filling: a soft light sweeps along it
+        img = pg.Surface(fill.size, pg.SRCALPHA)
+        pg.draw.rect(img, t.accent, img.get_rect(), border_radius=rect.h // 2)
+        bw = max(rect.h * 4, int(rect.w * 0.18))
+        band = _cover_cache.get(("bar-shine", bw, rect.h))
+        if band is None:
+            band = pg.Surface((bw, rect.h))
+            for x in range(bw):
+                v = int(70 * math.sin(math.pi * x / bw) ** 2)
+                pg.draw.line(band, (v, v, v), (x, 0), (x, rect.h))
+            _cover_cache[("bar-shine", bw, rect.h)] = band
+        ph = time.monotonic() / BAR_SHINE_S % 1
+        img.blit(band, (int(-bw + ph * (fill.w + bw * 2)), 0), special_flags=pg.BLEND_RGB_ADD)
+        s.blit(img, fill)
 
 
 BUSY_SWEEP_S = 0.75   # one end-to-end bounce of the indeterminate bar
+BAR_SHINE_S = 1.6     # one light sweep along a filling progress bar
 FILL_MS = 900         # progress fills glide to each new value (updates arrive in chunks)
 
 
