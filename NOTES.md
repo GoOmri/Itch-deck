@@ -626,6 +626,11 @@ DECISION (Omri 15 Nov): NO per-game Steam tiles for now. He starts games from SC
   Keys modes + the quit combo already cover what tiles would solve. Tiles need a Steam restart
   (shortcuts.vdf is read at Steam start) or a Decky plugin. If other players ask: an opt-in
   "Add to Steam" in a game's Options. Next: Epic step 2 (install / play Epic games).
+v0.7.6 BUG (Omri 15 Nov 17:30): itch games x3 in the library. save_cache wrote "store": null for
+  itch games; after a restart _sync's "keep non-itch games" (g.get("store","itch") != "itch") kept
+  them -> one more copy per refresh. Fix (branch fix-dupes): _prep sets store = store or "itch";
+  load_cache drops duplicate ids (repairs old caches). LESSON: g.get(k, default) doesn't cover a
+  key saved as null; normalise in _prep. Test: test_itch_games_not_duplicated_after_restart.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s

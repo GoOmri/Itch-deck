@@ -130,3 +130,29 @@ def test_tabs_and_read_only_game_page():
     assert [g["title"] for g in sc.shown] == ["Hades"]
     gp = Game(t, games[1])
     assert gp.actions() == [] and gp.message()[1] == "Coming soon"
+
+
+def test_itch_games_not_duplicated_after_restart(tmp_path, monkeypatch):
+    """v0.7.6 bug: cached itch games came back with store null, so every itch refresh kept the
+    old copies (3 of each after two refreshes). Old caches with duplicates are repaired on load."""
+    paths.use_root(tmp_path)
+    paths.LIBRARY.parent.mkdir(parents=True, exist_ok=True)
+    bad = {"id": "5", "title": "Bleed 2", "platforms": ["linux"], "store": None}
+    epic_g = {"id": "epic-Fern", "title": "Hades", "platforms": ["windows"], "store": "epic"}
+    paths.LIBRARY.write_text(json.dumps({"synced_at": None, "games": [bad, bad, bad, epic_g]}))
+
+    class Itch:
+        def sync(self, on_page=None):
+            return [{"id": "5", "title": "Bleed 2", "platforms": ["linux"]}]
+    lib = library.Library(Itch())
+    lib.load_cache()
+    assert [g["id"] for g in lib.games] == ["5", "epic-Fern"]       # repaired on load
+    for k in ("queue_covers", "queue_prefetch", "queue_hltb"):
+        monkeypatch.setattr(lib, k, lambda: None)
+    for _ in range(3):                                              # refresh, restart, refresh…
+        lib._sync()
+        lib = library.Library(Itch())
+        lib.load_cache()
+        for k in ("queue_covers", "queue_prefetch", "queue_hltb"):
+            monkeypatch.setattr(lib, k, lambda: None)
+    assert sorted(g["id"] for g in lib.games) == ["5", "epic-Fern"]
