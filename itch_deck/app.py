@@ -441,7 +441,7 @@ def _selftest_epic(app):
     app.go_settings()
     labels = [r[0] for r in app.scene.items()]
     app.scene.focus = labels.index("Epic")
-    assert app.scene.hints()[0] == ("A", "Connect")
+    assert app.scene.hints()[0] == ("A", "Sign in")
     app.handle(A)
     assert app.kind == "epic" and app.scene.status in ("phone", "nonet")
     app._epic_got('{"authorizationCode":"' + "c" * 32 + '","sid":null}')
@@ -455,7 +455,7 @@ def _selftest_epic(app):
     assert app.phone_status.startswith("Connected as selftest")
     app.go_settings()
     app.scene.focus = [r[0] for r in app.scene.items()].index("Epic")
-    assert app.scene.hints()[0] == ("A", "Disconnect")
+    assert app.scene.hints()[0] == ("A", "Sign out")
     app.handle(A)
     app.handle(A)                                        # confirm
     assert not app.cfg.get("epic") and not app.lib.by_id("epic-Fern") and app.lib.epic is None

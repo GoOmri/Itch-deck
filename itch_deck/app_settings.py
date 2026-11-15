@@ -204,9 +204,9 @@ class SettingsMixin:
                 self.try_import(auto=True)
             elif label == "Epic":
                 if self.lib.epic and self.lib.epic.connected():
-                    self.confirm("Disconnect Epic?",
+                    self.confirm("Sign out of Epic?",
                                  ["Epic games leave your library.", "Sign in again any time."],
-                                 "Disconnect", self._disconnect_epic)
+                                 "Sign out", self._disconnect_epic)
                 else:
                     self.go_epic()
             elif label == "Disconnect itch":

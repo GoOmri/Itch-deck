@@ -8,9 +8,20 @@ from .base import Scene
 
 # What the player reads. The app still acts on the internal labels (left).
 SHOWN = {"Re-import API key": "Use a new itch key", "Disconnect itch": "Sign out of itch",
-         "Epic": "Epic Games",
          "Install location": "Install games to", "Saves of uninstalled games": "Old save data",
          "Proton version": "Windows support"}
+
+
+def epic_in(value):
+    return str(value).startswith("Connected")
+
+
+def shown(label, value, sub):
+    """Row as the player reads it: every store says the same 'Sign in to / Sign out of X'."""
+    if label == "Epic":
+        return ("Sign out of Epic", str(value)[len("Connected as "):], sub) if epic_in(value) \
+            else ("Sign in to Epic", "", sub)
+    return SHOWN.get(label, label), value, sub
 
 
 class Settings(Scene):
@@ -24,18 +35,19 @@ class Settings(Scene):
     def groups(self):
         v = self.v
         return [
-            ("App", "Updates and what you're running.", [("Update app", v["update"], "")]),
-            ("Account", "Your stores and library.",
-             [("Refresh library", "", f"Last synced {v['last_sync']}"),
+            ("App", "Updates and your library.",
+             [("Update app", v["update"], ""),
+              ("Refresh library", "", f"Last synced {v['last_sync']}")]),
+            ("Accounts", "The stores your games come from.",       # one pair of rows per store
+             [("Disconnect itch", v.get("itch_user", ""), ""),
               ("Re-import API key", "", ""),
-              ("Disconnect itch", v.get("itch_user", ""), ""),
               ("Epic", v.get("epic", ""), "")]),
             ("Storage", "Where games go and what they leave behind.",
              [("Install location", v["install_label"], ""),          # SD card / Internal storage
               ("Saves of uninstalled games", v["prefix_size"], "")]),
-            ("Games", "How Windows games run.", [("Proton version", v["proton"], "")]),
-            ("Controls", "Buttons and pointer.",
-             [("Button symbols", v.get("symbols", "Auto"), ""),
+            ("Games & controls", "How games run and how you control them.",
+             [("Proton version", v["proton"], ""),
+              ("Button symbols", v.get("symbols", "Auto"), ""),
               ("Pointer speed", v.get("pointer", "Normal"), "")]),
         ]
 
@@ -85,8 +97,7 @@ class Settings(Scene):
         label, value, _ = self.items()[self.focus]
         act = self.ACTION.get(label, "Select")
         if label == "Epic":
-            val = str(value)
-            act = "Disconnect" if val.startswith("Connected") else "Connect"
+            act = "Sign out" if epic_in(value) else "Sign in"
         if label == "Proton version" and str(self.v.get("proton", "")).startswith("Not installed"):
             act = "Download"
         if label == "Update app" and isinstance(value, tuple):
@@ -122,11 +133,12 @@ class Settings(Scene):
         y = W.text(t, s, name, px, t.m + t.sm, t.f_h2).bottom + t.xs
         y = W.text(t, s, about, px, y, t.f_small, color=t.dim, maxw=pw).bottom + t.md
         f = None if self.side else self.row
-        if name == "App":
-            self._app_card(s, pg.Rect(px, y, pw, int(t.u * 12)), f == 0)
-        else:
-            W.rows(t, s, pg.Rect(px, y, pw, 0), [(SHOWN.get(lb, lb), v, sub) for lb, v, sub in rows],
-                   f, int(t.u * 8), key="settings")
+        if rows[0][0] == "Update app":                     # App: the card, then its rows
+            card = pg.Rect(px, y, pw, int(t.u * 12))
+            self._app_card(s, card, f == 0)
+            rows, y = rows[1:], card.bottom + t.md
+            f = None if f in (None, 0) else f - 1
+        W.rows(t, s, pg.Rect(px, y, pw, 0), [shown(*r) for r in rows], f, int(t.u * 8), key="settings")
 
     def _app_card(self, s, r, focused):
         """Version + update in one card; its button is the only thing to press."""
