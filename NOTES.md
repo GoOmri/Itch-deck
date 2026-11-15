@@ -621,6 +621,11 @@ Epic step 1 RELEASED v0.7.6 15 Nov (Omri "push update"; with the no-launch-logo 
     whole page → paste → Send: phone "Connected as …", TV jumps to the Epic tab, games + covers
     fill in. 5 Epic game page says Coming soon. 6 Y: itch + Epic still there. 7 Restart: Epic tab
     still there. 8 Disconnect: tab and games gone. If 4 fails: app.log lines "epic:".
+v0.7.6 Deck test (15 Nov): all ✓ (Epic sign-in + tab work end to end).
+DECISION (Omri 15 Nov): NO per-game Steam tiles for now. He starts games from SCRiTCH; Mouse /
+  Keys modes + the quit combo already cover what tiles would solve. Tiles need a Steam restart
+  (shortcuts.vdf is read at Steam start) or a Decky plugin. If other players ask: an opt-in
+  "Add to Steam" in a game's Options. Next: Epic step 2 (install / play Epic games).
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
