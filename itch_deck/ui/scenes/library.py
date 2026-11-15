@@ -134,7 +134,7 @@ class Library(Scene):
                 ("Genre", ("Any" if self.genre == "any" else self.genre) + n(genre=self.genre), ""),
                 ("Length", dict(LENGTHS)[self.length] + n(length=self.length), "")]
         if self.filtered():
-            rows.append(("Clear filters", "", ""))
+            rows.append(("Clear filters", W.BUTTON_ROW, ""))
         return rows
 
     def menu_open(self, f=0):

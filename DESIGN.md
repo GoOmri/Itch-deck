@@ -93,7 +93,8 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
   the library's genres), Length (Any / Under 2 h / 2–10 h / 10 h+ from HowLongToBeat main
   story; unknown only under Any, sorted last). Remembered per tab. ◀ ▶ or A change a value, each value
-  shows its count, the title the live total, "Clear filters" when filtering; when a filter is on the top bar
+  shows its count, the title the live total, "Clear filters" when filtering (a full-width purple button closing the menu: the
+  likely next step, as wide as the menu it belongs to); when a filter is on the top bar
   shows a purple FILTER: … tag and "12 of 30 games" (plain words alone read like playtime; the
   "of 30" says games are hidden), and an empty result says "No games match this filter." **Each tab keeps its own Sort & filter** (Omri 15 Nov): a filter set on All never hides games on Installed; Installed starts unfiltered. Genre goes in the info line; time to beat gets its own
   dim line ("Main story ~4 h · Completionist ~9 h"), or nothing if HLTB doesn't know the game

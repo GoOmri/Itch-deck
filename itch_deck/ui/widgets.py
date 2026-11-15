@@ -950,6 +950,9 @@ def notice(t, s, x, y, w, title, body=None, kind="error"):
     return r
 
 
+BUTTON_ROW = "\0button"      # value that makes a row a full-width purple button (e.g. Clear filters)
+
+
 def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
     """Settings/Picker list; the focused row lights up in place. items: [(label, value, sub)]."""
     row_h = row_h or int(t.u * 8.5)
@@ -957,6 +960,12 @@ def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
     y = rect.y
     for i, (label, value, sub) in enumerate(items):
         r = pg.Rect(rect.x, y, rect.w, row_h)
+        if value == BUTTON_ROW:                    # as wide as its block; deep at rest, bright lit
+            br = pg.Rect(r.x, 0, r.w, t.btn_h)
+            br.centery = r.centery + t.sm               # a little air above: it ends the list
+            button(t, s, br, label, focused=(i == focus), accent=True)
+            y += row_h + t.u // 2
+            continue
         k = anim((key, label), 1.0 if i == focus else 0.0)
         if k > 0.01:
             panel(t, s, r, mix(t.panel_hi, t.focus_fill, k))
