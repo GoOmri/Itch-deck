@@ -208,6 +208,7 @@ def _shots(t, version):
                                     ("Controls", "", "")], 0))),
         ("16_game_failed", game("Grave Gardener",
                                 fail_reason=None)),        # the reason is in the log only
+        ("16b_game_failed_build", game("Grave Gardener", fail_reason="Try another build in Options")),
         ("17_game_browser", game("Frog Parliament")),
         ("18_game_not_playable", game("Velvet Static")),
         ("19_game_picker", with_overlay(game("Quiet Quarry"), picker)),
