@@ -217,9 +217,10 @@ def result(kind, head, line, action=""):
            'stroke-linecap="round" stroke-linejoin="round">{}</svg>')    # drawn, exactly centred
     icon = {"wait": '<svg class="spin" viewBox="0 0 50 50"><circle class="tr" cx="25" cy="25" r="20"/>'
                     '<circle class="hd" cx="25" cy="25" r="20" transform="rotate(-90 25 25)"/></svg>',
-            "ok": f'<div class="ico ok">{svg.format("<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>")}</div>',
-            "bad": f'<div class="ico bad">{svg.format("<path d=\"M7 7l10 10M17 7L7 17\"/>")}</div>',
-            "old": f'<div class="ico old">{svg.format("<path d=\"M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5\"/>")}</div>'}
+            "ok": '<div class="ico ok">' + svg.format('<path d="M5 12.5l4.5 4.5L19 7.5"/>') + '</div>',
+            "bad": '<div class="ico bad">' + svg.format('<path d="M7 7l10 10M17 7L7 17"/>') + '</div>',
+            "old": '<div class="ico old">' + svg.format('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/>')
+                   + '</div>'}   # no backslashes inside f-strings: CI runs Python 3.11
     return (f'<div class="res" id="{kind}">{icon[kind]}<h2 id="{kind}h">{named(head)}</h2>'
             f'<p id="{kind}p">{named(line)}</p>{action}</div>')
 
