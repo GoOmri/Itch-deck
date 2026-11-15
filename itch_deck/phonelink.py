@@ -258,6 +258,9 @@ def split_status(s):
     return head.rstrip("."), rest
 
 
+CLOSE = "You can close this tab."    # browsers can't close a QR-opened tab, so we say it
+
+
 def sent_page(token, preview=None):
     """After Send: a big centred result. preview=(kind, status) renders one state without the
     script's help (mockups); normally the script polls the Deck and switches states."""
@@ -268,15 +271,14 @@ def sent_page(token, preview=None):
     hide = lambda k: "" if k == kind else " hidden"           # noqa: E731
     body = (result("wait", "Checking your key…", "Checking it on your Deck…").replace(
                 '<div class="res"', f'<div class="res"{hide("wait")}', 1)
-            + result("ok", ok_h, ok_p, '<p class="note">You can close this tab.</p>'
-                     ).replace('<div class="res"', f'<div class="res"{hide("ok")}', 1)
+            + result("ok", ok_h, (ok_p + " " + CLOSE).strip()).replace('<div class="res"', f'<div class="res"{hide("ok")}', 1)
             + result("bad", bad_h, bad_p, f'<a class="btn pri" href="/?t={html.escape(token)}">'
                      'Try another key</a>').replace('<div class="res"', f'<div class="res"{hide("bad")}', 1))
     return _page("Sent", body + f"""
 <script>const t={t};let n=0;
 function show(id,s){{for(const k of ['wait','ok','bad'])document.getElementById(k).hidden=k!==id;
  const i=s.indexOf('. ');document.getElementById(id+'h').textContent=(i<0?s:s.slice(0,i)).replace(/[.]$/,'');
- document.getElementById(id+'p').textContent=i<0?'':s.slice(i+2);}}
+ document.getElementById(id+'p').textContent=((i<0?'':s.slice(i+2))+(id==='ok'?' {CLOSE}':'')).trim();}}
 function poll(){{fetch('/status?t='+encodeURIComponent(t)).then(r=>r.ok?r.json():null).then(j=>{{
  const s=(j&&j.status)||'';
  if(/^Connected/.test(s))return show('ok',s);

@@ -481,7 +481,7 @@ def selftest(screenshot=None):
     app.go_settings()
     labels = [r[0] for r in app.scene.items()]
     app.scene.focus = labels.index("Disconnect itch")
-    assert app.scene.hints()[0] == ("A", "Disconnect")
+    assert app.scene.hints()[0] == ("A", "Sign out")
     app.handle(A)
     assert app.scene.overlay and app.scene.overlay[0] == "confirm"
     app.handle(A)
