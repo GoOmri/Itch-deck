@@ -655,6 +655,11 @@ v0.7.6 BUG (Omri 15 Nov 17:30): itch games x3 in the library. save_cache wrote "
   them -> one more copy per refresh. Fix (branch fix-dupes): _prep sets store = store or "itch";
   load_cache drops duplicate ids (repairs old caches). LESSON: g.get(k, default) doesn't cover a
   key saved as null; normalise in _prep. Test: test_itch_games_not_duplicated_after_restart.
+OPEN for the design chat (Omri 15 Nov 17:47): the active-filter text was removed from the library
+  top bar (v0.7.7) because Omri read "Under 2 h" as his playtime. But a hidden filter is what made
+  "37 games" look like missing games this morning, and filters are now per tab. Wanted: the active
+  filter shown clearly AS a filter, near the filters (e.g. a chip "Filter: Under 2 h", or on the X
+  Sort & filter hint), not as loose text by the count. Omri is taking this to the design chat.
 Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   copies after the update restart (11:25:56 + 11:25:59; also 14 Nov 16:27 after v0.2.4) -> every
   HLTB line twice + hltb.tmp FileNotFoundError x15. Cause not proven (2nd start args=[], 3-4 s
