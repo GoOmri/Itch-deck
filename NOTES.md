@@ -706,6 +706,14 @@ v0.8.0 Deck test (15 Nov): all ✓ except the install-done feedback: no toast, n
 OPEN (Omri 15 Nov: "ruminate some other time"): Details shows raw log lines - useless to a casual
   player. Idea on the table: "Get help" = the plain reason + a QR that opens the full log on the
   phone (phonelink) to send to whoever helps; no log text on the TV. Not decided.
+ROADMAP NOW (Omri 16 Nov 09:38, replaces the list below; done: 1 rename = v0.8.2, 2 error codes
+  = v0.8.3). One item per update, plan + size first: 1 Save backups (copy a game's saves to a safe
+  folder + restore; all stores). 2 Recently played as a Sort & filter sort. 3 Move a game between
+  SD and internal (⚙ menu, saves too). 4 GOG tab like Epic (Heroic's gogdl helper on demand, phone
+  sign-in with pasted address; ~2-3 updates). 5 Epic DLC. 6 Epic cloud saves. 7 Ready to share
+  (postponed: "still more to build"). Not picked: favourites / hiding games. Hide extra pads:
+  Omri asked why (explained 16 Nov), undecided. Design work moves to a fresh DESIGN chat
+  (branches design-<topic>); this chat = code, merges, releases.
 ROADMAP (Omri 15 Nov 20:23, after v0.8.1; page: https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo),
   one item per update, in this order:
   1 Rename folders itch-deck -> scritch (moves user data: plan + size first, migration with
