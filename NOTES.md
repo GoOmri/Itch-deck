@@ -735,7 +735,7 @@ v0.8.4 RELEASED 16 Nov (Omri: "you can push when done") = ROADMAP 1, save backup
     backed up." 3 ⚙ → Saves lists it. 4 Dolphin: Documents/SCRiTCH saves/<game>/ has a zip.
     5 Play again without saving -> no new backup. 6 Put back the older one -> "Saves put back."
     and the game loads it; Saves now shows a "Before restore" entry.
-v0.8.5 = Move games + Controls row (branch move-games, built on controls-row; NOT released yet).
+v0.8.5 RELEASED 16 Nov 11:00 (Omri "push") = Move games + Controls row + design-balance docs.
   Omri 16 Nov 10:30 "go" incl. the registry address fix.
   - installer: move_target(gid, config.install_choices()) -> the other drive (needs 2 choices,
     game not queued/downloading/moving, card present). move() -> thread _move: size check (+200 MB),
