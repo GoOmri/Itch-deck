@@ -1192,3 +1192,11 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   hero 3840x1240, logo (transparent), icon 256 (the i alone). README step 4 sets it by hand.
   FOR THE CODE CHAT (optional): the app could copy these into Steam's grid folder itself
   (userdata/<id>/config/grid/<shortcut appid>p.png, .png, _hero.png, _logo.png, _icon.png).
+
+## Design merges 16 Nov (code chat, Omri 13:14)
+- design-balance + design-notice-align were already in main (v0.9.3); design-logo merged (fast-forward)
+  after main: pytest 3.13 + 3.11 (147), selftest both, itch-reject selftest, mockups (180).
+- packaging/steam-art/*.png were NOT in design-logo: .gitignore has *.png, so the README link
+  pointed at nothing. Generated with packaging/steam_art.py and added with `git add -f` (144 KB).
+  Regenerate + `git add -f` again whenever the logo changes.
+- Not a release: VERSION stays 0.9.3 (CI builds, skips releasing). The logo ships with the next one.
