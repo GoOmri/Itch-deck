@@ -207,6 +207,10 @@ def _shots(t, version):
         ("15_game_installed", game("Moss & Rivets",
                                    install_path="/run/media/deck/SD/itch/moss-and-rivets")),
         ("15c_game_update", game("Harbor Ghosts")),
+        # "balance" idea (mockup only, waiting for Omri): a game with little info, now vs idea
+        ("15i_game_sparse", Game(t, dict(by["Moss & Rivets"], short_text="", genre=None, ttb=None))),
+        ("15j_game_sparse_balance", _set(Game(t, dict(by["Moss & Rivets"], short_text="", genre=None,
+                                                      ttb=None)), balance=True)),
         ("15h_game_everything", _set(Game(t, dict(by["Quiet Quarry"], title="The Extraordinarily Long Adventures of Pip",
                                               author="Somebody With A Long Studio Name Games",
                                               genre="Interactive Fiction", size_mb=12_800,
