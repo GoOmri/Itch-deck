@@ -717,7 +717,7 @@ ROADMAP (Omri 15 Nov 20:23, after v0.8.1; page: https://claude.ai/artifact/Hkk8S
   Decided against: auto Steam tiles, IGDB (secret key), reading Epic from Heroic.
   Needs a Deck test, not code: itch update detection, split installer (Stranger More), Epic long
   descriptions count ("epic text fields" log line), Epic game updates.
-v0.8.3 = ROADMAP item "error codes instead of Details" (branch error-codes, NOT released; Omri
+v0.8.3 RELEASED 16 Nov (Omri "push" 09:19) = ROADMAP item "error codes instead of Details" (branch error-codes; Omri
   "go" 16 Nov 01:11). Omri 16 Nov: no log, no QR, no new buttons on the TV; keep the log on disk.
   - words.CODES = the one list (letter = where: I install, W Windows/GE/umu, P play, L library,
     U app update; E reserved for Epic sign-in if ever needed). words.Coded(msg, code) is the base of
