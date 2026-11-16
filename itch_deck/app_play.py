@@ -45,7 +45,7 @@ class PlayMixin:
             log.info("play: %s via %s, prefix %s", g["id"], pdir.name, prefix)
         pg = self.pg
         self.scene.toast, self.toast_until = None, 0
-        if info.get("store") == "gog" and info.get("setup_steps") and not info.get("setup_done"):
+        if info.get("store") == "gog" and info.get("setup_steps") and self._gog_needs_setup(info):
             self._gog_first_run(g, info, umu, env)
         self._splash(f"Starting {g['title']}…", sub or QUIT_HINT)
         args, secret, cwd = (), (), None
@@ -126,6 +126,14 @@ class PlayMixin:
                 words.log_code("P01", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
                 self.say(words.with_code(f"{g['title']} couldn't start.", "P01"), error=True)
 
+    def _gog_needs_setup(self, info):
+        """Not run yet, or a part was missing last time (v0.9.5 never fetched GOG's setup tool):
+        run it (again)."""
+        from .stores import gog
+        files = Path(info["dir"]) / "files"
+        return not info.get("setup_done") or any(not gog.step_exe(st, files)
+                                                 for st in info["setup_steps"])
+
     def _gog_first_run(self, g, info, umu, env):
         """GOG Windows game, first Play (v0.9.5): install the parts it needs (Visual C++,
         DirectX…) and run GOG's setup tool, quietly, in its prefix. Once per install (an update
@@ -139,6 +147,13 @@ class PlayMixin:
 
         def work():
             try:
+                missing = [st["name"] for st in info["setup_steps"]
+                           if st["base"] == "redist" and not gog.step_exe(st, files)]
+                if missing and self.lib.gog and not self.lib.offline:   # v0.9.5 left ISI out
+                    try:
+                        self.lib.gog.redist(missing, log_file=log_file)
+                    except gog.GogError as e:
+                        log.info("play: gog redist %s: %s", missing, e)
                 res["failed"] = gog.run_setup(info["setup_steps"], files, umu, env, log_file)
             except Exception as e:  # noqa: BLE001
                 log.exception("play: gog first-run setup")
@@ -150,7 +165,8 @@ class PlayMixin:
             self.pg.event.pump()
             self._splash(f"Preparing {g['title']}…", "First run only, can take a few minutes")
             th.join(0.25)
-        info["setup_done"] = True
+        missing = [st["name"] for st in info["setup_steps"] if not gog.step_exe(st, files)]
+        info["setup_done"] = not missing         # a part we couldn't get: try again next Play
         if res.get("failed"):
             info["setup"] = True                 # a crash right after -> P03
             log.info("play: %s first-run setup: not done: %s", g["id"], ", ".join(res["failed"]))

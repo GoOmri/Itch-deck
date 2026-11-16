@@ -495,3 +495,20 @@ def test_gog_change_version_and_update(tmp_path, monkeypatch):
     _wait(inst)
     info = inst.index["gog-3"]
     assert info["build_id"] == "B43" and info["setup_done"] is True and not info.get("update")
+
+
+def test_gog_setup_tool_is_downloaded(tmp_path, monkeypatch):
+    """v0.9.5b: a game with goggame-*.script asks gogdl for ISI too (v0.9.5 forgot: "not found")."""
+    import sys
+    from test_install import _wait
+    monkeypatch.setenv("FAKE", "script")
+    st, lib, inst = _gog_inst(tmp_path, monkeypatch)
+    asked = []
+    real = st.redist
+    monkeypatch.setattr(st, "redist", lambda ids, **kw: (asked.append(list(ids)), real(ids, **kw))[1])
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    assert "ISI" in asked[0]
+    info = inst.index["gog-3"]
+    isi = next(s_ for s_ in info["setup_steps"] if s_["name"] == "ISI")
+    assert gog.step_exe(isi, paths.Path(info["dir"]) / "files")

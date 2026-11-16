@@ -917,8 +917,10 @@ class Installer:
         if plat == "windows":                     # GOG's shared parts + first-run setup list
             self._upd(gid, phase="installing", progress=1)
             try:
-                repo = store.redist(about.get("deps") or [], cancel=lambda: gid in self._cancel,
-                                    log_file=log_file)
+                ids = list(about.get("deps") or [])
+                if any(files.glob("goggame-*.script")):    # GOG's setup tool runs them (ISI)
+                    ids.append("ISI")
+                repo = store.redist(ids, cancel=lambda: gid in self._cancel, log_file=log_file)
                 steps = gog_mod.setup_steps(files, g["app_name"], about.get("deps"), repo,
                                             about.get("build"), about.get("version"))
             except GogError as e:                 # the game may still start without them
