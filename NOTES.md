@@ -955,3 +955,16 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 ## Todo (Omri)
 - Logo font: pick a font, then make SCRiTCH an outlined SVG (colours baked in) used by the app
   wordmark, the phone pages and the README, so it looks the same everywhere. Check the licence.
+
+## Tab row (16 Nov, branch design-tabs)
+- Omri's idea, built: `Library._tabs` — chosen tab's text dead centre on the screen (checked to
+  1 px at 1280 and 1920), size BODY→SECTION as it arrives, the row slides on L1/R1
+  (`W.anim(("tabrow", …))`, MOTION_MS, no spring). Text = one layer × an opacity ramp from the
+  centre (100% → 15%, zero before the logo / count; `_tab_ramp`, cached); soft band behind the
+  middle (`_tab_band`, cached). No underline, no purple (DESIGN §2/§6/§9 updated).
+- Considered and dropped: row centred as a group / halfway (balanced, but Omri wants the chosen
+  tab exactly in the middle).
+- Sort & filter freeze now draws onto a copy of the screen (`s.copy()`), not a see-through
+  layer: faded text blends differently on a transparent layer, and the frozen frame must equal
+  the live one (test_background_frozen_while_filtering_then_updates).
+- Mockup 06k_library_tab_sliding = R1 from All, mid-slide (`tab_at`).

@@ -17,7 +17,7 @@ dialogs, footers, tags, toasts, phone pages. Never one colour, never lowercase.
 
 ## 2. Colour means something, or it isn't there
 - **Purple = happening or yours:** progress, rings, spinners, the ✓ badge, Installed /
-  Recommended / Developer tags, the selected tab — and the page's ONE main button
+  Recommended / Developer tags — and the page's ONE main button
   (Install / Retry install, Play, Update / Restart). While downloading the progress is the
   purple thing; Cancel stays grey.
 - **Red = error, or an action that deletes or closes** (Quit, Uninstall in their dialogs).
@@ -96,7 +96,10 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   the right margin (current letter purple); it slides in from the right while you move and
   slides out 1.5 s after you stop, so it never sits there as clutter.
 - **Library:** tabs All · Installed, plus one per store (itch · Epic) once a second store is
-  connected (L1/R1) — no more tabs. **X = Sort & filter:**
+  connected (L1/R1) — no more tabs. **The chosen tab's text sits dead centre on the screen**,
+  bigger (BODY → SECTION) and white; the whole row slides under it, the text fades out from the
+  middle (opacity ramp, gone before the logo and the count) and a soft band behind the middle
+  fades left and right. No underline, no purple: the chosen tab is lit, like focus (Omri 16 Nov). **X = Sort & filter:**
   Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
   the library's genres), Length (Any / Under 2 h / 2–10 h / 10 h+ from HowLongToBeat main
   story; unknown only under Any, sorted last). Remembered per tab. ◀ ▶ or A change a value, each value
@@ -136,10 +139,11 @@ sentence case everywhere else ("Change build").
 
 ## 9. Motion is calm; waiting is alive
 - One tempo: `W.spring`, no overshoot (`SPRING_BACK` 0), `MOTION_MS` 240 ms. Pages swipe in
-  (from the right going deeper, left going back); Library content swipes between tabs;
+  (from the right going deeper, left going back); the tab row slides and the arriving tab
+  grows; Library content swipes between tabs;
   tiles/screenshots grow on focus; toasts slide up; scrolling glides.
-- Springy only twice: the tab underline (`TAB_BACK`) and the ✓ popping onto a tile when
-  an install finishes (a "done" moment, with the "… is ready to play." toast).
+- Springy only once: the ✓ popping onto a tile when an install finishes (`TAB_BACK`; a
+  "done" moment, with the "… is ready to play." toast).
 - Buttons and rows never move — focus lights them in place.
 - A cover on its way: dark purple tile with a soft shine sweeping across (`W.shimmer`, a row
   moves as one wave); the cover fades in over it, never pops.

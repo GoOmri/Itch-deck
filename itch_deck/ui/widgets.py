@@ -97,7 +97,7 @@ def mix(a, b, k):
 
 MOTION_MS = 240       # every focus / tile / scroll / toast / page move (one tempo)
 SPRING_BACK = 0.0     # overshoot of spring(): 0 = calm ease-in-out (Omri: no bounce)
-TAB_BACK = 1.1        # the one springy thing: the All/Installed underline
+TAB_BACK = 1.1        # the one springy thing: the ✓ popping onto a tile when an install ends
 
 
 # --- basics -----------------------------------------------------------------

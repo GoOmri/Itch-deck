@@ -224,7 +224,7 @@ class Library(Scene):
             # and scrolled the grid under the shade). The menu title shows the live count; the
             # new result fades in when the menu closes.
             if getattr(self, "_frozen", None) is None or self._frozen[0] != s.get_size():
-                buf = pg.Surface(s.get_size(), pg.SRCALPHA)
+                buf = s.copy()             # on what's already there, so it matches a live frame
                 self._draw_live(buf)
                 self._frozen = (s.get_size(), buf, state)
             s.blit(self._frozen[1], (0, 0))
@@ -281,21 +281,9 @@ class Library(Scene):
         t = self.t
         base = int(t.m + t.xs)              # everything in the top bar sits on this baseline
         r = W.wordmark(t, s, t.m, base, anchor="baseleft")
-        x = r.right + t.lg
-        if getattr(self, "tab_style", None) == "carousel":         # mockup only (Omri 16 Nov idea)
-            return self._top_right(s, base, carousel=r.right + t.lg)
-        for key, label in self.tabs():
-            on = self.filt == key
-            lr = W.text(t, s, label, x, base, t.f_btn, color=t.text_c if on else t.dim,
-                        anchor="baseleft")
-            if on:                       # underline slides between tabs (spring)
-                ux = W.anim(("tab", "x"), lr.x, back=W.TAB_BACK)
-                uw = W.anim(("tab", "w"), lr.w, back=W.TAB_BACK)
-                pg.draw.rect(s, t.accent, (int(ux), base + t.xs, int(uw), max(2, t.u // 3)))
-            x = lr.right + t.md
-        return self._top_right(s, base)
+        return self._top_right(s, base, r.right + t.lg)
 
-    def _top_right(self, s, base, carousel=None):
+    def _top_right(self, s, base, left):
         t = self.t
         n = len(self.shown)
         right = t.w - t.m
@@ -308,62 +296,77 @@ class Library(Scene):
         if self.filtered():
             rr = W.tag(t, s, "Filter: " + self.filter_summary().replace("  ·  ", " · "),
                        rr.x - t.md, base - W.x_mid(t.f_small), kind="accent", anchor="midright")
-        if carousel is not None:
-            self._tab_carousel(s, base, carousel, rr.x - t.lg)
+        self._tabs(s, base, left, rr.x - t.lg)
         return int(base + t.lg)
 
-    def _tab_carousel(self, s, base, left, right):
-        """IDEA (mockup only): the tab row slides so the focused tab sits in the middle of the
-        screen; focused = bigger + white, the others dim and fade with distance; a soft band
-        behind the middle fades out to the left and right. `tab_at` (float index) draws a
-        frame mid-slide for the mockups."""
+    def _tabs(self, s, base, left, right):
+        """The tab row (Omri 16 Nov): the chosen tab's text sits dead centre on the screen,
+        bigger and white; the whole row slides under it on L1/R1 (calm, MOTION_MS) and the
+        chosen tab grows as it arrives. The text fades out from the middle (opacity ramp) and
+        is gone before the logo / count; a soft band behind the middle fades left and right.
+        `tab_at` (float index) freezes a frame mid-slide for the mockups."""
         t = self.t
         keys = self.tabs()
         cur = [k for k, _ in keys].index(self.filt)
-        at = getattr(self, "tab_at", cur)
-        big, small = t.font("SemiBold", t.u * 3.2), t.f_btn
-        gap = t.lg
-        # lay the row out at rest (focused one big) and find each tab's centre
-        ws = [(big if i == cur else small).size(lb)[0] for i, (_, lb) in enumerate(keys)]
-        cs, x = [], 0
+        at = getattr(self, "tab_at", None)
+        if at is None:
+            at = W.anim(("tabrow", tuple(k for k, _ in keys)), float(cur))
+        at = max(0.0, min(len(keys) - 1.0, at))
+        hi = t.f_h2.get_height()
+        def font(i):                               # BODY size -> SECTION size as a tab arrives
+            k = max(0.0, 1 - abs(i - at))
+            return t.font("SemiBold", t.u * (2.7 + 0.5 * k))
+        fonts = [font(i) for i in range(len(keys))]
+        ws = [f.size(lb)[0] for f, (_, lb) in zip(fonts, keys)]
+        cs, x = [], 0.0                            # each tab's centre along the row
         for w in ws:
             cs.append(x + w / 2)
-            x += w + gap
-        i0 = int(at); f = at - i0
-        c_at = cs[i0] + (cs[min(i0 + 1, len(cs) - 1)] - cs[i0]) * f
-        cx = t.w // 2
-        mid = (cs[0] - ws[0] / 2 + cs[-1] + ws[-1] / 2) / 2      # middle of the whole row
-        pull = {"tab": 1.0, "half": 0.5, "group": 0.0}[getattr(self, "tab_center", "tab")]
-        shift = cx - (mid + (c_at - mid) * pull)     # how far the row follows the chosen tab
-        # the band: lightest in the middle, gone at both sides
-        bw, bh = int(t.u * 44), int(t.u * 5.6)
-        band = pg.Surface((bw, bh), pg.SRCALPHA)
-        for px in range(bw):                            # soft on all sides, widest left-right
-            ax = (1 - abs(px - bw / 2) / (bw / 2)) ** 1.6
+            x += w + t.lg
+        i0 = min(int(at), len(cs) - 1)
+        c_at = cs[i0] + (cs[min(i0 + 1, len(cs) - 1)] - cs[i0]) * (at - i0)
+        cx = t.w / 2
+        shift = cx - c_at                          # the chosen tab's centre = the screen's centre
+        s.blit(self._tab_band(), (int(cx) - self._band.get_width() // 2,
+                                  base - W.x_mid(t.f_btn) - self._band.get_height() // 2))
+        top = base - t.f_h2.get_ascent() - t.u
+        row = pg.Surface((t.w, hi + t.u * 2), pg.SRCALPHA)
+        for f, c, (_, label) in zip(fonts, cs, keys):
+            img = f.render(label, True, t.text_c)
+            row.blit(img, (round(c + shift - img.get_width() / 2), base - top - f.get_ascent()))
+        row.blit(self._tab_ramp(left, right, max(ws) / 2, row.get_height()), (0, 0),
+                 special_flags=pg.BLEND_RGBA_MULT)
+        s.blit(row, (0, top))
+
+    def _tab_band(self):
+        """Soft light behind the middle: strongest at the centre, gone at every edge. Cached."""
+        t = self.t
+        if getattr(self, "_band_u", None) != t.u:
+            bw, bh = int(t.u * 44), int(t.u * 5.6)
+            col = pg.Surface((bw, 1), pg.SRCALPHA)       # one row of left-right falloff …
+            for px in range(bw):
+                col.set_at((px, 0), (*t.panel_hi, int(190 * (1 - abs(px - bw / 2) / (bw / 2)) ** 1.6)))
+            band = pg.transform.scale(col, (bw, bh))
+            fall = pg.Surface((1, bh), pg.SRCALPHA)       # … times a top-bottom falloff
             for py in range(bh):
-                ay = 1 - (abs(py - bh / 2) / (bh / 2)) ** 3
-                band.set_at((px, py), (*t.panel_hi, int(190 * ax * ay)))
-        tx = int(c_at + shift)                         # the chosen tab's centre
-        s.blit(band, (tx - bw // 2, base - W.x_mid(t.f_btn) - bh // 2))
-        # the text: all white, drawn on one layer, then an opacity ramp from the middle
-        # (full in the middle, fading towards the sides) and gone before the logo / count
-        row = pg.Surface((t.w, big.get_height() + t.u * 2), pg.SRCALPHA)
-        top = base - big.get_ascent() - t.u
-        for i, (key, label) in enumerate(keys):
-            font = big if abs(i - at) < 0.5 else small
-            img = font.render(label, True, t.text_c)
-            row.blit(img, img.get_rect(bottomleft=(int(cs[i] + shift - img.get_width() / 2),
-                                                   base - top + (-font.get_descent()))))
-        ramp = pg.Surface((t.w, 1), pg.SRCALPHA)
-        reach, fade = t.u * 34, t.u * 5          # ramp length; fade-out zone at the sides
-        hold = big.size(keys[cur][1])[0] / 2      # the chosen tab stays fully white
-        for px in range(t.w):
-            d = max(0, abs(px - tx) - hold) / reach
-            a = 1 - 0.85 * min(1, d) ** 0.8       # 100% in the middle -> 15% at the far end
-            a *= max(0, min(1, min(px - left, right - px) / fade))
-            ramp.set_at((px, 0), (255, 255, 255, int(255 * a)))
-        row.blit(pg.transform.scale(ramp, row.get_size()), (0, 0), special_flags=pg.BLEND_RGBA_MULT)
-        s.blit(row, (0, top))                 # background work lives in the footer now
+                fall.set_at((0, py), (255, 255, 255, int(255 * (1 - (abs(py - bh / 2) / (bh / 2)) ** 3))))
+            band.blit(pg.transform.scale(fall, (bw, bh)), (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+            self._band, self._band_u = band, t.u
+        return self._band
+
+    def _tab_ramp(self, left, right, hold, h):
+        """Opacity ramp from the screen's centre (100% → 15%), zero before left / right. Cached."""
+        t = self.t
+        key = (t.w, int(left), int(right), int(hold), h)
+        if getattr(self, "_ramp_key", None) != key:
+            line = pg.Surface((t.w, 1), pg.SRCALPHA)
+            reach, fade = t.u * 34, t.u * 5
+            for px in range(t.w):
+                d = max(0.0, abs(px - t.w / 2) - hold) / reach
+                a = (1 - 0.85 * min(1.0, d) ** 0.8) * max(0.0, min(1.0, min(px - left, right - px) / fade))
+                line.set_at((px, 0), (255, 255, 255, int(255 * a)))
+            self._ramp, self._ramp_key = pg.transform.scale(line, (t.w, h)), key
+        return self._ramp
+                # background work lives in the footer now
 
     def footer_status(self):
         return self.activity or ("Refreshing library" if self.syncing == "bg" else None), self.notice
