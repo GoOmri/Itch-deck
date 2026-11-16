@@ -809,6 +809,7 @@ Fix v0.9.1 RELEASED 16 Nov (Omri "push" 11:51; branch gog-fix-signin; only other
   - Tests: test_gog.py stubs net.get for auth.gog.com/token (+ refresh test). Selftest stubs
     GogStore._ask. Checked pytest 3.13 + 3.11 (140), selftest both, itch-reject selftest, mockups.
   Deck checklist v0.9.1 = v0.9.0's GOG list (steps 2-7). If it fails: app.log lines "gog:".
+v0.9.1 Deck test (16 Nov 11:58): all ✓ (Omri). GOG step 1 DONE. Next: GOG step 2 (install / play).
 v0.8.5 RELEASED 16 Nov 11:00 (Omri "push") = Move games + Controls row + design-balance docs.
   Omri 16 Nov 10:30 "go" incl. the registry address fix.
   - installer: move_target(gid, config.install_choices()) -> the other drive (needs 2 choices,
