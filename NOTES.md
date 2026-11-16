@@ -820,6 +820,34 @@ GOG step 2 = v0.9.2, APPROVED by Omri 16 Nov 12:00 (handed to a new code chat), 
   arguments, workingDir); ⚙ = Uninstall / Controls / Saves / Move (no Change build); auth file =
   DATA/gog/auth.json (already gogdl's format, written by stores/gog.py since v0.9.1). Risk: games
   needing redist / first-run setup -> error code, fix per game after the Deck test.
+v0.9.3 RELEASED 16 Nov (branch v093-fixes; Omri "include everything, go and push") = v0.9.2 Deck test fixes.
+  v0.9.2 Deck test (Serious Sam, GOG): installed + played ✓. ✗ "0 MB of 0 MB" (GOG/Epic lists
+  have no sizes); ✗ Auto = Pad (GOG has no Inputs row) -> pad ignored until Keys; B = Esc in Keys
+  is by design (Esc = pause menu). ✗ game page: back UP from screenshots left the screenshot
+  focus outline drawn. Omri also wants focus "a little greyer" + a light sweep.
+  - Size: GOG = gogdl info "need" -> size_mb before the download; Epic = legendary "Install size:
+    N MiB" line (EpicStore.install on_size). Both show "Starting…" (phase "queued") until the
+    helper's first progress line. Game page: unknown size -> speed only, never "0 MB of 0 MB".
+  - Controls Auto for GOG / Epic: page json "pad" (True/False/None) -> "inputs" via
+    library.inputs_for (True -> Gamepad, False -> Keyboard+Mouse = Keys, None -> Pad). GOG:
+    api.gog.com/v2/games/<id>?locale=en-US _embedded.features id "controller_support"
+    (gog.pad_from_json, walks any "features" list). Epic: Steam appdetails categories
+    "Full/Partial Controller Support" (steam.pad_from); no Steam match -> None. Pages without
+    "pad" refetch once. VERIFIED live by .github/workflows/stores-live.yml (branch pushes touching
+    gog.py / steam.py): Stardew True, Heroes 3 False, Serious Sam TFE (1440163901) False; Steam
+    Celeste True, Heroes 3 HD False. GOG's flag is sometimes missing on pad games: Controls
+    override stays.
+  - Game page: leaving the screenshot strip keeps redrawing the cached page 0.6 s
+    (Game._shots_settle) so the focused screenshot shrinks back (was frozen grown + outlined).
+    Play WAS focused on entry (bright purple) but didn't read as focus -> the sweep.
+  - Focus look (theme focus_fill (88,86,124) -> (92,92,112), greyer) + W.focus_sweep: soft
+    leaning light band across focused buttons (incl. purple / red ones) and rows, every 2.8 s,
+    moving 40% of it; mockups draw it halfway. DESIGN §3 updated. UI files touched by the code
+    chat on Omri's request (tell the design chat).
+  - Tests: test_gog controller flag + refetch, Starting -> size before download. Checked pytest
+    3.13 + 3.11 (147), selftest both, itch-reject selftest, mockups (180).
+  Deck checklist v0.9.3: Starting… then MB of size (GOG + Epic); Serious Sam ⚙ Controls = Auto ·
+  Keys (after its page reloads once); focus sweep on buttons/rows; screenshots -> up -> no outline.
 GOG step 2 = v0.9.2 RELEASED 16 Nov (branch gog-install; pushed under Omri's "push when done").
   Other unmerged branches at release: design-tabs (scrapped) and design-notice-align (design chat,
   12:02, game-page notice alignment; NOT merged, told Omri).

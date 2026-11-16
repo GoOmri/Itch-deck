@@ -705,6 +705,43 @@ def focus_ring(t, s, rect):
                  border_radius=t.radius + t.outline)
 
 
+FOCUS_SWEEP_S = 2.8   # one cycle: a soft light crosses the focused button / row, then rests
+FOCUS_SWEEP_PART = 0.4  # share of the cycle the light is moving (rest of it: still)
+
+
+def focus_sweep(t, s, rect, k):
+    """Focus (Omri 16 Nov): a soft light sweeps across the focused button / row every few
+    seconds, so focus reads at a glance even on the purple main button. Light only; the
+    button never moves. Mockups show it halfway across."""
+    if k < 0.5 or rect.w < 4 or rect.h < 4:
+        return
+    import time
+    ph = (time.monotonic() / FOCUS_SWEEP_S) % 1 / FOCUS_SWEEP_PART if LIVE else 0.5
+    if ph >= 1:
+        return
+    mkey = ("fmask", rect.size, t.radius)
+    mask = _cover_cache.get(mkey)
+    if mask is None:                               # the button's rounded shape
+        mask = pg.Surface(rect.size, pg.SRCALPHA)
+        pg.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(), border_radius=t.radius)
+        _cover_cache[mkey] = mask
+    bw = max(8, int(rect.h * 1.3), rect.w // 5)   # wide rows get a wider band
+    bkey = ("fband", rect.h, bw)
+    band = _cover_cache.get(bkey)
+    if band is None:                               # soft band, light in the middle, leaning
+        band = pg.Surface((bw, rect.h * 2))
+        for x in range(bw):
+            v = int(30 * math.sin(math.pi * x / bw) ** 2)
+            pg.draw.line(band, (v, v, v), (x, 0), (x, rect.h * 2))
+        band = pg.transform.rotozoom(band, -14, 1)
+        _cover_cache[bkey] = band
+    img = pg.Surface(rect.size, pg.SRCALPHA)
+    bw = band.get_width()
+    img.blit(band, (int(-bw + ph * (rect.w + bw)), (rect.h - band.get_height()) // 2))
+    img.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+    s.blit(img, rect.topleft, special_flags=pg.BLEND_RGB_ADD)
+
+
 def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=False, key=None):
     """The one button: all the same grey. Focus (= hover on a pad) lights it up — no colour,
     no outline. accent=True (Play, Update only) = purple; focused it lights up to bright accent."""
@@ -719,6 +756,8 @@ def button(t, s, rect, label, focused=False, enabled=True, icon=None, accent=Fal
     else:
         fill, col = mix(t.panel_hi, t.focus_fill, k), mix(t.dim, t.text_c, k)
     panel(t, s, rect, fill)
+    if enabled:
+        focus_sweep(t, s, rect, k)
     _btn_label(t, s, rect, label, icon, col)
 
 
@@ -1168,6 +1207,7 @@ def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
         k = anim((key, label), 1.0 if i == focus else 0.0)
         if k > 0.01:
             panel(t, s, r, mix(t.panel_hi, t.focus_fill, k))
+            focus_sweep(t, s, r, k)
         ly = r.centery - (t.f_small.get_height() // 2 if sub else 0)
         action, off = value == ACTION_ROW, value == OFF_ROW   # purple at rest, white when lit
         if action or off:

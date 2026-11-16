@@ -28,7 +28,10 @@ dialogs, footers, tags, toasts, phone pages. Never one colour, never lowercase.
 to do next (like Steam, PS5, Xbox); red is only scary when it's rare.
 
 ## 3. Focus is light, not colour
-Buttons, rows, fields: grey → lit (`focus_fill`), text dim → white; no outline. Pictures
+Buttons, rows, fields: grey → lit (`focus_fill`, a neutral grey), text dim → white; no
+outline. A soft light sweeps across the focused button or row every few seconds
+(`W.focus_sweep`, `FOCUS_SWEEP_S` 2.8 s, moving 40% of it) — also on the purple main button, so
+focus reads at a glance (Omri 16 Nov). Pictures
 (tiles, screenshots) grow 6% with a thin light line (`focus_line`). Exactly one thing is
 focused, always visible.
 *Why:* purple already means "main action". If focus were purple too, you couldn't tell
@@ -143,7 +146,7 @@ sentence case everywhere else ("Change build").
   tiles/screenshots grow on focus; toasts slide up; scrolling glides.
 - Springy only twice: the tab underline (`TAB_BACK`) and the ✓ popping onto a tile when
   an install finishes (a "done" moment, with the "… is ready to play." toast).
-- Buttons and rows never move — focus lights them in place.
+- Buttons and rows never move — focus lights them in place (and the focus sweep passes over).
 - A cover on its way: dark purple tile with a soft shine sweeping across (`W.shimmer`, a row
   moves as one wave); the cover fades in over it, never pops.
 - Waiting: **the chasing arc** (`W.chase`, used by `W.spinner`, the tile busy ring and the

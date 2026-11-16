@@ -221,7 +221,7 @@ class EpicStore:
         from ..runner import child_env
         return dict(child_env(), LEGENDARY_CONFIG_PATH=str(config_dir()))
 
-    def install(self, app_name, folder, on_progress=None, cancel=None, log_file=None):
+    def install(self, app_name, folder, on_progress=None, cancel=None, log_file=None, on_size=None):
         """Download + install into folder (exactly). Resumes an interrupted install of the same
         folder. on_progress(frac, mib_s, eta_s); cancel() -> True stops (raises Cancelled).
         Returns the game's exe path relative to folder."""
@@ -260,6 +260,9 @@ class EpicStore:
                 m = SPEED.search(line)
                 if m:
                     speed = float(m.group(1)) * 1.048576     # MiB/s -> MB/s
+                m = SIZE.search(line)
+                if m and on_size:                 # Epic's list has no sizes: legendary says it
+                    on_size(int(float(m.group(1)) * 1.048576))
             p.wait()
         finally:
             if stopper:
@@ -330,6 +333,7 @@ class EpicStore:
 
 PROGRESS = re.compile(r"Progress: ([\d.]+)%.*?ETA: (\d+):(\d+):(\d+)")
 SPEED = re.compile(r"\+ Download\s*-\s*([\d.]+) MiB/s")
+SIZE = re.compile(r"Install size: ([\d.]+) MiB")     # legendary: "- Install size: 7436.06 MiB"
 
 
 def _stop(p):

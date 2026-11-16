@@ -19,6 +19,11 @@ def _mb(mb):
 SHOT_GROW = 1.12   # focused screenshot grows more than tiles: it's what you're looking at
 MAIN_ACTIONS = ("Install", "Retry install", "Play")
 
+def _now():
+    import time
+    return time.monotonic()
+
+
 CONTROL_WORDS = {"mouse": "Trackpad as mouse", "keys": "Buttons as keyboard"}   # pad: nothing to say
 
 
@@ -125,6 +130,9 @@ class Game(Scene):
             i = order.index(self.section) + (1 if act == DOWN else -1)
             new = order[max(0, min(len(order) - 1, i))]
             if new != self.section:
+                if self.section == "shots":      # the focused screenshot shrinks back: keep
+                    import time                  # redrawing the page until it has (v0.9.3)
+                    self._shots_settle = time.monotonic() + 0.6
                 self.section, self.off = new, 0
         elif act in (LEFT, RIGHT):
             d = 1 if act == RIGHT else -1
@@ -174,7 +182,8 @@ class Game(Scene):
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
                (getattr(self, "free_mb", None) or 0) // 1000,   # GB steps: no re-layout per MB
                # buttons are drawn live on top; only the screenshot strip animates inside the page
-               W.frame_tick() if W.animating() and self.section == "shots" else 0,
+               W.frame_tick() if W.animating() and (self.section == "shots" or
+                                                    _now() < getattr(self, "_shots_settle", 0)) else 0,
                getattr(self, "_end", 0))
         if getattr(self, "_page_key", None) != key:   # re-layout only when something changed
             self._live_bar = self._live_fill = None
@@ -436,8 +445,8 @@ class Game(Scene):
         elif self.phase == "download":
             p = g.get("progress", 0)
             label = f"Downloading  {int(p * 100)}%"
-            info = (f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}  ·  "
-                    f"{g.get('speed_mbs', 0):.1f} MB/s")
+            info = (f"{_mb(int(g['size_mb'] * p))} of {_mb(g['size_mb'])}  ·  " if g.get("size_mb")
+                    else "") + f"{g.get('speed_mbs', 0):.1f} MB/s"   # size unknown: speed only
             W.progress(t, s, bar, 0)
             self._live_fill = (bar, p)
         else:

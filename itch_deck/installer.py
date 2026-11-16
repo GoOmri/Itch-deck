@@ -798,13 +798,14 @@ class Installer:
         files.mkdir(parents=True, exist_ok=True)
         logs = paths.LOGS / "games"
         logs.mkdir(parents=True, exist_ok=True)
-        self._upd(gid, state="downloading", phase="download", progress=0, speed_mbs=0, eta_s=0)
+        self._upd(gid, state="downloading", phase="queued", progress=0, speed_mbs=0, eta_s=0)
         log.info("install %s: epic %s -> %s", gid, g.get("app_name"), files)
 
-        def prog(frac, mbs, eta):
-            self._upd(gid, progress=min(frac, 0.999), speed_mbs=mbs, eta_s=eta)
+        def prog(frac, mbs, eta):                 # first line: "Starting…" -> "Downloading"
+            self._upd(gid, phase="download", progress=min(frac, 0.999), speed_mbs=mbs, eta_s=eta)
         try:
             exe = store.install(g["app_name"], files, on_progress=prog,
+                                on_size=lambda mb: self._upd(gid, size_mb=mb),
                                 cancel=lambda: gid in self._cancel,
                                 log_file=logs / f"{dest.name}-install.log")
         except EpicError as e:
@@ -848,7 +849,7 @@ class Installer:
         dest = self._game_dir(root, g)
         logs = paths.LOGS / "games"
         logs.mkdir(parents=True, exist_ok=True)
-        self._upd(gid, state="downloading", phase="download", progress=0, speed_mbs=0, eta_s=0)
+        self._upd(gid, state="downloading", phase="queued", progress=0, speed_mbs=0, eta_s=0)
         last = None
         for n, plat in enumerate(plats):
             try:
@@ -865,7 +866,7 @@ class Installer:
                 if not proton.umu_path():
                     self._upd(gid, state="downloading", phase="umu", progress=1)
                     proton.fetch_umu(cancel=lambda: gid in self._cancel)
-                self._upd(gid, state="downloading", phase="download", progress=0)
+                self._upd(gid, state="downloading", phase="queued", progress=0)
             files = dest / "files"
             have = _tree_size(files) if files.exists() else 0
             free = shutil.disk_usage(root).free
@@ -876,9 +877,12 @@ class Installer:
             files.mkdir(parents=True, exist_ok=True)
             log.info("install %s: gog %s %s build %s (%s) -> %s, ~%s", gid, g["app_name"], plat,
                      about.get("build"), about.get("version"), files, _gb(about["need"]))
+            if about["need"]:                     # GOG's list has no sizes: show this one
+                self._upd(gid, size_mb=about["need"] // 1_000_000)
 
-            def prog(frac, mbs, eta):
-                self._upd(gid, progress=min(frac, 0.999), speed_mbs=mbs, eta_s=eta)
+            def prog(frac, mbs, eta):             # first line: "Starting…" -> "Downloading"
+                self._upd(gid, phase="download", progress=min(frac, 0.999), speed_mbs=mbs,
+                          eta_s=eta)
             try:
                 run = store.install(g["app_name"], plat, files, on_progress=prog,
                                     cancel=lambda: gid in self._cancel,

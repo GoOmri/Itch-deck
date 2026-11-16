@@ -64,6 +64,9 @@ def _setup(tmp_path, monkeypatch, api=None, offline=False):
             return PAGE2 if "page=2" in url else PAGE1
         if "api.gog.com/products/" in url:
             return PRODUCT
+        if "api.gog.com/v2/games/" in url:       # real shape (stores-live CI, 16 Nov)
+            return {"_embedded": {"features": [{"name": "Single-player", "id": "single"}] + (
+                [{"name": "Controller support", "id": "controller_support"}] if "/3?" in url else [])}}
         raise net.Offline("no stub for " + url)
     monkeypatch.setattr(net, "get", get)
     monkeypatch.setattr(net, "get_json", get_json)
@@ -367,3 +370,48 @@ def test_launch_info_reads_primary_task(tmp_path):
     assert r == {"exe": "Game/run.exe", "args": ["-a"], "cwd": ".", "setup": False}
     with pytest.raises(gog.GogError):
         gog.launch_info(tmp_path / "Game", "9", "linux")
+
+
+def test_controls_auto_from_store_controller_flag(tmp_path, monkeypatch):
+    """v0.9.3: GOG / Epic have no itch Inputs row; the store's controller flag stands in, so
+    Auto picks Pad for controller games and Keys (with the mouse) for the others."""
+    from itch_deck import mouse
+    from itch_deck.stores import steam
+    assert gog.pad_from_json({"_embedded": {"features": [{"id": "controller_support"}]}}) is True
+    assert gog.pad_from_json({"_embedded": {"features": [{"id": "single"}]}}) is False
+    assert gog.pad_from_json({"title": "x"}) is None
+    assert steam.pad_from({"categories": [{"description": "Partial Controller Support"}]})
+    assert not steam.pad_from({"categories": [{"description": "Single-player"}]})
+    assert mouse.auto_mode(library.inputs_for(True)) == "gamepad"
+    assert mouse.auto_mode(library.inputs_for(False)) == "keys"
+    assert mouse.auto_mode(library.inputs_for(None)) == "gamepad"
+    st, _ = _setup(tmp_path, monkeypatch)
+    lib = library.Library(None)
+    lib.gog = st
+    pad_game = lib._prep(gog.game_from_json(PAGE2["products"][0]))          # id 3: controller
+    keys_game = lib._prep(gog.game_from_json(PAGE1["products"][0]))         # no controller
+    lib.games = [pad_game, keys_game]
+    monkeypatch.setattr(lib, "_save_shots", lambda g, urls: 0)
+    for g in lib.games:
+        lib._fetch_gog_page(g)
+    assert mouse.auto_mode(pad_game["inputs"]) == "gamepad"
+    assert mouse.auto_mode(keys_game["inputs"]) == "keys"
+    page = json.loads(lib._page_file(keys_game).read_text())
+    page.pop("pad")                                  # saved by v0.9.2: fetched once more
+    lib._page_file(keys_game).write_text(json.dumps(page))
+    assert not lib._has_page_fields(keys_game) and lib._has_page_fields(pad_game)
+
+
+def test_install_shows_starting_then_size(tmp_path, monkeypatch):
+    """v0.9.3: "Starting…" until the first progress line, and GOG's size instead of 0 MB."""
+    from test_install import _wait
+    st, lib, inst = _gog_inst(tmp_path, monkeypatch)
+    seen = []
+    real = inst._upd
+    inst._upd = lambda gid, **kw: (seen.append(dict(kw)), real(gid, **kw))
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    phases = [k["phase"] for k in seen if "phase" in k]
+    assert phases.index("queued") < phases.index("download")
+    first_dl = next(i for i, k in enumerate(seen) if k.get("phase") == "download")
+    assert any("size_mb" in k for k in seen[:first_dl])     # size known before the bar moves
