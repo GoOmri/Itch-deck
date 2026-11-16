@@ -48,7 +48,8 @@ def test_launch_uses_game_settings_with_linux_paths(tmp_path):
     (files / "DOSBOX" / "DOSBox.exe").write_text("MZ")
     (files / "dosbox_eob1.conf").write_text("[sdl]\nfullscreen=true\n")
     (files / "dosbox_eob1_single.conf").write_text(
-        '[autoexec]\ncls\nmount c ".."\nmount C "..\\cloud_saves" -t overlay\nc:\nstart.exe\nexit\n')
+        '[autoexec]\ncls\n@ECHO OFF\n#prompt line\n@ECHO \xcd\xcd NOTICE\npause\ncls\n'
+        'mount c ".."\nmount C "..\\cloud_saves" -t overlay\nc:\nstart.exe\nexit\n', encoding="latin-1")
     info = {"store": "gog", "platform": "windows", "dir": str(tmp_path / "eob"),
             "exe": "DOSBOX/DOSBox.exe", "cwd": "DOSBOX",
             "args": ["-conf", "../dosbox_eob1.conf", "-conf", "../dosbox_eob1_single.conf",
@@ -57,10 +58,12 @@ def test_launch_uses_game_settings_with_linux_paths(tmp_path):
     exe, args, cwd = dosbox.launch(info, ["/usr/bin/flatpak", "run", dosbox.APP])
     assert str(exe) == "/usr/bin/flatpak" and cwd == str(files / "DOSBOX")
     assert args[:3] == ["run", f"--filesystem={files}", f"--cwd={files / 'DOSBOX'}"]
-    assert args[3] == dosbox.APP and "-noconsole" not in args and args[-2:] == ["-c", "exit"]
+    assert args[3] == dosbox.APP and "-noconsole" not in args
     single = files / "scritch-dosbox_eob1_single.conf"
-    assert str(single) in args and 'mount C "../cloud_saves" -t overlay' in single.read_text()
-    assert "\\" in (files / "dosbox_eob1_single.conf").read_text()    # original untouched
+    assert str(single) in args and "[autoexec]" not in single.read_text()
+    cs = [args[i + 1] for i, a in enumerate(args) if a == "-c"]       # v0.9.9: SCRiTCH runs them
+    assert cs == ['mount c ".."', 'mount C "../cloud_saves" -t overlay', "c:", "start.exe", "exit"]
+    assert "\\" in (files / "dosbox_eob1_single.conf").read_text(encoding="latin-1")    # original untouched
     assert not dosbox.is_dosbox_game(dict(info, exe="Bin/Game.exe"))
 
 

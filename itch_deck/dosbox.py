@@ -9,8 +9,8 @@ without a password (flatpak: system install, else per-user). If it can't be had,
 falls back to GOG's Windows DOSBox under Proton.
 
 GOG's settings are written for Windows: mount lines like  mount C "..\\cloud_saves" -t overlay.
-Each -conf file is copied next to the original as scritch-<name> with "\\" -> "/" in its
-[autoexec] mount lines, and that copy is passed instead (the original stays untouched)."""
+Each -conf file is copied next to the original as scritch-<name> without its [autoexec]; those
+commands go to DOSBox as -c (mount paths with "/"), then GOG's own -c ("exit"). See _split_conf."""
 import logging
 import re
 import shutil
@@ -79,21 +79,36 @@ def ensure(log_file=None):
     return cmd
 
 
-def _unix_conf(src):
-    """Copy of a GOG DOSBox settings file with Windows paths in [autoexec] mount lines turned
-    into Linux ones (scritch-<name> next to it). Returns the copy's path."""
-    text = src.read_text(errors="replace")
-    out, auto = [], False
+SKIP_CMDS = ("cls", "pause", "exit", "echo", "@echo", "rem", "#", "::", "@")
+
+
+def _split_conf(src):
+    """A copy of a GOG DOSBox settings file without its [autoexec] section (scritch-<name>, bytes
+    kept as they are: GOG writes CP437 boxes), and that section's commands. SCRiTCH passes the
+    commands itself as -c (v0.9.9): DOSBox Staging ran none of GOG's [autoexec] (EOB: text mode,
+    then shut down after 1 s). Messages, pause and cls are left out; Windows paths in mount lines
+    become Linux ones."""
+    text = src.read_bytes().decode("latin-1")
+    keep, cmds, auto = [], [], False
     for line in text.splitlines():
-        s = line.strip().lower()
-        if s.startswith("[") and s.endswith("]"):
-            auto = s == "[autoexec]"
-        elif auto and re.match(r"@?(mount|imgmount)\b", s):
-            line = line.replace("\\", "/")
-        out.append(line)
+        s = line.strip()
+        low = s.lower()
+        if low.startswith("[") and low.endswith("]"):
+            auto = low == "[autoexec]"
+            if auto:
+                continue
+        if not auto:
+            keep.append(line)
+            continue
+        if not s or low.split()[0].lstrip("@") in ("cls", "pause", "exit", "echo", "rem") or \
+                low.startswith(("#", "::", "@echo")):
+            continue
+        if low.split()[0] in ("mount", "imgmount"):
+            s = s.replace("\\", "/")
+        cmds.append(s)
     dst = src.with_name("scritch-" + src.name)
-    dst.write_text("\n".join(out) + "\n")
-    return dst
+    dst.write_bytes(("\n".join(keep) + "\n").encode("latin-1"))
+    return dst, cmds
 
 
 def launch(info, base_cmd):
@@ -101,7 +116,7 @@ def launch(info, base_cmd):
     arguments, run in the play task's folder (GOG's mount ".." lines are relative to it)."""
     files = Path(info["dir"]) / "files"
     cwd = files / info["cwd"] if info.get("cwd") else (files / info["exe"]).parent
-    args, it = [], iter(info.get("args") or [])
+    args, cmds, tail, it = [], [], [], iter(info.get("args") or [])
     for a in it:
         if a in DROP_ARGS:
             continue
@@ -110,12 +125,20 @@ def launch(info, base_cmd):
             p = (cwd / conf.replace("\\", "/")).resolve()
             if p.is_file():
                 try:
-                    p = _unix_conf(p)
+                    p, more = _split_conf(p)
+                    cmds += more
                 except OSError as e:
                     log.info("dosbox: can't copy %s: %s", p, e)
             args += ["-conf", str(p)]
             continue
+        if a.lower() == "-c":                     # GOG's own -c ("exit") go after the game
+            tail += ["-c", next(it, "")]
+            continue
         args.append(a)
+    for c in cmds:
+        args += ["-c", c]
+    args += tail
+    log.info("dosbox: commands %s", cmds)
     exe = Path(base_cmd[0])
     pre = list(base_cmd[1:])
     if pre[:1] == ["run"]:                         # flatpak: let it see the game, start there

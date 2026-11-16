@@ -1322,3 +1322,12 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
   last time, e.g. Linux).
 - Omri (16 Nov): doesn't want to spend much more time on EOB. Next: one Play of the Windows build
   -> eye-of-the-beholder.log / app.log "game log ends" lines; if not quick, park EOB.
+
+## v0.9.9 (branch v099-dosbox-autoexec, waits for "push") = DOSBox Staging runs GOG's start commands
+- v0.9.8 Deck (app.log 17:55, "game log ends"): DOSBox Staging started, showed 80x25 text mode,
+  then shut everything down after 1 s, exit 0: none of GOG's [autoexec] ran (no pause, no
+  start.exe), only the final "-c exit".
+- dosbox._split_conf: copy each -conf as scritch-<name> WITHOUT [autoexec] (bytes kept via
+  latin-1: GOG's CP437 boxes; v0.9.7 re-encoded them as UTF-8), and return its commands minus
+  cls/pause/echo/rem/exit; mount/imgmount paths "\\" -> "/". launch passes them as -c, then GOG's
+  own -c ("exit"). Copy-protection notice + pause no longer shown (the in-game question stays).
