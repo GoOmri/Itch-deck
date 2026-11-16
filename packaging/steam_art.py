@@ -66,14 +66,18 @@ def stars(t, s, keep_clear, n, seed):
     layer = pg.Surface((w, h), pg.SRCALPHA)
     cols = [(255, 255, 255), (214, 196, 255), t.accent]
     unit = max(w, h) / 900
-    placed = 0
+    placed, sparks = 0, []
+    gap = 90 * unit                             # sparkles never bunch up (Omri 16 Nov)
     while placed < n:
         x, y = rnd.uniform(0, w), rnd.uniform(0, h)
         if keep_clear.collidepoint(x, y):
             continue
         placed += 1
         col = rnd.choices(cols, weights=(5, 3, 2))[0]
-        if rnd.random() < 0.16:                               # sparkle: halo + 4 points
+        edge = 24 * unit                        # and are never cut off by the edge
+        spark = rnd.random() < 0.16 and edge < x < w - edge and edge < y < h - edge and all((x - a) ** 2 + (y - b) ** 2 > gap ** 2 for a, b in sparks)
+        if spark:                                              # sparkle: halo + 4 points
+            sparks.append((x, y))
             r = rnd.uniform(6, 15) * unit
             halo = pg.Surface((int(r * 6), int(r * 6)), pg.SRCALPHA)
             c = halo.get_width() / 2
