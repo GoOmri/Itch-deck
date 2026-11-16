@@ -21,8 +21,12 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
   library (covers, pages, screenshots); random game, or SCRITCH_GAME=<title or id>. DATA = unzipped
   copy of the Deck's ~/.local/share/scritch/{library.json,covers,pages,shots} — ask Omri to attach
   it (Archive.zip). NEVER commit it: the repo is public, the art is the developers', the list is his.
-- After ANY UI change: re-render mockups (`python run.py --render-mockups DIR`) and publish them as
-  `after/` to the gallery artifact https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (Omri expects it current).
+- After ANY UI change: re-render mockups (`python run.py --render-mockups DIR`) and republish the
+  gallery https://claude.ai/artifact/9cciLymE4pGMV7rswahZkZ (Omri expects it current). Since 16 Nov
+  it shows EVERY 1280x800 screen grouped (Setup, Library, Game page, Settings, Starting, Epic
+  sign-in, DualSense) with a "Current work" section on top; changed screens go there with a
+  one-line caption. Phone pages: https://claude.ai/artifact/2S5bbx6s8viDAjEsF4VY4d (itch + Epic
+  flows, rendered from phonelink's own HTML; republish when phonelink.py changes).
 - Ask Omri before big changes.
 - CI (GitHub runner) HAS internet and runs as a normal user; this workspace has NO itch/GitHub
   access and runs as root. So: tests/selftest must never depend on the network (stub downloads;
@@ -1008,3 +1012,15 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 ## Todo (Omri)
 - Logo font: pick a font, then make SCRiTCH an outlined SVG (colours baked in) used by the app
   wordmark, the phone pages and the README, so it looks the same everywhere. Check the licence.
+
+## Design chat 16 Nov (branch design-balance: DESIGN.md + NOTES only)
+- Galleries were behind: the Deck gallery held only the last batch (3 screens), the phone gallery
+  had no Epic pages and said v0.7. Both rebuilt (see working rules above).
+- DECIDED (Omri): no "balance". Game page buttons stay on the cover's bottom edge so every page
+  looks the same whatever the description length. In DESIGN.md §6.
+- DECIDED (Omri): Setup's technical words (API keys, itch_key.txt, ~/Downloads, Warpinator,
+  Steam + X, RustDesk, the QR address) are needed for onboarding. DESIGN.md §10 exception.
+- SCRAPPED (Omri 16 Nov): centred tab carousel (chosen tab dead centre, row slides, opacity
+  ramp, soft band). It clashed with the info on the right (count, filter tag). Tabs stay next to
+  the logo with the purple underline. Don't re-propose. Branch design-tabs = scrapped, NEVER
+  merge it (couldn't delete it from here; Omri can delete it on GitHub).
