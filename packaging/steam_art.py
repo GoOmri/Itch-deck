@@ -56,19 +56,61 @@ def backdrop(t, size, glow_at=(0.5, 0.45), glow_r=0.55):
     return s
 
 
+def stars(t, s, keep_clear, n, seed):
+    """Fun, not busy: lots of tiny specks plus a few four-point sparkles with a soft halo, in
+    white, lavender and the app's purple. Seeded, so the art is the same every time it's made.
+    Nothing lands on the logo (`keep_clear`)."""
+    import random
+    rnd = random.Random(seed)
+    w, h = s.get_size()
+    layer = pg.Surface((w, h), pg.SRCALPHA)
+    cols = [(255, 255, 255), (214, 196, 255), t.accent]
+    unit = max(w, h) / 900
+    placed, sparks = 0, []
+    gap = 90 * unit                             # sparkles never bunch up (Omri 16 Nov)
+    while placed < n:
+        x, y = rnd.uniform(0, w), rnd.uniform(0, h)
+        if keep_clear.collidepoint(x, y):
+            continue
+        placed += 1
+        col = rnd.choices(cols, weights=(5, 3, 2))[0]
+        edge = 24 * unit                        # and are never cut off by the edge
+        spark = rnd.random() < 0.16 and edge < x < w - edge and edge < y < h - edge and all((x - a) ** 2 + (y - b) ** 2 > gap ** 2 for a, b in sparks)
+        if spark:                                              # sparkle: halo + 4 points
+            sparks.append((x, y))
+            r = rnd.uniform(6, 15) * unit
+            halo = pg.Surface((int(r * 6), int(r * 6)), pg.SRCALPHA)
+            c = halo.get_width() / 2
+            for k in range(int(c), 0, -1):
+                pg.draw.circle(halo, (*col, int(40 * (1 - k / c) ** 2)), (c, c), k)
+            layer.blit(halo, halo.get_rect(center=(x, y)))
+            for dx, dy in ((1, 0), (0, 1)):
+                pts = [(x - dx * r, y - dy * r), (x + dy * r * .18, y + dx * r * .18),
+                       (x + dx * r, y + dy * r), (x - dy * r * .18, y - dx * r * .18)]
+                pg.draw.polygon(layer, (*col, 235), pts)
+            pg.draw.circle(layer, (255, 255, 255, 255), (x, y), max(1, r * .2))
+        else:                                                  # speck
+            rr = rnd.choice((1, 1.3, 1.6, 2, 2.6, 3.2)) * unit
+            pg.draw.circle(layer, (*col, rnd.randint(70, 210)), (x, y), max(1, rr))
+    s.blit(layer, (0, 0))
+
+
 def main():
     pg.init()
     t = Theme(pg, (1280, 800))
     OUT.mkdir(parents=True, exist_ok=True)
 
-    def card(size, logo_w, at=(0.5, 0.5), **kw):
+    def card(size, logo_w, at=(0.5, 0.5), n_stars=0, **kw):
         s = backdrop(t, size, glow_at=at, **kw)
         img = logo(logo_w)
-        s.blit(img, img.get_rect(center=(int(size[0] * at[0]), int(size[1] * at[1]))))
+        r = img.get_rect(center=(int(size[0] * at[0]), int(size[1] * at[1])))
+        if n_stars:
+            stars(t, s, r.inflate(logo_w * 0.08, img.get_height() * 0.6), n_stars, seed=size[0])
+        s.blit(img, r)
         return s
 
-    pg.image.save(card((600, 900), 470, at=(0.5, 0.42), glow_r=0.5), OUT / "tile.png")
-    pg.image.save(card((920, 430), 600, glow_r=0.6), OUT / "wide-tile.png")
+    pg.image.save(card((600, 900), 470, at=(0.5, 0.42), n_stars=110, glow_r=0.5), OUT / "tile.png")
+    pg.image.save(card((920, 430), 600, n_stars=90, glow_r=0.6), OUT / "wide-tile.png")
     pg.image.save(backdrop(t, (3840, 1240), glow_at=(0.72, 0.4), glow_r=0.45), OUT / "hero.png")
     lg = logo(1280)                        # Steam draws this over the hero
     pg.image.save(lg, OUT / "logo.png")
