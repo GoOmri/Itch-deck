@@ -1246,3 +1246,30 @@ One item per update, plan + size first, wait for "go" and "push":
 6 Ready to share (logo + Steam art done; README for new players, fresh-Deck check).
 7 Cloud saves for Epic and GOG (off by default; own update + test round; risky).
 Later: browser games.
+
+## v0.9.5 RELEASED 16 Nov (branch v095-gog; Omri "go and push" 14:45) = GOG versions + first-run setup + updates
+Deck test 16 Nov: Eye of the Beholder (GOG Linux build) exited at once: its bundled DOSBox needs
+libFLAC.so.8 (not on SteamOS); message said "Try another build in Options" but GOG had none.
+- Change build for GOG (only when GOG lists Linux AND Windows): picker "Choose a version" Linux /
+  Windows (app_game._gog_versions; choices[gid] = "linux"/"windows"; GOG upload_id = platform
+  from now on, old installs had app_name). Switching installs into files.new, swaps on success
+  (fail = old build stays). Crash hint "Try another build in Options." (runner.TRY_OTHER_BUILD)
+  -> GOG: "Try the Windows version in Options." when Linux build + Windows exists, else code P01.
+- First-run setup (Windows): gogdl info "dependencies" ids; after install `gogdl redist --ids <ALL
+  ids ever asked> --path DATA/gog/redist` (gogdl replaces the folder with exactly those ids:
+  DATA/gog/redist_ids.json keeps the union). gog.setup_steps -> install.json "setup_steps"
+  [{name, base redist|game, path, args}] (+ ISI scriptinterpreter.exe with Heroic's args incl.
+  /DIR=Z:\… when goggame-*.script exist), "setup_done". app_play._gog_first_run on the first
+  Play: gog.run_setup runs each through umu in the game prefix (OK exits 0/1638/3010/1641, 15 min
+  each), splash "Preparing <game>… First run only", log logs/games/<slug>-setup.log; failures
+  logged, setup flag -> P03 on a quick crash. Redist download failure doesn't fail the install.
+- Updates: Installer.check_gog_updates after each GOG sync (lib.on_gog_sync): gogdl info per game
+  (every 6 h, force=True ignores), Windows build_id / Linux version differ -> "update". Update =
+  same platform -> in place (fresh=False keeps gogdl's manifest: only changed files). gogdl_mode
+  sets v2.Patch.get -> None (no xdelta3 here: chunk updates). setup_done kept across updates.
+- Linux size: _disk_size = max(disk_size, download_size) (Deck log showed 0 for EOB Linux).
+- Tests test_gog: setup steps + paths, run_setup with a fake umu (args, Z:\ dir, failure list),
+  change version both ways + failed switch keeps Linux, update check + in-place update. Mockup
+  15t_game_gog_versions. Checked pytest 3.13 + 3.11 (153), selftest both, itch-reject, mockups (182).
+UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/gog/redist?), ISI
+  args on real games, update detection on a real patched GOG game.

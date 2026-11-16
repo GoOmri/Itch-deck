@@ -72,6 +72,17 @@ def manifest_file(app_name):
     return gogdl_home() / "manifests" / str(app_name)
 
 
+def redist_dir():
+    """GOG's shared Windows parts (Visual C++, DirectX, GOG's setup tool), one copy for every
+    game (gogdl redist). Its .gogdl-redist-manifest holds GOG's dependency list."""
+    return paths.DATA / "gog" / "redist"
+
+
+ISI_ARGS = ["/VERYSILENT", "/DIR={dir}", "/Language=English", "/LANG=english",
+            "/ProductId={id}", "/galaxyclient", "/buildId={build}", "/versionName={version}",
+            "/nodesktopshorctut", "/nodesktopshortcut"]   # (sic: both spellings, like Heroic)
+
+
 def helper_cmd():
     """How to start the vendored gogdl: our own binary in its hidden mode (frozen build), or
     run.py from the source tree."""
@@ -349,7 +360,30 @@ class GogStore:
             _raise_for("\n".join(tail), none_ok=True)
             return None
         return {"need": _disk_size(data), "build": data.get("buildId"),
-                "version": data.get("versionName"), "folder": data.get("folder_name")}
+                "version": data.get("versionName"), "folder": data.get("folder_name"),
+                "deps": [str(d) for d in data.get("dependencies") or []]}
+
+    def redist(self, ids, cancel=None, log_file=None):
+        """Download GOG's shared Windows parts for these dependency ids into redist_dir(). gogdl
+        replaces that folder's contents with exactly the ids it's given, so every id ever asked
+        for is passed (redist_ids.json). Returns GOG's dependency list (depots) or {}."""
+        known_f = paths.DATA / "gog" / "redist_ids.json"
+        try:
+            known = set(json.loads(known_f.read_text()))
+        except (OSError, ValueError, TypeError):
+            known = set()
+        want = sorted(known | set(ids))
+        d = redist_dir()
+        d.mkdir(parents=True, exist_ok=True)
+        if want:
+            self._prepare("redist")
+            self._stream(self._cmd("redist", "--ids", ",".join(want), "--path", str(d)), cancel,
+                         log_file, None, "redist")
+            known_f.write_text(json.dumps(want))
+        try:
+            return json.loads((d / ".gogdl-redist-manifest").read_text())
+        except (OSError, ValueError):
+            return {}
 
     def install(self, app_name, platform, folder, on_progress=None, cancel=None, log_file=None,
                 fresh=True):
@@ -357,12 +391,20 @@ class GogStore:
         interrupted one resumes (gogdl's .gogdl-resume in folder). fresh: forget an old manifest
         first, so nothing counts as already there. on_progress(frac, mb_s, eta_s); cancel() ->
         True stops (raises Cancelled). Returns launch_info(folder, …). Raises GogError."""
-        from ..net import Cancelled
         self._prepare(app_name)
+        if log_file:
+            open(log_file, "w").close()               # one install = one log
         if fresh and not (Path(folder) / ".gogdl-resume").exists():
             manifest_file(app_name).unlink(missing_ok=True)
         cmd = self._cmd("update", str(app_name), "--platform", platform, "--path", str(folder),
                         "--lang", "en-US", "--skip-dlcs")
+        self._stream(cmd, cancel, log_file, on_progress, f"install {app_name} ({platform})")
+        return launch_info(folder, app_name, platform)
+
+    def _stream(self, cmd, cancel, log_file, on_progress, what):
+        """Run gogdl, feed its progress lines to on_progress, stop it on cancel (Cancelled),
+        raise a short GogError when it fails."""
+        from ..net import Cancelled
         try:
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                  bufsize=1, env=self._env(), stdin=subprocess.DEVNULL,
@@ -371,7 +413,7 @@ class GogStore:
             log.warning("gog: can't start gogdl: %s", e)
             raise GogError("Couldn't start the GOG helper") from None
         tail, speed = [], 0.0
-        out = open(log_file, "w") if log_file else None
+        out = open(log_file, "a") if log_file else None
         stopper = None
         try:
             if cancel:                                # cancel even while gogdl is quiet
@@ -405,10 +447,8 @@ class GogStore:
             raise Cancelled()
         text = "\n".join(tail)
         if p.returncode != 0 or "Traceback (most recent call last)" in text:
-            log.info("gog: install %s (%s) -> %s\n  %s", app_name, platform, p.returncode,
-                     "\n  ".join(tail[-8:]))
+            log.info("gog: %s -> %s\n  %s", what, p.returncode, "\n  ".join(tail[-8:]))
             _raise_for(text)
-        return launch_info(folder, app_name, platform)
 
     def forget(self, app_name):
         """The game was uninstalled: drop gogdl's manifest so a reinstall downloads everything."""
@@ -437,8 +477,8 @@ def _raise_for(text, none_ok=False):
 def _disk_size(data):
     """Bytes on disk from gogdl info: Linux = disk_size; Windows = the shared files ("*") plus
     the English ones."""
-    if isinstance(data.get("disk_size"), (int, float)):
-        return int(data["disk_size"])
+    if isinstance(data.get("disk_size"), (int, float)):   # Linux (disk_size can be 0 there)
+        return int(max(data["disk_size"], data.get("download_size") or 0))
     size = data.get("size") or {}
     total = 0
     for k in ("*", "en-US"):
@@ -504,6 +544,85 @@ def launch_info(folder, app_name, platform):
     return {"exe": exe.relative_to(folder).as_posix(), "args": [str(a) for a in args],
             "cwd": cwd.relative_to(folder).as_posix() if cwd.is_dir() else "",
             "setup": any(folder.glob("goggame-*.script"))}
+
+
+def setup_steps(folder, app_name, deps, repo, build=None, version=None):
+    """GOG's first-run setup for a Windows build, as SCRiTCH will run it on the first Play:
+    [{"name", "base": "redist"|"game", "path", "args"}] (paths relative, so Move doesn't break
+    them). deps = the game's dependency ids (gogdl info); repo = GOG's dependency list
+    (redist()). GOG's setup tool (ISI) runs last when the game ships goggame-*.script files."""
+    depots = {d.get("dependencyId"): d for d in (repo or {}).get("depots") or []
+              if isinstance(d, dict)}
+    steps = []
+    for dep in deps or []:
+        exe = (depots.get(dep) or {}).get("executable") or {}
+        path = (exe.get("path") or "").replace("\\", "/")
+        if not path:
+            continue
+        try:
+            args = shlex.split(exe.get("arguments") or "")
+        except ValueError:
+            args = (exe.get("arguments") or "").split()
+        steps.append({"name": dep, "base": "redist" if path.startswith("__redist") else "game",
+                      "path": path, "args": args})
+    if any(Path(folder).glob("goggame-*.script")):
+        isi = (depots.get("ISI") or {}).get("executable") or {}
+        steps.append({"name": "ISI", "base": "redist",
+                      "path": (isi.get("path") or "__redist/ISI/scriptinterpreter.exe").replace("\\", "/"),
+                      "args": [a.format(dir="{dir}", id=app_name, build=build or "",
+                                        version=version or "") for a in ISI_ARGS]})
+    return steps
+
+
+def step_exe(step, folder):
+    """Where a setup step's program is (case-insensitive; redist files may sit with or without
+    the __redist folder level). None if it isn't there."""
+    bases = [redist_dir()] if step["base"] == "redist" else [Path(folder)]
+    rels = [step["path"]]
+    if step["path"].startswith("__redist/"):
+        rels.append(step["path"][len("__redist/"):])
+    for b in bases:
+        for r in rels:
+            p = _ci(b, r)
+            if p.is_file():
+                return p
+    return None
+
+
+def windows_path(p):
+    return "Z:" + str(p).replace("/", "\\")
+
+
+OK_CODES = (0, 1638, 3010, 1641)      # 1638 already installed, 3010/1641 = reboot wanted
+
+
+def run_setup(steps, folder, umu, env, log_file, timeout=900):
+    """Run each step through umu in the game's prefix, quietly. Returns the names that failed
+    (missing file, error exit, too slow); the game is started anyway."""
+    from ..runner import child_env
+    failed = []
+    with open(log_file, "a") as out:
+        for st in steps:
+            exe = step_exe(st, folder)
+            if exe is None:
+                out.write(f"# {st['name']}: {st['path']} not found\n")
+                failed.append(st["name"])
+                continue
+            args = [a.replace("{dir}", windows_path(folder)) for a in st["args"]]
+            out.write(f"# {st['name']}: {exe} {' '.join(args)}\n")
+            out.flush()
+            try:
+                r = subprocess.run([str(umu), str(exe), *args], cwd=str(exe.parent),
+                                   env=dict(child_env(), **env), stdout=out,
+                                   stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                   timeout=timeout, start_new_session=True)
+                rc = r.returncode
+            except (OSError, subprocess.TimeoutExpired) as e:
+                rc = f"{type(e).__name__}"
+            out.write(f"# {st['name']}: exit {rc}\n")
+            if rc not in OK_CODES:
+                failed.append(st["name"])
+    return failed
 
 
 def _stop(p):

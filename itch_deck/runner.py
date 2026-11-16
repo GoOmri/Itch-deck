@@ -258,11 +258,12 @@ def crashed(rc, secs):
     return rc is None or (rc != 0 and secs < CRASH_S) or secs < 3
 
 
+TRY_OTHER_BUILD = "Try another build in Options."   # GOG says "the Windows version" instead
 HINTS = (  # (text in the game's log, a few plain words after "<game> couldn't start.")
     # the cause stays in the log (app.log "play: <id> crashed (<needle>)"); the player gets a
     # next step only, no technical terms (Omri 15 Nov)
     ("rand_util_win.cc", "Try another Proton in Settings."),          # needs GE-Proton 9+
-    ("error while loading shared libraries", "Try another build in Options."),
+    ("error while loading shared libraries", TRY_OTHER_BUILD),
     ("libfuse", "Reinstall it to fix this."),                         # AppImage without FUSE
 )
 

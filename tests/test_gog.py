@@ -192,6 +192,9 @@ def test_game_page_installs_like_epic():
     sc = Game(Theme(pg, (1280, 800)), dict(game, state="installed"))
     assert [a[0] for a in sc.actions()] == ["Play", "Options"]
     assert sc.options() == ["Uninstall", "Controls", "Saves"]
+    both = dict(game, state="installed", platforms={"windows", "linux"})     # v0.9.5
+    assert Game(Theme(pg, (1280, 800)), both).options() == ["Uninstall", "Change build",
+                                                             "Controls", "Saves"]
 
 
 def test_tabs_with_three_stores():
@@ -206,10 +209,27 @@ import json, os, sys, time
 a = sys.argv[1:]
 assert a[0] == "--auth-config-path" and os.path.isfile(a[1]), a
 cmd, app = a[2], a[3]
-plat = a[a.index("--platform") + 1]
 assert os.environ["GOGDL_CONFIG_PATH"].endswith("/gog")
-assert os.path.isfile(os.path.join(os.environ["GOGDL_CONFIG_PATH"], "heroic_gogdl", "exclude", app))
+if cmd != "redist":
+    plat = a[a.index("--platform") + 1]
+    assert os.path.isfile(os.path.join(os.environ["GOGDL_CONFIG_PATH"], "heroic_gogdl", "exclude", app))
 mode = os.environ.get("FAKE", "")
+if cmd == "redist":
+    ids = a[a.index("--ids") + 1].split(",")
+    path = a[a.index("--path") + 1]
+    os.makedirs(os.path.join(path, "__redist", "MSVC2017"), exist_ok=True)
+    os.makedirs(os.path.join(path, "__redist", "ISI"), exist_ok=True)
+    open(os.path.join(path, "__redist", "MSVC2017", "VC_redist.x86.exe"), "w").write("MZ")
+    open(os.path.join(path, "__redist", "ISI", "scriptinterpreter.exe"), "w").write("MZ")
+    json.dump({"build_id": "1", "HGLInstalled": ids, "depots": [
+        {"dependencyId": "MSVC2017", "executable": {"path": "__redist/MSVC2017/VC_redist.x86.exe",
+                                                    "arguments": "/install /quiet /norestart"}},
+        {"dependencyId": "DirectX", "executable": {"path": "_CommonRedist\\DirectX\\DXSETUP.exe",
+                                                   "arguments": "/silent"}},
+        {"dependencyId": "ISI", "executable": {"path": "__redist/ISI/scriptinterpreter.exe",
+                                               "arguments": ""}}]},
+              open(os.path.join(path, ".gogdl-redist-manifest"), "w"))
+    sys.exit(0)
 if cmd == "info":
     if plat == "linux" and "nolinux" in mode:
         print("[LINUX] ERROR: no installer", file=sys.stderr); sys.exit(1)
@@ -218,8 +238,9 @@ if cmd == "info":
     else:
         need = 10 ** 15 if "huge" in mode else 7000
         print(json.dumps({"size": {"*": {"disk_size": need, "download_size": 1},
-                                   "en-US": {"disk_size": 100}}, "buildId": "B42",
-                          "versionName": "1.6.8"}))
+                                   "en-US": {"disk_size": 100}},
+                          "buildId": os.environ.get("BUILD", "B42"), "versionName": "1.6.8",
+                          "dependencies": ["MSVC2017", "DirectX"]}))
     sys.exit(0)
 assert cmd == "update", cmd
 path = a[a.index("--path") + 1]
@@ -245,6 +266,8 @@ else:
              "arguments": "-skipintro -data 'Saves Folder'", "workingDir": "BIN"}]}))
     if "script" in mode:
         open(os.path.join(path, f"goggame-{app}.script"), "w").write("{}")
+    os.makedirs(os.path.join(path, "_CommonRedist", "DirectX"), exist_ok=True)
+    open(os.path.join(path, "_CommonRedist", "DirectX", "DXSETUP.exe"), "w").write("MZ")
 """
 
 
@@ -305,8 +328,12 @@ def test_gog_windows_install_play_uninstall(tmp_path, monkeypatch):
     assert inst.exe_path("gog-3").is_file() and not info.get("setup")
     assert not gog.manifest_file("3").exists()
     prog = [p for p in seen if p not in (None, 0)]
-    assert prog and prog == sorted(prog) and max(prog) < 1
+    assert prog and prog == sorted(prog) and max(prog) <= 1
     assert (paths.LOGS / "games/stardew-valley-install.log").read_text().count("Progress") == 3
+    assert [st["name"] for st in info["setup_steps"]] == ["MSVC2017", "DirectX"]
+    assert info["setup_steps"][0]["args"] == ["/install", "/quiet", "/norestart"]
+    assert all(gog.step_exe(st, paths.Path(info["dir"]) / "files") for st in info["setup_steps"])
+    assert info["upload_id"] == "windows" and info["setup_done"] is False
     assert inst.uninstall("gog-3") and "gog-3" not in inst.index
 
 
@@ -415,3 +442,56 @@ def test_install_shows_starting_then_size(tmp_path, monkeypatch):
     assert phases.index("queued") < phases.index("download")
     first_dl = next(i for i, k in enumerate(seen) if k.get("phase") == "download")
     assert any("size_mb" in k for k in seen[:first_dl])     # size known before the bar moves
+
+
+def test_gog_first_run_setup_runs_quietly(tmp_path, monkeypatch):
+    """v0.9.5: the first-run steps run through umu with their quiet arguments; GOG's setup tool
+    gets the game folder as a Windows path; a failing step is reported, the rest still runs."""
+    from test_install import _wait
+    monkeypatch.setenv("FAKE", "script")
+    st, lib, inst = _gog_inst(tmp_path, monkeypatch)
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    info = inst.index["gog-3"]
+    assert [s_["name"] for s_ in info["setup_steps"]] == ["MSVC2017", "DirectX", "ISI"]
+    umu = tmp_path / "fake-umu"
+    umu.write_text('#!/bin/sh\necho RAN "$@"\ncase "$1" in *DXSETUP*) exit 5;; esac\nexit 0\n')
+    umu.chmod(0o755)
+    files = paths.Path(info["dir"]) / "files"
+    log_f = tmp_path / "setup.log"
+    failed = gog.run_setup(info["setup_steps"], files, umu, {"WINEPREFIX": "/x"}, log_f)
+    text = log_f.read_text()
+    assert failed == ["DirectX"]
+    assert "VC_redist.x86.exe /install /quiet /norestart" in text
+    assert "/DIR=Z:" + str(files).replace("/", "\\") in text and "/ProductId=3" in text
+
+
+def test_gog_change_version_and_update(tmp_path, monkeypatch):
+    """v0.9.5: Change build = Linux / Windows (old build stays until the new one works); a newer
+    GOG build marks Update, which patches in place and keeps first-run setup done."""
+    from test_install import _wait
+    st, lib, inst = _gog_inst(tmp_path, monkeypatch, plats=("windows", "linux"))
+    inst.enqueue(lib.games[0])
+    _wait(inst)
+    assert inst.index["gog-3"]["platform"] == "linux"
+    monkeypatch.setenv("FAKE", "nospace")               # switching fails: Linux stays
+    inst.enqueue(lib.games[0], upload_id="windows")
+    _wait(inst)
+    info = inst.index["gog-3"]
+    assert info["platform"] == "linux" and (paths.Path(info["dir"]) / "files/start.sh").exists()
+    monkeypatch.setenv("FAKE", "")
+    inst.enqueue(lib.games[0], upload_id="windows")
+    _wait(inst)
+    info = inst.index["gog-3"]
+    files = paths.Path(info["dir"]) / "files"
+    assert info["platform"] == "windows" and (files / "Bin/Game.EXE").exists()
+    assert not (files / "start.sh").exists() and not (paths.Path(info["dir"]) / "files.new").exists()
+    info["setup_done"] = True
+    assert inst.check_gog_updates() == 0                # same build: nothing
+    monkeypatch.setenv("BUILD", "B43")
+    assert inst.check_gog_updates() == 0                # checked a moment ago
+    assert inst.check_gog_updates(force=True) == 1 and lib.by_id("gog-3")["update"]
+    assert inst.update(lib.by_id("gog-3"))
+    _wait(inst)
+    info = inst.index["gog-3"]
+    assert info["build_id"] == "B43" and info["setup_done"] is True and not info.get("update")

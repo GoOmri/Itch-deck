@@ -121,7 +121,8 @@ class Library:
         self.epic = None               # EpicStore when connected (opt-in, read-only for now)
         self.epic_error, self.epic_syncing = None, False
         self.on_epic_sync = None       # Installer: compare installed Epic builds with Epic's
-        self.gog = None                # GogStore when connected (opt-in, read-only for now)
+        self.gog = None                # GogStore when connected (opt-in)
+        self.on_gog_sync = None        # Installer: newer GOG builds of installed games (v0.9.5)
         self.gog_error, self.gog_syncing = None, False
         self.games, self.synced_at = [], None
         self.syncing = None            # None | "first" | "bg"
@@ -373,6 +374,11 @@ class Library:
         self.queue_covers()
         self.queue_prefetch()
         self.queue_hltb()
+        if self.on_gog_sync:                   # newer GOG builds of installed games
+            try:
+                self.on_gog_sync()
+            except Exception:  # noqa: BLE001
+                log.exception("gog update check failed")
         return True
 
     def drop_gog(self):

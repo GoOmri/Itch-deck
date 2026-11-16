@@ -396,6 +396,7 @@ class Installer:
         self.moving = None        # gid being moved to the other drive (Move to SD card / internal)
         lib.installs, lib.live = self.index, {}
         lib.on_epic_sync = self.check_epic_updates
+        lib.on_gog_sync = self.check_gog_updates
         lib.apply_installs()
 
     # --- queue (called from the UI thread) ---
@@ -824,20 +825,25 @@ class Installer:
                   size_mb=used // 1_000_000, update=None)
 
     def _install_gog(self, g):
-        """GOG game through the vendored gogdl (v0.9.2): the Linux build when GOG has one (it's
-        GOG's own installer, unpacked by gogdl; start.sh starts it), else Windows through
-        GE-Proton + umu like an itch Windows build. gogdl downloads straight into
-        <root>/<game>/files and resumes an interrupted download; one progress bar from its
-        progress lines. If the Linux build can't be had, the Windows one is tried."""
+        """GOG game through the vendored gogdl: the Linux build when GOG has one (GOG's own
+        installer, unpacked by gogdl; start.sh starts it), else Windows through GE-Proton + umu.
+        Change build (v0.9.5) picks "linux" / "windows" (self.choices). gogdl downloads into
+        <root>/<game>/files and resumes; one progress bar from its progress lines. An update
+        (same platform) patches files in place; a platform change installs into files.new and
+        swaps only when it worked (the old build stays if it fails). Windows builds also get
+        GOG's shared parts + a first-run setup list (run on the first Play, stores/gog)."""
+        from .stores import gog as gog_mod
         from .stores.gog import NO_PLAY, GogError
         gid, store = g["id"], self.lib.gog
         if not store or not store.connected():
             raise InstallError("Sign in to GOG in Settings first.")
-        plats = store.platforms_for(g)
+        chosen = self.choices.get(gid)
+        plats = [chosen] if chosen in ("linux", "windows") else store.platforms_for(g)
         if not plats:
             raise InstallError("GOG has no Linux or Windows build of this game.", "I02")
         t0 = time.time()
-        root = Path(self.root_fn())
+        old = self.index.get(gid)
+        root = Path(old["dir"]).parent if old else Path(self.root_fn())
         if config.card_missing(root):
             raise InstallError("SD card missing. Insert it, or choose another install location "
                                "in Settings.")
@@ -846,9 +852,10 @@ class Installer:
         except OSError as e:
             log.warning("install %s: can't write to %s: %s", gid, root, e)
             raise InstallError(f"Can't write to the {config.drive_name(root)}.") from e
-        dest = self._game_dir(root, g)
+        dest = Path(old["dir"]) if old else self._game_dir(root, g)
         logs = paths.LOGS / "games"
         logs.mkdir(parents=True, exist_ok=True)
+        log_file = logs / f"{dest.name}-install.log"
         self._upd(gid, state="downloading", phase="queued", progress=0, speed_mbs=0, eta_s=0)
         last = None
         for n, plat in enumerate(plats):
@@ -867,7 +874,8 @@ class Installer:
                     self._upd(gid, state="downloading", phase="umu", progress=1)
                     proton.fetch_umu(cancel=lambda: gid in self._cancel)
                 self._upd(gid, state="downloading", phase="queued", progress=0)
-            files = dest / "files"
+            in_place = bool(old) and old.get("platform") == plat      # an update: patch files
+            files = dest / ("files" if in_place or not old else "files.new")
             have = _tree_size(files) if files.exists() else 0
             free = shutil.disk_usage(root).free
             need = about["need"] - have
@@ -875,8 +883,9 @@ class Installer:
                 raise InstallError(f"Not enough space on the {config.drive_name(root)}: needs about "
                                    f"{_gb(need)}, {_gb(free)} free.")
             files.mkdir(parents=True, exist_ok=True)
-            log.info("install %s: gog %s %s build %s (%s) -> %s, ~%s", gid, g["app_name"], plat,
-                     about.get("build"), about.get("version"), files, _gb(about["need"]))
+            log.info("install %s: gog %s %s build %s (%s) -> %s, ~%s%s", gid, g["app_name"], plat,
+                     about.get("build"), about.get("version"), files, _gb(about["need"]),
+                     " (update)" if in_place else "")
             if about["need"]:                     # GOG's list has no sizes: show this one
                 self._upd(gid, size_mb=about["need"] // 1_000_000)
 
@@ -885,8 +894,8 @@ class Installer:
                           eta_s=eta)
             try:
                 run = store.install(g["app_name"], plat, files, on_progress=prog,
-                                    cancel=lambda: gid in self._cancel,
-                                    log_file=logs / f"{dest.name}-install.log")
+                                    cancel=lambda: gid in self._cancel, log_file=log_file,
+                                    fresh=not in_place)
                 break
             except GogError as e:
                 if str(e) == NO_PLAY:
@@ -900,25 +909,77 @@ class Installer:
                 raise InstallError(f"Couldn't install: {e}.", "I05") from None
         else:
             raise InstallError(f"Couldn't install: {last or 'no build'}.", "I05")
+        if files.name == "files.new":             # platform changed: swap now that it worked
+            shutil.rmtree(dest / "files", ignore_errors=True)
+            files.replace(dest / "files")
+            files = dest / "files"
+        steps = []
+        if plat == "windows":                     # GOG's shared parts + first-run setup list
+            self._upd(gid, phase="installing", progress=1)
+            try:
+                repo = store.redist(about.get("deps") or [], cancel=lambda: gid in self._cancel,
+                                    log_file=log_file)
+                steps = gog_mod.setup_steps(files, g["app_name"], about.get("deps"), repo,
+                                            about.get("build"), about.get("version"))
+            except GogError as e:                 # the game may still start without them
+                log.warning("install %s: gog shared parts not downloaded: %s", gid, e)
         used = _tree_size(files)
         info = {"game_id": gid, "title": g.get("title"), "store": "gog",
-                "app_name": g["app_name"], "upload_id": g["app_name"], "platform": plat,
+                "app_name": g["app_name"], "upload_id": plat, "platform": plat,
                 "filename": g["app_name"], "exe": run["exe"], "args": run["args"],
                 "cwd": run["cwd"], "alternatives": [], "size": used,
                 "build_id": about.get("build"), "version": about.get("version"),
                 "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-                "dir": str(dest)}
+                "dir": str(dest), "setup_steps": steps,
+                "setup_done": bool(in_place and (old or {}).get("setup_done"))}
         if run.get("setup"):
-            info["setup"] = True              # first-run setup scripts we don't run (code P03)
+            info["setup"] = True              # GOG setup scripts (code P03 if it then fails)
             log.info("install %s: gog game ships first-run setup scripts", gid)
+        if steps:
+            log.info("install %s: first-run setup: %s", gid, ", ".join(s_["name"] for s_ in steps))
         if plat == "windows":
-            info["prefix"] = str(proton.prefix_dir(root, dest.name))
+            info["prefix"] = (old or {}).get("prefix") or str(proton.prefix_dir(root, dest.name))
         _write_json(dest / "install.json", info)
         self.index[gid] = info
         _write_json(paths.INSTALLS, self.index)
         log.info("install %s: done in %.0fs -> %s (exe %s)", gid, time.time() - t0, dest, run["exe"])
         self._upd(gid, state="installed", phase=None, progress=0, fail_reason=None,
                   size_mb=used // 1_000_000, update=None)
+
+    def check_gog_updates(self, force=False):
+        """After each GOG sync (Y refreshes too): ask GOG for the newest
+        build of each installed GOG game (gogdl info, at most every UPDATE_EVERY_S per game)
+        and mark the ones that changed (Update button, like Epic)."""
+        from .stores.gog import GogError
+        store, now, found = self.lib.gog, time.time(), 0
+        if not store:
+            return 0
+        for gid, info in list(self.index.items()):
+            if info.get("store") != "gog" or gid == self.current or gid in self.queue:
+                continue
+            if not force and now - info.get("checked", 0) < UPDATE_EVERY_S:
+                continue
+            plat = info.get("platform") or "windows"
+            try:
+                about = store.info(info["app_name"], plat)
+            except GogError as e:
+                log.info("updates: gog %s", e)
+                break
+            info["checked"] = now
+            if about:
+                key = "build_id" if plat == "windows" else "version"
+                cur, new = info.get(key), about.get("build" if plat == "windows" else "version")
+                if cur and new and str(cur) != str(new):
+                    info["update"] = {"upload_id": plat, "filename": info["app_name"], "updated": ""}
+                    log.info("updates %s: gog %s -> %s", gid, cur, new)
+                    found += 1
+                else:
+                    info.pop("update", None)
+            self._save_info(gid, info)
+            g = self.lib.by_id(gid)
+            if g is not None:
+                g["update"] = info.get("update")
+        return found
 
     def _silent_install(self, gid, g, setup, tmp, root, dest):
         """Run setup.exe (Inno / NSIS) with no window into dest/files.inst, inside the game's

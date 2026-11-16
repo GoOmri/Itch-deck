@@ -82,7 +82,8 @@ class Game(Scene):
         g, st = self.g, self.g.get("state")
         if not self.playable:
             return []
-        epic = g.get("store") in ("epic", "gog")    # one build per game: no Change build
+        epic = g.get("store") == "epic" or (       # one build: no Change build. GOG: only when it
+            g.get("store") == "gog" and not {"linux", "windows"} <= set(g["platforms"]))  # has both
         if st == "installed":
             return (["Uninstall", "Controls"] if epic else
                     ["Uninstall", "Change build", "Controls"]) + ["Saves"] + \

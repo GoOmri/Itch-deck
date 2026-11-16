@@ -18,6 +18,8 @@ def run(args):
     except (RuntimeError, ValueError):
         pass
     import gogdl.cli
+    import gogdl.dl.objects.v2 as v2
+    v2.Patch.get = classmethod(lambda cls, *a, **k: None)   # no xdelta3 here: update by chunks
     sys.argv = ["gogdl", *args]
     gogdl.cli.main()
     return 0

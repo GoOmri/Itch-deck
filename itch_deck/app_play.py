@@ -5,7 +5,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import backups, mouse, proton, runner, words
+from . import backups, mouse, paths, proton, runner, words
 from .installer import slug_of
 
 log = logging.getLogger("scritch")
@@ -45,6 +45,8 @@ class PlayMixin:
             log.info("play: %s via %s, prefix %s", g["id"], pdir.name, prefix)
         pg = self.pg
         self.scene.toast, self.toast_until = None, 0
+        if info.get("store") == "gog" and info.get("setup_steps") and not info.get("setup_done"):
+            self._gog_first_run(g, info, umu, env)
         self._splash(f"Starting {g['title']}…", sub or QUIT_HINT)
         args, secret, cwd = (), (), None
         if info.get("store") == "epic":           # legendary says how (and signs the game in)
@@ -112,6 +114,9 @@ class PlayMixin:
         if runner.crashed(rc, secs):
             hint = runner.crash_hint(slug_of(g))
             log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
+            if hint and info.get("store") == "gog" and hint == runner.TRY_OTHER_BUILD:
+                hint = ("Try the Windows version in Options." if info.get("platform") == "linux"
+                        and "windows" in (g.get("platforms") or ()) else None)  # GOG: no builds list
             if hint:
                 self.say(f"{g['title']} couldn't start. {hint}", error=True)
             elif info.get("setup"):              # GOG first-run setup we don't run yet
@@ -120,6 +125,36 @@ class PlayMixin:
             else:
                 words.log_code("P01", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
                 self.say(words.with_code(f"{g['title']} couldn't start.", "P01"), error=True)
+
+    def _gog_first_run(self, g, info, umu, env):
+        """GOG Windows game, first Play (v0.9.5): install the parts it needs (Visual C++,
+        DirectX…) and run GOG's setup tool, quietly, in its prefix. Once per install (an update
+        keeps it done). Failures are logged; the game starts anyway (P03 if it then fails)."""
+        from .stores import gog
+        slug = slug_of(g)
+        log_file = paths.LOGS / "games" / f"{slug}-setup.log"
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        files = Path(info["dir"]) / "files"
+        res = {}
+
+        def work():
+            try:
+                res["failed"] = gog.run_setup(info["setup_steps"], files, umu, env, log_file)
+            except Exception as e:  # noqa: BLE001
+                log.exception("play: gog first-run setup")
+                res["failed"] = [f"error {type(e).__name__}"]
+        th = threading.Thread(target=work, daemon=True, name="gog-setup")
+        th.start()
+        log.info("play: %s first-run setup (%d steps)", g["id"], len(info["setup_steps"]))
+        while th.is_alive():                     # keep the screen alive while it works
+            self.pg.event.pump()
+            self._splash(f"Preparing {g['title']}…", "First run only, can take a few minutes")
+            th.join(0.25)
+        info["setup_done"] = True
+        if res.get("failed"):
+            info["setup"] = True                 # a crash right after -> P03
+            log.info("play: %s first-run setup: not done: %s", g["id"], ", ".join(res["failed"]))
+        self.inst._save_info(g["id"], info)
 
     def _backup_after_play(self, g, info, since):
         """Saves backup (16 Nov): automatic after every play, only when the saves changed. In a

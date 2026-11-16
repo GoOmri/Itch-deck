@@ -291,6 +291,11 @@ def _shots(t, version):
         ("15r_game_gog_downloading", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300,
                                                   state="downloading", phase="download", progress=0.37,
                                                   speed_mbs=18.4, eta_s=95), pos=(2, len(gog_games)))),
+        ("15t_game_gog_versions", with_overlay(
+            Game(t, dict(gog_games[1], platforms={"windows", "linux"}, size_mb=2_300, state="installed"),
+                 pos=(2, len(gog_games))),
+            ("picker", "Choose a version", "A installs it. Your saves are kept.",
+             [("Linux", "Installed", ""), ("Windows", "", "")], 1))),
         ("15s_game_gog_options", with_overlay(
             Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300, state="installed",
                          move_to="internal storage"), pos=(2, len(gog_games))),

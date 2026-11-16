@@ -76,7 +76,8 @@ class GameMixin:
         elif label == "Play":
             self.play(g)
         elif label == "Update":
-            if self.lib.offline or not (self.lib.epic if g.get("store") == "epic" else self.lib.store):
+            if self.lib.offline or not {"epic": self.lib.epic, "gog": self.lib.gog}.get(
+                    g.get("store"), self.lib.store):
                 self.say("Updating needs internet.", error=True)
             elif self.inst.update(g) and self.inst.current and self.inst.current != gid:
                 self.say("Queued. The update starts after the current download.")
@@ -92,6 +93,8 @@ class GameMixin:
             self.say(LATER)
 
     def change_build(self, g):
+        if g.get("store") == "gog":                    # GOG: Linux or Windows version (v0.9.5)
+            return self._gog_versions(g)
         if self.lib.offline or not self.lib.store:
             if len(self.inst.programs(g["id"])) > 1:   # the program list works offline
                 self._program_picker(g["id"])
@@ -171,13 +174,29 @@ class GameMixin:
             return
         b = order[i]
         sc.overlay, self.picker = None, None
-        if (self.inst.index.get(gid) or {}).get("upload_id") == b["id"]:
+        info = self.inst.index.get(gid) or {}
+        if (info.get("platform") if info.get("store") == "gog" else info.get("upload_id")) == b["id"]:
             self.say("That build is already installed.")
             return
         g = self.lib.by_id(gid) or sc.g
         self.inst.enqueue(g, upload_id=b["id"])
         sc.focus = 0
-        self.say(f"Installing {b['filename']}…")
+        self.say(f"Installing the {b['filename']} version…" if g.get("store") == "gog"
+                 else f"Installing {b['filename']}…")
+
+    def _gog_versions(self, g):
+        if self.lib.offline or not self.lib.gog:
+            self.say("Changing the version needs internet.", error=True)
+            return
+        info = self.inst.index.get(g["id"]) or {}
+        cur = info.get("platform")
+        order = [{"id": p, "filename": name} for p, name in (("linux", "Linux"), ("windows", "Windows"))]
+        items = [(b["filename"], "Installed" if b["id"] == cur else
+                  ("Recommended" if b["id"] == "linux" and not cur else ""), "") for b in order]
+        self.picker = (g["id"], order, True, 0)
+        self.scene.overlay = ("picker", "Choose a version",
+                              "A installs it. Your saves are kept." if cur else
+                              "A installs it.", items, 0)
 
     def _program_picker(self, gid):
         """O1 as a program list: every runnable file found in the install, current one tagged."""
