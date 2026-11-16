@@ -810,6 +810,16 @@ Fix v0.9.1 RELEASED 16 Nov (Omri "push" 11:51; branch gog-fix-signin; only other
     GogStore._ask. Checked pytest 3.13 + 3.11 (140), selftest both, itch-reject selftest, mockups.
   Deck checklist v0.9.1 = v0.9.0's GOG list (steps 2-7). If it fails: app.log lines "gog:".
 v0.9.1 Deck test (16 Nov 11:58): all ✓ (Omri). GOG step 1 DONE. Next: GOG step 2 (install / play).
+GOG step 2 = v0.9.2, APPROVED by Omri 16 Nov 12:00 (handed to a new code chat), and he said:
+  PUSH WHEN DONE (no extra "push" needed for this one update; still check other branches first,
+  and still run every check). Plan as sent: vendor gogdl into our build (pure Python + requests,
+  GPL-3, run in-process / as a hidden `scritch --gogdl …` mode via sys.executable — NOT the GitHub
+  release asset, which is unreliable); install via `gogdl download <id> --platform linux|windows
+  --path <root>/<game>` with progress + cancel + resume like Epic; Linux build when GOG has one,
+  else Windows via umu + GE-Proton; launch from goggame-<id>.info playTasks (primary task, path,
+  arguments, workingDir); ⚙ = Uninstall / Controls / Saves / Move (no Change build); auth file =
+  DATA/gog/auth.json (already gogdl's format, written by stores/gog.py since v0.9.1). Risk: games
+  needing redist / first-run setup -> error code, fix per game after the Deck test.
 v0.8.5 RELEASED 16 Nov 11:00 (Omri "push") = Move games + Controls row + design-balance docs.
   Omri 16 Nov 10:30 "go" incl. the registry address fix.
   - installer: move_target(gid, config.install_choices()) -> the other drive (needs 2 choices,
