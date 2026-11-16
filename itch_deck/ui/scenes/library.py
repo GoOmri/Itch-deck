@@ -282,6 +282,8 @@ class Library(Scene):
         base = int(t.m + t.xs)              # everything in the top bar sits on this baseline
         r = W.wordmark(t, s, t.m, base, anchor="baseleft")
         x = r.right + t.lg
+        if getattr(self, "tab_style", None) == "carousel":         # mockup only (Omri 16 Nov idea)
+            return self._top_right(s, base, carousel=r.right + t.lg)
         for key, label in self.tabs():
             on = self.filt == key
             lr = W.text(t, s, label, x, base, t.f_btn, color=t.text_c if on else t.dim,
@@ -291,6 +293,10 @@ class Library(Scene):
                 uw = W.anim(("tab", "w"), lr.w, back=W.TAB_BACK)
                 pg.draw.rect(s, t.accent, (int(ux), base + t.xs, int(uw), max(2, t.u // 3)))
             x = lr.right + t.md
+        return self._top_right(s, base)
+
+    def _top_right(self, s, base, carousel=None):
+        t = self.t
         n = len(self.shown)
         right = t.w - t.m
         if self.offline_since:
@@ -302,7 +308,54 @@ class Library(Scene):
         if self.filtered():
             rr = W.tag(t, s, "Filter: " + self.filter_summary().replace("  ·  ", " · "),
                        rr.x - t.md, base - W.x_mid(t.f_small), kind="accent", anchor="midright")
-        return int(base + t.lg)                 # background work lives in the footer now
+        if carousel is not None:
+            self._tab_carousel(s, base, carousel, rr.x - t.lg)
+        return int(base + t.lg)
+
+    def _tab_carousel(self, s, base, left, right):
+        """IDEA (mockup only): the tab row slides so the focused tab sits in the middle of the
+        screen; focused = bigger + white, the others dim and fade with distance; a soft band
+        behind the middle fades out to the left and right. `tab_at` (float index) draws a
+        frame mid-slide for the mockups."""
+        t = self.t
+        keys = self.tabs()
+        cur = [k for k, _ in keys].index(self.filt)
+        at = getattr(self, "tab_at", cur)
+        big, small = t.font("SemiBold", t.u * 3.2), t.f_btn
+        gap = t.lg
+        # lay the row out at rest (focused one big) and find each tab's centre
+        ws = [(big if i == cur else small).size(lb)[0] for i, (_, lb) in enumerate(keys)]
+        cs, x = [], 0
+        for w in ws:
+            cs.append(x + w / 2)
+            x += w + gap
+        i0 = int(at); f = at - i0
+        c_at = cs[i0] + (cs[min(i0 + 1, len(cs) - 1)] - cs[i0]) * f
+        cx = t.w // 2
+        shift = cx - c_at
+        # the band: lightest in the middle, gone at both sides
+        bw, bh = int(t.u * 44), int(t.u * 5.6)
+        band = pg.Surface((bw, bh), pg.SRCALPHA)
+        for px in range(bw):                            # soft on all sides, widest left-right
+            ax = (1 - abs(px - bw / 2) / (bw / 2)) ** 1.6
+            for py in range(bh):
+                ay = 1 - (abs(py - bh / 2) / (bh / 2)) ** 3
+                band.set_at((px, py), (*t.panel_hi, int(190 * ax * ay)))
+        s.blit(band, (cx - bw // 2, base - W.x_mid(t.f_btn) - bh // 2))
+        fade = t.u * 6                                  # tabs fade out before the logo / count
+        for i, (key, label) in enumerate(keys):
+            d = abs(i - at)
+            on = d < 0.5
+            font = big if on else small
+            col = t.text_c if on else (t.dim if d < 1.5 else t.faint)
+            img = font.render(label, True, col)
+            c = cs[i] + shift
+            r = img.get_rect(bottomleft=(int(c - img.get_width() / 2), base + (-font.get_descent())))
+            edge = min(r.left - left, right - r.right)
+            if edge < 0 and edge < -r.w:
+                continue
+            img.set_alpha(max(0, min(255, int(255 * (edge + r.w * 0.5) / fade))) if edge < fade else 255)
+            s.blit(img, r)                 # background work lives in the footer now
 
     def footer_status(self):
         return self.activity or ("Refreshing library" if self.syncing == "bg" else None), self.notice
