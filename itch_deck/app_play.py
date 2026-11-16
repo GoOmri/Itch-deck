@@ -5,7 +5,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import backups, mouse, paths, proton, runner, words
+from . import backups, dosbox, mouse, paths, proton, runner, words
 from .installer import slug_of
 
 log = logging.getLogger("scritch")
@@ -26,7 +26,12 @@ class PlayMixin:
         self.lib.mark_played(g)             # Recent tab
         umu = env = hold = None
         sub = None
-        if info.get("platform") == "windows":
+        dos = None
+        if dosbox.is_dosbox_game(info):          # GOG DOS game: native DOSBox Staging (v0.9.7)
+            base = dosbox.native() or self._get_dosbox(g)
+            dos = dosbox.launch(info, base) if base else None
+            log.info("play: %s dosbox %s", g["id"], "native" if dos else "missing: via Proton")
+        if info.get("platform") == "windows" and not dos:
             umu, pdir = proton.umu_path(), proton.proton_dir(self.cfg)
             if not pdir:
                 self.say(proton.NEED_GE,
@@ -45,7 +50,8 @@ class PlayMixin:
             log.info("play: %s via %s, prefix %s", g["id"], pdir.name, prefix)
         pg = self.pg
         self.scene.toast, self.toast_until = None, 0
-        if info.get("store") == "gog" and info.get("setup_steps") and self._gog_needs_setup(info):
+        if info.get("store") == "gog" and info.get("setup_steps") and not dos and \
+                self._gog_needs_setup(info):
             self._gog_first_run(g, info, umu, env)
         self._splash(f"Starting {g['title']}…", sub or QUIT_HINT)
         args, secret, cwd = (), (), None
@@ -65,6 +71,8 @@ class PlayMixin:
             cwd = lp.get("working_directory") or None
             log.info("play: epic %s -> %s (%d args, %d sign-in args)", info["app_name"],
                      exe, len(args), len(secret))
+        elif dos:                                 # DOSBox Staging with GOG's settings files
+            exe, args, cwd = dos
         elif info.get("store") == "gog":          # from GOG's play task (stores/gog.launch_info)
             args = list(info.get("args") or [])
             cwd = str(Path(info["dir"]) / "files" / info["cwd"]) if info.get("cwd") else None
@@ -128,6 +136,20 @@ class PlayMixin:
             else:
                 words.log_code("P01", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
                 self.say(words.with_code(f"{g['title']} couldn't start.", "P01"), error=True)
+
+    def _get_dosbox(self, g):
+        """First DOS game: install DOSBox Staging (Flathub, once) while a splash says so."""
+        res = {}
+        log_file = paths.LOGS / "games" / f"{slug_of(g)}-setup.log"
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        th = threading.Thread(target=lambda: res.setdefault("cmd", dosbox.ensure(log_file)),
+                              daemon=True, name="dosbox")
+        th.start()
+        while th.is_alive():
+            self.pg.event.pump()
+            self._splash("Getting DOSBox…", "One time only, for DOS games")
+            th.join(0.25)
+        return res.get("cmd")
 
     def _gog_needs_setup(self, info):
         """Not run yet, or a part was missing last time (v0.9.5 never fetched GOG's setup tool):

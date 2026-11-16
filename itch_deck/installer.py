@@ -925,6 +925,9 @@ class Installer:
                                             about.get("build"), about.get("version"))
             except GogError as e:                 # the game may still start without them
                 log.warning("install %s: gog shared parts not downloaded: %s", gid, e)
+            if Path(run["exe"]).name.lower() == "dosbox.exe":   # DOS game: native DOSBox (v0.9.7)
+                from . import dosbox
+                dosbox.ensure(log_file)
         used = _tree_size(files)
         info = {"game_id": gid, "title": g.get("title"), "store": "gog",
                 "app_name": g["app_name"], "upload_id": plat, "platform": plat,

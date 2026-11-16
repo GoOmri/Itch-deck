@@ -1289,3 +1289,23 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
   this covers both. Next if it still fails: native DOSBox (gogdl uses dosbox-staging/flatpak if
   present) or a GOG DOSBox fix list.
 - Tests: ISI asked, windows_args. pytest 3.13 + 3.11 (155), selftest.
+
+## v0.9.7 RELEASED 16 Nov (branch v097-dosbox; Omri "go and push" 16:22) = GOG DOS games via native DOSBox
+- v0.9.6 Deck: EOB Windows build (GOG's dosbox.exe under Proton) still showed its logo and closed;
+  the Linux build's bundled DOSBox misses libFLAC.so.8 / libSDL_sound-1.0.so.1. Setup log: ISI ran
+  (exit 0). Also every gogdl run in the frozen app printed "scritch: error: unrecognized arguments:
+  -B -S -I -c from multiprocessing.resource_tracker import main;main(N)": multiprocessing's
+  resource tracker re-runs sys.executable (= our binary).
+- Fix 1: run.py / __main__ call multiprocessing.freeze_support() first (PyInstaller's hook runs
+  those helper processes). Checked on a real PyInstaller build: the tracker command exits 0.
+- Fix 2: itch_deck/dosbox.py (like Heroic/gogdl launch): GOG Windows builds whose play task is
+  dosbox.exe run with DOSBox Staging: dosbox-staging on PATH, else flatpak io.github.dosbox-staging
+  (ensure(): `flatpak install -y --noninteractive flathub` system, else remote-add --user +
+  install --user; at install time and, if missing, at Play with splash "Getting DOSBox… One time
+  only"). launch(): play-task args, -noconsole dropped, each -conf -> scritch-<name> copy next to
+  it with "\\" -> "/" in [autoexec] mount/imgmount lines (GOG: mount C "..\\cloud_saves" -t overlay);
+  flatpak run --filesystem=<files> --cwd=<play-task folder>. No Proton, no first-run setup for
+  those. No DOSBox to be had -> old Proton path.
+- Tests tests/test_dosbox.py (stand-in flatpak: install once, user fallback; launch args + conf
+  copy; run.py order). UNVERIFIED: flatpak install on SteamOS without a password (system), staging
+  reading GOG's 0.74 confs (output=overlay, -t overlay), the [sdl] fullscreen under gamescope.
