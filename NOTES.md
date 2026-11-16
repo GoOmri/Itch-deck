@@ -1234,3 +1234,15 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   art shipped). Checked pytest 3.13 + 3.11 (151), selftest both, itch-reject, mockups, PyInstaller
   build has _internal/steam-art. UNVERIFIED on the Deck: real shortcuts.vdf of his tile
   (~/Applications/itch-deck/itch-deck), when Steam shows the art.
+
+## ROADMAP NOW (Omri 16 Nov 13:41; replaces every list above; page https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo)
+One item per update, plan + size first, wait for "go" and "push":
+1 Deck test round (no code): v0.9.4 checklist + 2-3 GOG games (one Linux, one big Windows).
+2 GOG first-run setup (goggame-*.script / redist: runtimes etc., P03) + GOG updates (v0.9.5).
+3 Hide extra controllers for player-1-only games (Bleed 2). Research first.
+4 Opt-in "Add to Steam" for one game (⚙; own tile + controller layout; needs a Steam restart).
+  Still decided against: automatic tiles for every game.
+5 DLC for Epic and GOG (one ⚙ entry, both stores).
+6 Ready to share (logo + Steam art done; README for new players, fresh-Deck check).
+7 Cloud saves for Epic and GOG (off by default; own update + test round; risky).
+Later: browser games.
