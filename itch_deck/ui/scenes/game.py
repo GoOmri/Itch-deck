@@ -80,7 +80,8 @@ class Game(Scene):
         epic = g.get("store") == "epic"             # one build per game: no Change build
         if st == "installed":
             return (["Uninstall", "Controls"] if epic else
-                    ["Uninstall", "Change build", "Controls"]) + ["Saves"]
+                    ["Uninstall", "Change build", "Controls"]) + ["Saves"] + \
+                ([f"Move to {g['move_to']}"] if g.get("move_to") else [])
         if st == "missing":
             return [] if g.get("missing") == "card" else ["Uninstall"]
         if st in ("downloading", "queued") or self.phase:
@@ -426,6 +427,12 @@ class Game(Scene):
             info = f"One time only  ·  {g.get('speed_mbs', 0):.1f} MB/s"
             W.progress(t, s, bar, 0)
             self._live_fill = (bar, p)            # fill glides live (draw_page), never jumps
+        elif self.phase == "move":
+            p = g.get("progress", 0)
+            label = f"Moving to {g.get('move_to') or 'the other drive'}  {int(p * 100)}%"
+            info = ""                             # the label is enough (rule 10)
+            W.progress(t, s, bar, 0)
+            self._live_fill = (bar, p)
         elif self.phase == "download":
             p = g.get("progress", 0)
             label = f"Downloading  {int(p * 100)}%"

@@ -297,6 +297,90 @@ def update_for(info, builds):
 
 
 # --- installer -----------------------------------------------------------------------------
+
+MOVING = "_moving"           # <root>/_moving: a move's copy until it's checked (then renamed)
+
+
+class MoveCancelled(Exception):
+    pass
+
+
+def _tree_size(p):
+    total = 0
+    for dirpath, _, files in os.walk(p):
+        for f in files:
+            fp = os.path.join(dirpath, f)
+            if not os.path.islink(fp):
+                try:
+                    total += os.path.getsize(fp)
+                except OSError:
+                    pass
+    return total
+
+
+def _tree_count(p):
+    return sum(len(files) + len(dirs) for _, dirs, files in os.walk(p))
+
+
+def _copy_tree(src, dst, tick):
+    """Copy src to dst (links as links, modes and times kept), calling tick(bytes) as it goes."""
+    src, dst = Path(src), Path(dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    for dirpath, dirs, files in os.walk(src):
+        rel = Path(dirpath).relative_to(src)
+        out = dst / rel
+        for d in list(dirs):
+            sp = Path(dirpath) / d
+            if sp.is_symlink():
+                os.symlink(os.readlink(sp), out / d)
+                dirs.remove(d)                   # os.walk doesn't follow it anyway
+            else:
+                (out / d).mkdir(exist_ok=True)
+        for f in files:
+            sp, dp = Path(dirpath) / f, out / f
+            if sp.is_symlink():
+                os.symlink(os.readlink(sp), dp)
+                continue
+            with open(sp, "rb") as a, open(dp, "wb") as b:
+                while chunk := a.read(4 << 20):
+                    b.write(chunk)
+                    tick(len(chunk))
+            shutil.copystat(sp, dp, follow_symlinks=False)
+        try:
+            shutil.copystat(dirpath, out)
+        except OSError:
+            pass
+
+
+def fix_registry(prefix, old_root, new_root):
+    """A setup program may write its install folder into the prefix's registry (Z:\\run\\…).
+    After a move, point those at the new folder: the .reg files are text, so replace the old
+    games folder with the new one (Windows form, escaped as in .reg files, and the plain form)."""
+    def win(p):
+        return "Z:" + str(p).replace("/", "\\")
+    pairs = []
+    for drive in ("Z:", "z:"):
+        o, n = drive + win(old_root)[2:] + "\\", drive + win(new_root)[2:] + "\\"   # whole names
+        pairs += [(o.replace("\\", "\\\\"), n.replace("\\", "\\\\")), (o, n)]
+    pairs.append((str(old_root) + "/", str(new_root) + "/"))
+    n_fixed = 0
+    for reg in ("system.reg", "user.reg", "userdef.reg"):
+        for f in (Path(prefix) / reg, Path(prefix) / "pfx" / reg):
+            if not f.is_file():
+                continue
+            text = f.read_text(encoding="utf-8", errors="surrogateescape")
+            new = text
+            for a, b in pairs:
+                new = new.replace(a, b)
+            if new != text:
+                n_fixed += 1
+                tmp = f.with_name(f.name + ".tmp")
+                tmp.write_text(new, encoding="utf-8", errors="surrogateescape")
+                os.replace(tmp, f)
+    if n_fixed:
+        log.info("move: registry paths updated in %d file(s) of %s", n_fixed, prefix)
+    return n_fixed
+
 class Installer:
     def __init__(self, lib, root_fn, cfg=None):
         self.lib, self.root_fn, self.cfg = lib, root_fn, cfg if cfg is not None else {}
@@ -309,6 +393,7 @@ class Installer:
         self._thread = None
         self._lock = threading.Lock()
         self.updating = set()     # gids queued as updates (same upload id may be reinstalled)
+        self.moving = None        # gid being moved to the other drive (Move to SD card / internal)
         lib.installs, lib.live = self.index, {}
         lib.on_epic_sync = self.check_epic_updates
         lib.apply_installs()
@@ -814,6 +899,120 @@ class Installer:
         _write_json(paths.INSTALLS, self.index)
         log.info("install %s: program set to %s", gid, rel)
         return True
+
+    # --- move between SD card and internal storage (16 Nov) ---
+    def move_target(self, gid, choices):
+        """(label, games folder) of the other drive, or None. choices = config.install_choices()."""
+        info = self.index.get(gid)
+        if not info or len(choices) < 2 or self.moving or gid == self.current or gid in self.queue:
+            return None
+        here = Path(info["dir"]).parent
+        mine = [c for c in choices if Path(c[1]) == here]
+        if not mine or config.card_missing(info["dir"]):
+            return None
+        return next(c for c in choices if c is not mine[0])
+
+    def move(self, gid, dest_root, label):
+        """Copy the game + its Proton folder to dest_root, check, switch, then delete the old
+        copy. Until the switch the old copy is untouched and used; cancel = old copy stays."""
+        if self.moving or gid not in self.index:
+            return False
+        self.moving = gid
+        self._cancel.discard(gid)
+        self._upd(gid, state="downloading", phase="move", progress=0, move_to=label)
+        threading.Thread(target=self._move_thread, args=(gid, Path(dest_root), label),
+                         daemon=True, name="move").start()
+        return True
+
+    def cancel_move(self, gid):
+        if self.moving == gid:
+            self._cancel.add(gid)
+
+    def _move_thread(self, gid, dest_root, label):
+        g = self.lib.by_id(gid) or {"title": gid}
+        try:
+            self._move(gid, dest_root)
+            self.events.append(("done", gid, f"{g['title']} moved to {label}."))
+        except MoveCancelled:
+            log.info("move %s: cancelled", gid)
+        except Exception as e:  # noqa: BLE001
+            hint = words.short(str(e)) if isinstance(e, InstallError) else None
+            if not hint:
+                code = getattr(e, "code", None) or "M01"
+                log.exception("move %s failed", gid)
+                words.log_code(code, f"move {gid} ({g['title']}) to {dest_root}: {e}")
+                msg = words.with_code(f"Couldn't move {g['title']}.", code)
+            else:
+                msg = f"Couldn't move {g['title']}. {hint}."
+            self.events.append(("error", gid, msg))
+        finally:
+            self.moving = None
+            self._cancel.discard(gid)
+            self._upd(gid, state="installed" if gid in self.index else None, phase=None,
+                      progress=0, move_to=None)
+            shutil.rmtree(dest_root / MOVING, ignore_errors=True)
+
+    def _move(self, gid, dest_root):
+        info = dict(self.index[gid])
+        src = Path(info["dir"])
+        name = src.name
+        src_root = src.parent
+        src_pfx = Path(info["prefix"]) if info.get("prefix") else proton.prefix_dir(src_root, name)
+        dst, dst_pfx = dest_root / name, proton.prefix_dir(dest_root, name)
+        stage = dest_root / MOVING
+        jobs = [(src, stage / "game")] + ([(src_pfx, stage / "prefix")] if src_pfx.is_dir() else [])
+        total = sum(_tree_size(a) for a, _ in jobs)
+        dest_root.mkdir(parents=True, exist_ok=True)
+        free = shutil.disk_usage(dest_root).free
+        if total + 200_000_000 > free:
+            raise InstallError(f"Not enough space ({total // 1_000_000} MB needed, "
+                               f"{free // 1_000_000} MB free).")
+        for taken in (dst, dst_pfx):              # a leftover of ours that no install uses
+            if taken.exists():
+                if any(Path(i.get("dir", "")) == taken or Path(i.get("prefix") or "/") == taken
+                       for i in self.index.values()):
+                    raise InstallError("A game with the same folder is already there.", "M02")
+                shutil.rmtree(taken, ignore_errors=True)
+        shutil.rmtree(stage, ignore_errors=True)
+        done = [0]
+
+        def tick(n):
+            done[0] += n
+            if gid in self._cancel:
+                raise MoveCancelled()
+            self._upd(gid, progress=min(done[0] / total, 0.999) if total else 0.999)
+        for a, b in jobs:
+            _copy_tree(a, b, tick)
+        for a, b in jobs:                         # check: same files, same sizes
+            if _tree_size(a) != _tree_size(b) or _tree_count(a) != _tree_count(b):
+                raise InstallError("The copy didn't match the original.", "M03")
+        if gid in self._cancel:
+            raise MoveCancelled()
+        dst_pfx.parent.mkdir(parents=True, exist_ok=True)
+        os.rename(stage / "game", dst)            # same drive: instant
+        if (stage / "prefix").is_dir():
+            os.rename(stage / "prefix", dst_pfx)
+            fix_registry(dst_pfx, src_root, dest_root)
+        info.update(dir=str(dst))
+        if info.get("prefix") or src_pfx.is_dir():
+            info["prefix"] = str(dst_pfx)
+        if info.get("store") == "epic" and self.lib.epic:
+            self.lib.epic.moved(info.get("app_name"), dst)
+        self.index[gid] = info                    # the switch: from here on, the new copy
+        _write_json(paths.INSTALLS, self.index)
+        log.info("move %s: %s -> %s (%d MB)", gid, src, dst, total // 1_000_000)
+        self._upd(gid, progress=1)
+        shutil.rmtree(src, ignore_errors=True)    # the old copy
+        if src_pfx.is_dir():
+            shutil.rmtree(src_pfx, ignore_errors=True)
+
+    def clean_moves(self, roots):
+        """A move cut short (Deck off, app killed) leaves <root>/_moving: delete it at start."""
+        for r in roots:
+            p = Path(r) / MOVING
+            if p.is_dir() and not config.card_missing(str(p)):
+                log.info("move: removing leftover %s", p)
+                shutil.rmtree(p, ignore_errors=True)
 
     def uninstall(self, gid):
         """Forget the install now; delete the files in the background (big games take a while).

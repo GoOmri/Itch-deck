@@ -23,7 +23,7 @@ from .app_setup import SetupMixin
 from .app_epic import EpicMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.8.4"
+VERSION = "0.8.5"
 
 
 def setup_logging():
@@ -51,6 +51,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
             from .stores.epic import EpicStore
             self.lib.epic = EpicStore()            # cached Epic games show at once
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
+        self.inst.clean_moves([p for _, p in config.install_choices()])   # a move cut short
         self._pin_root()
         self.picker = None              # (gid, builds) behind an open Change build picker
         self._progs = []                # program picker rows (relative exe paths)
@@ -297,6 +298,10 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
 
     def _activity(self):
         """Footer-left background work (every screen): a running download first, then sync/covers/details."""
+        if self.inst.moving:
+            g = self.lib.by_id(self.inst.moving)
+            if g:
+                return f"Moving {int(g.get('progress', 0) * 100)}% · {g['title']}"
         gid = self.inst.current
         g = self.lib.by_id(gid) if gid else None
         if g and g.get("state") == "downloading":
@@ -632,6 +637,24 @@ def selftest(screenshot=None):
     assert ctl() == "Keys" and app.scene.overlay[0] == "menu", ctl()
     app.handle(RIGHT)
     assert ctl().startswith("Auto · ") and g["id"] not in app.cfg.get("controls", {}), ctl()
+    # Move (16 Nov): ⚙ → Move to internal storage → confirm → copied, switched, old copy gone
+    app.scene.overlay = None
+    other = paths.HOME / "Internal" / "scritch"
+    real_choices = config.install_choices
+    config.install_choices = lambda: [("SD card", d.parent), ("Internal storage", other)]
+    try:
+        app.open_options(app.scene)
+        labels = [r[0] for r in app.scene.overlay[3]]
+        assert "Move to internal storage" in labels, labels
+        app.scene.overlay = (*app.scene.overlay[:4], labels.index("Move to internal storage"))
+        app.handle(A)
+        assert app.scene.overlay and app.scene.overlay[0] == "confirm", app.scene.overlay
+        app.handle(A)
+        assert toast_is(f"{g['title']} moved to internal storage."), app.scene.toast
+        assert app.inst.index[g["id"]]["dir"] == str(other / d.name)
+        assert (other / d.name / "files" / "run.sh").exists()
+    finally:
+        config.install_choices = real_choices
     if screenshot:
         import pygame
         pygame.init()

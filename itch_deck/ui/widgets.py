@@ -1062,8 +1062,9 @@ def offline_mark(t, s, right, cy, since):
 
 
 # --- overlays ---------------------------------------------------------------
-def modal(t, s, title, body, buttons=None, focus=0):
-    """Yes/no dialog with its buttons inside (Omri): [action, "Cancel"], focus lights one."""
+def modal(t, s, title, body, buttons=None, focus=0, danger=True):
+    """Yes/no dialog with its buttons inside (Omri): [action, "Cancel"], focus lights one.
+    The action is red when it deletes or closes (danger), else the purple main button."""
     shade(t, s)
     pad = t.lg
     # body text wraps inside the dialog, never runs past it (design rule: dialogs)
@@ -1081,8 +1082,9 @@ def modal(t, s, title, body, buttons=None, focus=0):
     for ln in lines:
         y = text(t, s, ln, r.x + pad, y, t.f_body, color=t.dim).bottom
     if buttons:
-        button_row(t, s, r.x + pad, y + t.lg,       # the action is red, Cancel grey
-                   [(b, None, True, "danger" if i == 0 else False) for i, b in enumerate(buttons)],
+        first = "danger" if danger else True
+        button_row(t, s, r.x + pad, y + t.lg,       # the action is red / purple, Cancel grey
+                   [(b, None, True, first if i == 0 else False) for i, b in enumerate(buttons)],
                    focus)
     return r
 

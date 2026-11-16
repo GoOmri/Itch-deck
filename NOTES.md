@@ -731,6 +731,28 @@ v0.8.4 RELEASED 16 Nov (Omri: "you can push when done") = ROADMAP 1, save backup
     backed up." 3 ⚙ → Saves lists it. 4 Dolphin: Documents/SCRiTCH saves/<game>/ has a zip.
     5 Play again without saving -> no new backup. 6 Put back the older one -> "Saves put back."
     and the game loads it; Saves now shows a "Before restore" entry.
+v0.8.5 = Move games + Controls row (branch move-games, built on controls-row; NOT released yet).
+  Omri 16 Nov 10:30 "go" incl. the registry address fix.
+  - installer: move_target(gid, config.install_choices()) -> the other drive (needs 2 choices,
+    game not queued/downloading/moving, card present). move() -> thread _move: size check (+200 MB),
+    copy game + prefix into <dest>/_moving/{game,prefix} (_copy_tree: links as links, chunked,
+    tick() = progress + cancel), check same size + count, os.rename into place (same drive),
+    fix_registry(prefix, old_root, new_root) (.reg text: Z:\\…\\ escaped + plain, whole folder
+    names), update index (dir, prefix) + Epic installed.json install_path (EpicStore.moved), write
+    installed.json = THE SWITCH, then rmtree old game + prefix. Before the switch nothing old is
+    touched. Cancel (MoveCancelled) / errors -> old copy kept, _moving removed. clean_moves() at
+    start removes a <root>/_moving left by a crash. Codes M01 (unexpected), M02 (folder taken by
+    another install), M03 (copy mismatch). State while moving: downloading/phase "move", move_to.
+  - UI: ⚙ "Move to SD card" / "Move to internal storage" (App.open_options computes it), purple
+    confirm, game page "Moving to … 45%" + Cancel ("Cancel the move?"), footer "Moving 45% · Title".
+    W.modal(danger=False) + confirm(..., main=True) = purple action for non-destructive confirms
+    (Move, Put back); Uninstall/Quit stay red. Mockups 15n/15o/15p, 15l now purple.
+  - Tests: tests/test_move.py (both ways + registry + links + Epic record + space + cancel + bad
+    copy + leftovers + not while busy). Selftest moves the fake game.
+  Deck checklist v0.8.5: 1 Update. 2 ⚙ on an installed game: Controls row ◀ ▶ changes it
+    (Auto shows its pick). 3 Move a small Linux game to internal and back: progress, "moved to",
+    plays. 4 Move one Windows game that came with a setup.exe, then play it + check saves.
+    5 Start a move and Cancel: game stays and plays. 6 An Epic game: move, play.
 Controls row (branch controls-row, NOT released; Omri 16 Nov 10:20 "like the filter sorter"): the
   ⚙ Options menu's Controls row shows its setting (App.controls_value: "Auto · Pad" / Pad / Mouse /
   Keys) and ◀ ▶ (or A) change it in place, menu stays open (_h_game; cycle_controls(step)).

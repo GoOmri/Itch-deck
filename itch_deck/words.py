@@ -39,6 +39,10 @@ CODES = {
     "L01": "library: refresh failed (not offline, not the key)",
     # U = app update
     "U01": "app update: download failed",
+    # M = move a game (SD card <-> internal)
+    "M01": "move: unexpected error (traceback in the log)",
+    "M02": "move: a folder with the same name is already in use there",
+    "M03": "move: the copy didn't match the original (old copy kept)",
     # S = save backups
     "S01": "save backup: couldn't write the backup",
     "S02": "save backup: couldn't restore",

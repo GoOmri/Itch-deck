@@ -36,5 +36,6 @@ class Scene:
     def draw_overlay(self, s):
         kind, *args = self.overlay
         if kind == "confirm":
-            title, body, hints = args
-            W.modal(self.t, s, title, body, [hints[0][1], "Cancel"], self.confirm_focus)
+            title, body, hints, *style = args       # style "main": not destructive -> purple
+            W.modal(self.t, s, title, body, [hints[0][1], "Cancel"], self.confirm_focus,
+                    danger=style != ["main"])

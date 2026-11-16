@@ -303,6 +303,21 @@ class EpicStore:
                 return data
         raise EpicError("Couldn't start")
 
+    def moved(self, app_name, new_dir):
+        """SCRiTCH moved the game's folder (Move to SD card / internal): point legendary's own
+        record at the new place, so launch / update / uninstall look there. Written directly
+        (legendary reads installed.json on every run); atomic."""
+        f = config_dir() / "installed.json"
+        data = self.installed()
+        if app_name not in data:
+            return False
+        data[app_name]["install_path"] = str(new_dir)
+        tmp = f.with_name("installed.json.tmp")
+        tmp.write_text(json.dumps(data, indent=2))
+        os.replace(tmp, f)
+        log.info("epic: %s moved to %s", app_name, new_dir)
+        return True
+
     def uninstall(self, app_name):
         """Make legendary forget the install (SCRiTCH deletes the files itself)."""
         if self.ready() and app_name in self.installed():

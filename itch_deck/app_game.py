@@ -41,20 +41,22 @@ class GameMixin:
                 i = (shown.index(sc.g) + (1 if act == R1 else -1)) % len(shown)
                 self.go_game(shown[i])
         elif act == START:                # ☰ on a game = its Options (Steam Deck); Settings: Library
-            sc.open_options()
+            self.open_options(sc)
         elif act == A and sc.section == "actions":
             acts = sc.actions()
             label = acts[min(sc.focus, len(acts) - 1)] if acts else None
             if label and label[0] == "Options":        # the ⚙ button
-                sc.open_options()
+                self.open_options(sc)
             elif label and label[2]:
                 self.game_action(sc.g, label[0])
         elif not isinstance(act, tuple):
             sc.handle(act)
 
-    def confirm(self, title, body, yes, fn):
+    def confirm(self, title, body, yes, fn, main=False):
+        """main=True: the action doesn't delete or close anything -> purple, not red."""
         self.on_confirm = fn
-        self.scene.overlay = ("confirm", title, body, [("A", yes), ("B", "Cancel")])
+        self.scene.overlay = ("confirm", title, body, [("A", yes), ("B", "Cancel")]) + \
+            (("main",) if main else ())
 
     def game_action(self, g, label):
         gid = g["id"]
@@ -62,6 +64,9 @@ class GameMixin:
             if self.inst.enqueue(g):
                 if self.inst.current and self.inst.current != gid:
                     self.say("Queued. It starts after the current download.")
+        elif label == "Cancel" and self.inst.moving == gid:
+            self.confirm("Cancel the move?", [f"{g['title']} stays where it was."], "Cancel move",
+                         lambda: self.inst.cancel_move(gid))
         elif label == "Cancel":
             self.confirm("Cancel the install?", f"{g['title']} stops downloading and the partial "
                          "download is deleted.", "Cancel install", lambda: self.inst.cancel(gid))
@@ -81,6 +86,8 @@ class GameMixin:
             self.cycle_controls(g)
         elif label == "Saves":
             self.saves_picker(g)
+        elif label.startswith("Move to "):
+            self._ask_move(g)
         else:
             self.say(LATER)
 
@@ -181,6 +188,22 @@ class GameMixin:
         self.scene.overlay = ("picker", "Choose the program", "Pick the file that starts the game. "
                               "Helpers like crash reporters are left out.", items, 0)
 
+    def open_options(self, sc):
+        """⚙ / ☰: the menu also offers moving the game to the other drive (SD card <-> internal)."""
+        t = self.inst.move_target(sc.g["id"], config.install_choices())
+        self._move_target = t
+        sc.g["move_to"] = (t[0] if t[0] == "SD card" else t[0].lower()) if t else None
+        sc.open_options()
+
+    def _ask_move(self, g):
+        t = getattr(self, "_move_target", None)
+        if not t:
+            return
+        where = t[0] if t[0] == "SD card" else t[0].lower()
+        self.confirm(f"Move {g['title']} to {where}?", ["The game and its saves move together.",
+                     "You can play again when it's done."], "Move",
+                     lambda: self.inst.move(g["id"], t[1], where), main=True)
+
     def saves_picker(self, g):
         """⚙ → Saves: the game's backups, newest first; A restores one (after a confirm)."""
         self._zips = backups.listing(g["id"], g["title"])
@@ -199,7 +222,8 @@ class GameMixin:
     def _ask_restore(self, g, z):
         when, _ = backups.label(z)
         self.confirm(f"Put back the saves from {when}?", ["Your saves now are backed up first.",
-                     "You can go back to them."], "Put back", lambda: self._restore(g, z))
+                     "You can go back to them."], "Put back", lambda: self._restore(g, z),
+                     main=True)
 
     def _restore(self, g, z):
         info = dict(self.inst.index.get(g["id"]) or {})

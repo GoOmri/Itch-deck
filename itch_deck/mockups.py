@@ -221,6 +221,17 @@ def _shots(t, version):
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "Auto · Pad", ""), ("Saves", "", "")], 0))),
+        ("15n_game_options_move", with_overlay(game("Moss & Rivets"), (
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "Auto · Pad", ""), ("Saves", "", ""),
+                                    ("Move to internal storage", "", "")], 4))),
+        ("15o_game_move_confirm", with_overlay(game("Moss & Rivets"), (
+            "confirm", "Move Moss & Rivets to internal storage?",
+            ["The game and its saves move together.", "You can play again when it's done."],
+            [("A", "Move"), ("B", "Cancel")], "main"))),
+        ("15p_game_moving", _set(Game(t, dict(by["Moss & Rivets"], state="downloading", phase="move",
+                                              progress=0.45, move_to="internal storage"),
+                                      pos=(idx["Moss & Rivets"] + 1, n)), phase="move")),
         ("15m_game_options_controls", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "Mouse", ""), ("Saves", "", "")], 2))),
@@ -232,7 +243,7 @@ def _shots(t, version):
         ("15l_game_saves_confirm", with_overlay(game("Moss & Rivets"), (
             "confirm", "Put back the saves from 16 Nov, 18:05?",
             ["Your saves now are backed up first.", "You can go back to them."],
-            [("A", "Put back"), ("B", "Cancel")]))),
+            [("A", "Put back"), ("B", "Cancel")], "main"))),
         ("16_game_failed", game("Grave Gardener",           # nothing to act on: the code
                                 fail_reason="Code W09")),  # (same code + reason in the log)
         ("16b_game_failed_build", game("Grave Gardener", fail_reason="Try another build in Options")),
