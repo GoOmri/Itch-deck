@@ -1,4 +1,7 @@
-# SCRiTCH
+<h1><picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/logo-on-light.svg">
+  <img src="itch_deck/assets/logo.svg" alt="SCRiTCH" height="56">
+</picture></h1>
 
 A controller-first launcher for your **itch.io** library on the **Steam Deck**. It shows up as one
 Steam tile in Game Mode. From there you can browse the games you own, install them, play and

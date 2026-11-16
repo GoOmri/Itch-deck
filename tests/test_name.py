@@ -41,5 +41,8 @@ def test_rendered_i_is_white_and_letters_purple():
 
 def test_phone_pages_use_the_same_rule():
     page = phonelink.form_page("itch", "tok")
-    assert 'Connect itch to <span class="nm">SCR<i>i</i>TCH</span>' in page
+    assert phonelink.named("Back to SCRiTCH") == 'Back to <span class="nm">SCR<i>i</i>TCH</span>'
     assert ".nm{color:#9d6bff}.nm i{color:#fff" in page
+    # the logo sits on top of every page; the heading under it doesn't repeat the name
+    assert '<main><svg class="logo" role="img" aria-label="SCRiTCH"' in page
+    assert "<h1>Connect itch</h1>" in page and "<title>Connect itch to SCRiTCH</title>" in page

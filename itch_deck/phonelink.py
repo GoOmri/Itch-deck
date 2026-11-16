@@ -13,6 +13,7 @@ import secrets
 import socket
 import threading
 import time
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -202,6 +203,7 @@ class PhoneLink:
 CSS = """body{margin:0;background:#10101e;color:#f0f0f0;font:17px/1.45 system-ui,sans-serif}
 main{max-width:30rem;margin:0 auto;padding:1.4rem;
 padding-top:max(3rem,calc(env(safe-area-inset-top) + 1.6rem))}h1{font-size:1.35rem;margin:.2rem 0 1rem}
+.logo{display:block;height:1.3rem;width:auto;margin:0 0 .8rem}
 ol{padding-left:1.2rem}li{margin:.7rem 0}small{color:#9a9ab0}
 .btn,button{display:inline-block;box-sizing:border-box;min-width:11rem;background:#2c2e48;color:#fff;
 padding:.9rem 1.6rem;border:0;border-radius:.6rem;text-decoration:none;text-align:center;
@@ -213,7 +215,7 @@ form button{display:block;width:100%;margin-top:.8rem}button:disabled{background
    (same as the app); as wide as the block it belongs to; grey until it can do something */.err{color:#ff8a8a}
 .nm{color:#9d6bff}.nm i{color:#fff;font-style:normal}.note{color:#9a9ab0;font-size:.85rem}
 .wide{display:block;text-align:center}
-.res{min-height:calc(100vh - 6rem);display:flex;flex-direction:column;justify-content:center;
+.res{min-height:calc(100vh - 8.1rem);display:flex;flex-direction:column;justify-content:center;
 align-items:center;text-align:center}.res[hidden]{display:none}
 .ico{width:6.5rem;height:6.5rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
 margin-bottom:1.4rem}.ico svg{width:3.2rem;height:3.2rem}
@@ -260,10 +262,16 @@ def expired_page():
                                                   "Scan the QR code on your TV again."), heading=False)
 
 
+# Omri's logo, inline (the pages are served from the Deck, nothing else to fetch); sized by CSS
+LOGO = re.sub(r"^<\?xml[^>]*\?>", "", (Path(__file__).parent / "assets" / "logo.svg").read_text()) \
+    .replace("<svg ", '<svg class="logo" role="img" aria-label="SCRiTCH" ', 1)
+
+
 def _page(title, body, heading=True):
+    head = title.removesuffix(" to SCRiTCH")   # the logo is right above; the tab title keeps it
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" '
             f'content="width=device-width,initial-scale=1,viewport-fit=cover"><title>{html.escape(title)}</title>'
-            f'<style>{CSS}</style></head><body><main>{f"<h1>{named(title)}</h1>" if heading else ""}{body}</main>'
+            f'<style>{CSS}</style></head><body><main>{LOGO}{f"<h1>{named(head)}</h1>" if heading else ""}{body}</main>'
             f'</body></html>')
 
 

@@ -14,6 +14,12 @@ dialogs, footers, tags, toasts, phone pages. Never one colour, never lowercase.
 *Why:* it's the one thing people remember. A name that changes shape looks like two apps.
 *How it's kept:* ONE place draws it — `W.render_text` (all app text) and `phonelink.named`
 (HTML); `tests/test_name.py` fails if it breaks. (Only the OS window title can't be coloured.)
+**The logo** is Omri's drawing, `itch_deck/assets/logo.svg` (16 Nov): rounded heavy letters,
+purple, the i a white dot over a stem that fades purple → white upwards. Use it ONLY where the
+wordmark sits (Library top bar, sign-in screens, top of the phone pages, README, Steam art),
+drawn by `W.wordmark` / `W.logo_img` (letters as tall as Inter Bold capitals, on the same
+baseline). In sentences the name stays text (the rule above): a logo inside running text is
+too loud. Never redraw, recolour, stretch or outline it; if the SVG can't load, the text name.
 
 ## 2. Colour means something, or it isn't there
 - **Purple = happening or yours:** progress, rings, spinners, the ✓ badge, Installed /
@@ -177,7 +183,7 @@ wraps; pass a list of lines). Text is never cut off.
 *Why:* every extra line is something to read with a controller in your hands.
 
 ## Phone pages follow the same principles
-Dark page, the name rule, the button rule, grey notes #9a9ab0, content below the notch
+Dark page, the small logo at the top of every page, the name rule, the button rule, grey notes #9a9ab0, content below the notch
 (safe-area top padding). Results (checking / connected / rejected / expired) are centred,
 with a big round SVG icon (chasing spinner, green ✓, red ✗, grey ↻), a headline, one grey
 line and one button.

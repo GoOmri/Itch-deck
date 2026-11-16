@@ -3,6 +3,8 @@ import colorsys
 import math
 import zlib
 
+from pathlib import Path
+
 import pygame as pg
 
 from .. import pads
@@ -820,15 +822,37 @@ def tag(t, s, label, x, y, kind="neutral", anchor="topleft", icon_name=None):
     return r
 
 
+LOGO = Path(__file__).resolve().parent.parent / "assets" / "logo.svg"
+_LOGO = {}
+
+
+def logo_img(t, h):
+    """Omri's logo (assets/logo.svg) drawn h px tall; None if this pygame can't read SVG."""
+    h = int(h)
+    if h not in _LOGO:
+        try:
+            w = round(h * 740.12 / 131.95)              # the SVG's own shape
+            img = t.pg.image.load_sized_svg(str(LOGO), (w, h))
+            _LOGO[h] = img.convert_alpha() if t.pg.display.get_surface() else img
+        except Exception:                               # old SDL_image / missing file: text instead
+            _LOGO[h] = None
+    return _LOGO[h]
+
+
 def wordmark(t, s, x, y, anchor="topleft", size=3.2):
-    """The logo: SCRiTCH in bold, letters purple, the lowercase i white. No pill.
-    Drawn letter by letter (advance = width of the text so far, so kerning stays right)."""
+    """The logo (Omri's SVG): its letters as tall as Inter Bold capitals at `size`, sitting on
+    the same baseline, so the box and spacing are the same as the old text wordmark. Falls back
+    to SCRiTCH in Inter Bold (letters purple, the i white) if the SVG can't be drawn."""
     f = t.font("Bold", t.u * size)
     if anchor in ("baseleft", "baseright"):
         anchor, y = ("topleft" if anchor == "baseleft" else "topright"), y - f.get_ascent()
-    box = pg.Rect(0, 0, f.size(APP_NAME)[0], f.get_height())
+    img = logo_img(t, f.metrics("H")[0][3])             # cap height
+    box = pg.Rect(0, 0, img.get_width() if img else f.size(APP_NAME)[0], f.get_height())
     setattr(box, anchor, (int(x), int(y)))
-    s.blit(render_text(t, f, APP_NAME, None), box)      # same name rule as all text
+    if img:
+        s.blit(img, img.get_rect(bottomleft=(box.x, box.y + f.get_ascent())))
+    else:
+        s.blit(render_text(t, f, APP_NAME, None), box)  # same name rule as all text
     return box
 
 
