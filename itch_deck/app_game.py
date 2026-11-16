@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 
 from . import backups, config, mouse, pads, words
-from .input import (A, B, START, L1, R1)
+from .input import (A, B, START, L1, R1, LEFT, RIGHT)
 from .app_common import LATER
 
 log = logging.getLogger("scritch")
@@ -18,6 +18,12 @@ class GameMixin:
         sc = self.scene
         if sc.overlay and sc.overlay[0] == "picker" and act == A:
             self._pick(sc)
+            return
+        if sc.overlay and sc.overlay[0] == "menu" and act in (A, LEFT, RIGHT) and \
+                sc.overlay[3][sc.overlay[4]][0] == "Controls":           # ◀ ▶ like Sort & filter
+            self.cycle_controls(sc.g, -1 if act == LEFT else 1)
+            sc.g["controls_value"] = self.controls_value(sc.g)
+            sc.open_options(sc.overlay[4])
             return
         if sc.overlay and sc.overlay[0] == "menu" and act == A:      # ☰ Options
             label = sc.overlay[3][sc.overlay[4]][0]
@@ -228,9 +234,15 @@ class GameMixin:
         name = {"gamepad": "Pad", "mouse": "Mouse", "keys": "Keys"}[eff]
         return f"{name} controls" + (" · auto" if setting == "auto" else "")
 
-    def cycle_controls(self, g):
+    def controls_value(self, g):
+        """'Auto · Pad' (what Auto picked for this game), 'Pad', 'Mouse' or 'Keys'."""
+        setting, eff = self.controls_of(g)
+        name = {"gamepad": "Pad", "mouse": "Mouse", "keys": "Keys"}[eff]
+        return f"Auto · {name}" if setting == "auto" else name
+
+    def cycle_controls(self, g, step=1):
         setting, _ = self.controls_of(g)
-        nxt = self.CONTROLS[(self.CONTROLS.index(setting) + 1) % len(self.CONTROLS)]
+        nxt = self.CONTROLS[(self.CONTROLS.index(setting) + step) % len(self.CONTROLS)]
         ctl = dict(self.cfg.get("controls") or {})
         if nxt == "auto":
             ctl.pop(g["id"], None)
@@ -241,6 +253,8 @@ class GameMixin:
         _, eff = self.controls_of(g)
         log.info("controls %s: %s (%s)", g["id"], nxt, eff)
         a = pads.name("A")
-        self.say({"mouse": "Mouse: right stick moves, R2 clicks.",
-                  "keys": f"Keys: D-pad = arrows, {a} = Space.",
-                  "gamepad": "Controller."}[eff] + (" (Auto)" if nxt == "auto" else ""))
+        if eff in ("mouse", "keys"):       # the row shows the setting; say how the mapping works
+            self.say({"mouse": "Mouse: right stick moves, R2 clicks.",
+                      "keys": f"Keys: D-pad = arrows, {a} = Space."}[eff])
+        else:
+            self.scene.toast, self.toast_until = None, 0

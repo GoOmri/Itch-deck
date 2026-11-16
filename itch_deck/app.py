@@ -393,6 +393,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
                 sc.g = g
             g = sc.g
             g["controls_label"] = self.controls_label(g)
+            g["controls_value"] = self.controls_value(g)    # the ⚙ menu's Controls row
             g["controls_mode"] = self.controls_of(g)[1]     # what SCRiTCH maps for this game
             sc.free_mb = self._free_mb()
             st = g.get("state")
@@ -614,6 +615,23 @@ def selftest(screenshot=None):
     assert app.scene.overlay and app.scene.overlay[0] == "confirm", app.scene.overlay
     app.handle(A)
     assert toast_is("Saves put back.") and save.read_text() == "slot1\n", app.scene.toast
+    # ⚙ Controls row (16 Nov): ◀ ▶ change it in place like Sort & filter; Auto shows its pick
+    app.go_game(app.lib.by_id(g["id"]) or g)
+    app.update()
+    app.scene.open_options()
+    i = [r[0] for r in app.scene.overlay[3]].index("Controls")
+    app.scene.open_options(i)
+
+    def ctl():
+        return app.scene.overlay[3][i][1]
+    assert ctl().startswith("Auto · "), ctl()
+    app.handle(RIGHT)
+    assert ctl() == "Pad" and app.cfg["controls"][g["id"]] == "gamepad", ctl()
+    app.handle(LEFT)
+    app.handle(LEFT)
+    assert ctl() == "Keys" and app.scene.overlay[0] == "menu", ctl()
+    app.handle(RIGHT)
+    assert ctl().startswith("Auto · ") and g["id"] not in app.cfg.get("controls", {}), ctl()
     if screenshot:
         import pygame
         pygame.init()

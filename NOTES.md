@@ -731,6 +731,12 @@ v0.8.4 RELEASED 16 Nov (Omri: "you can push when done") = ROADMAP 1, save backup
     backed up." 3 ⚙ → Saves lists it. 4 Dolphin: Documents/SCRiTCH saves/<game>/ has a zip.
     5 Play again without saving -> no new backup. 6 Put back the older one -> "Saves put back."
     and the game loads it; Saves now shows a "Before restore" entry.
+Controls row (branch controls-row, NOT released; Omri 16 Nov 10:20 "like the filter sorter"): the
+  ⚙ Options menu's Controls row shows its setting (App.controls_value: "Auto · Pad" / Pad / Mouse /
+  Keys) and ◀ ▶ (or A) change it in place, menu stays open (_h_game; cycle_controls(step)).
+  Footer on that row: ◀ ▶ Change. Toast only for Mouse/Keys (how the mapping works). Game page
+  line unchanged (only shows for Mouse/Keys). Mockups 15b (value), 15m_game_options_controls.
+  Selftest drives it.
 ROADMAP NOW (Omri 16 Nov 09:38, replaces the list below; done: 1 rename = v0.8.2, 2 error codes
   = v0.8.3). One item per update, plan + size first: 1 Save backups (copy a game's saves to a safe
   folder + restore; all stores). 2 Recently played as a Sort & filter sort. 3 Move a game between

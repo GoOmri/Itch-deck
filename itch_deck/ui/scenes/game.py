@@ -87,9 +87,12 @@ class Game(Scene):
             return []
         return [] if epic else ["Change build"]
 
-    def open_options(self):
+    def open_options(self, focus=0):
+        """☰ / ⚙ Options. Controls shows its setting (◀ ▶ change it, like Sort & filter)."""
         if self.options():
-            self.overlay = ("menu", "Options", "", [(o, "", "") for o in self.options()], 0)
+            rows = [(o, self.g.get("controls_value", "") if o == "Controls" else "", "")
+                    for o in self.options()]
+            self.overlay = ("menu", "Options", "", rows, max(0, min(focus, len(rows) - 1)))
 
     def handle(self, act):
         n, shots = len(self.actions()), self.g.get("screens", 0)
@@ -149,6 +152,9 @@ class Game(Scene):
         if self.overlay[0] == "picker":
             return [("A", "Choose"), ("B", "Cancel")]
         if self.overlay[0] == "menu":
+            items, f = self.overlay[3], self.overlay[4]
+            if items and items[f][0] == "Controls":
+                return [("◀", ""), ("▶", "Change"), ("B", "Close")]
             return [("A", "Select"), ("B", "Close")]
         if self.overlay[0] == "viewer":
             return [("◀", ""), ("▶", "Previous / next"), ("B", "Close")]
@@ -447,7 +453,7 @@ class Game(Scene):
             return self._viewer(s)
         if self.overlay[0] not in ("picker", "menu"):
             return super().draw_overlay(s)
-        W.menu(self.t, s, *self.overlay[1:])
+        W.menu(self.t, s, *self.overlay[1:], arrows=self.overlay[0] == "menu")
 
     def _viewer(self, s):
         """Full-screen screenshot viewer."""

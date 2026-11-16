@@ -220,7 +220,10 @@ def _shots(t, version):
         ("15f_game_other_downloading", _act(game("Moss & Rivets"), "Downloading 42% · Quiet Quarry (+1)")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
-                                    ("Controls", "", ""), ("Saves", "", "")], 0))),
+                                    ("Controls", "Auto · Pad", ""), ("Saves", "", "")], 0))),
+        ("15m_game_options_controls", with_overlay(game("Moss & Rivets"), (
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "Mouse", ""), ("Saves", "", "")], 2))),
         ("15k_game_saves", with_overlay(game("Moss & Rivets"), (
             "picker", "Saves", "Backed up after each play. A puts one back.",
             [("16 Nov, 21:40", "Latest", "48 KB"), ("16 Nov, 18:05", "", "47 KB"),
