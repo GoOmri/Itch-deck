@@ -77,6 +77,9 @@ class EpicMixin:
             job["busy"], job["error"] = True, None
             threading.Thread(target=self._epic_login, args=(text,), daemon=True,
                              name="epic-auth").start()
+        if job["text"] and job["error"] == "offline" and not job["ready"]:   # helper never came
+            job["text"] = None
+            self.phone_status = "Your Deck can't reach Epic. Check its Wi-Fi."
         res, job["result"] = job["result"], None
         if res and res[0] == "ok":
             user = res[1] or "Epic"

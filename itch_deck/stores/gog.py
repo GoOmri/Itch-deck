@@ -1,11 +1,13 @@
 """GOG through gogdl (Heroic's GOG helper, GPL-3).
 
-Step 1 (v0.9.0, this file): sign in + a read-only library tab. Step 2 adds install / play.
+Step 1 (v0.9.x, this file): sign in + a read-only library tab. Step 2 adds install / play.
 
-- gogdl is downloaded on demand (first Sign in to GOG), never bundled: the release asset
-  gogdl_linux_x86_64 of Heroic-Games-Launcher/heroic-gogdl, saved as DATA/gog/gogdl.
-- gogdl keeps the sign-in in OUR file (DATA/gog/auth.json, --auth-config-path), never Heroic's.
-  `gogdl auth --code C` signs in; `gogdl auth` prints a working token (refreshes it when old).
+- Signing in needs NO helper (v0.9.1): SCRiTCH makes gogdl's two token calls itself
+  (auth.gog.com/token: authorization_code, refresh_token; Galaxy's public client id + secret)
+  and writes the result in gogdl's own auth-file format (DATA/gog/auth.json = {client_id: data
+  + loginTime}), so step 2 can run gogdl with --auth-config-path on it. v0.9.0 downloaded gogdl
+  for this, but gogdl's GitHub releases are hand-published drafts and the Linux file comes from
+  a separate zipapp job: the download failed on the Deck (16 Nov).
 - Sign-in = the phone page: GOG's own sign-in (auth.gog.com, Galaxy client id) ends on
   embed.gog.com/on_login_success?origin=client&code=…; the player copies that page's ADDRESS.
 - Library = GOG's web API with that token (gogdl has no list command): owned games, paged
@@ -17,16 +19,16 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
+import urllib.parse
 
 from .. import net, paths
 
 log = logging.getLogger("scritch")
 
-LATEST = "https://api.github.com/repos/Heroic-Games-Launcher/heroic-gogdl/releases/latest"
-ASSET = "gogdl_linux_x86_64"
-CLIENT_ID = "46899977096215655"          # GOG Galaxy's public client id (what gogdl uses)
+CLIENT_ID = "46899977096215655"          # GOG Galaxy's public client (what gogdl and Heroic use)
+CLIENT_SECRET = "9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9"
+TOKEN_URL = "https://auth.gog.com/token"
 REDIRECT = "https://embed.gog.com/on_login_success?origin=client"
 LOGIN_URL = ("https://auth.gog.com/auth?client_id=" + CLIENT_ID +
              "&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient"
@@ -42,10 +44,6 @@ MAX_PAGES = 100
 
 class GogError(Exception):
     """Short, player-safe reason; details are in the log."""
-
-
-def bin_path():
-    return paths.DATA / "gog" / "gogdl"
 
 
 def auth_file():
@@ -110,41 +108,15 @@ def page_from_json(d):
     return paras, shots
 
 
-def fetch_gogdl(cancel=None, on_bytes=None):
-    """One-time download of gogdl (a single Linux program, ~15 MB)."""
-    dest = bin_path()
-    try:
-        rel = net.get_json(LATEST)
-        asset = next((a for a in rel.get("assets") or [] if a.get("name") == ASSET), None)
-        if not asset:
-            log.warning("gog: no %s in gogdl %s (%s)", ASSET, rel.get("tag_name"),
-                        [a.get("name") for a in rel.get("assets") or []])
-            raise GogError("Couldn't get the GOG helper")
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dest.with_name("gogdl.new")
-        net.download(asset["browser_download_url"], tmp, cancel=cancel, on_bytes=on_bytes)
-        if tmp.stat().st_size < 1_000_000:
-            raise GogError("Couldn't get the GOG helper")
-        os.chmod(tmp, 0o755)
-        os.replace(tmp, dest)
-        log.info("gog: gogdl %s installed", rel.get("tag_name"))
-    except (net.Offline, net.NotFound, net.AuthError) as e:
-        log.warning("gog: gogdl download failed: %s", e)
-        raise GogError("No internet") from None
-
-
 class GogStore:
     name = "gog"
 
     def ready(self):
-        b = bin_path()
-        return b.is_file() and os.access(b, os.X_OK)
+        """Nothing to download for signing in (step 2 brings gogdl for installs)."""
+        return True
 
     def connected(self):
-        try:
-            return bool(json.loads(auth_file().read_text()).get(CLIENT_ID))
-        except (OSError, ValueError, AttributeError):
-            return False
+        return bool(self._creds())
 
     def user(self):
         try:
@@ -152,46 +124,55 @@ class GogStore:
         except (OSError, ValueError, AttributeError):
             return None
 
-    def _run(self, args, timeout):
-        from ..runner import child_env               # never hand our bundled libs to gogdl
+    def _creds(self):
+        try:
+            c = json.loads(auth_file().read_text()).get(CLIENT_ID)
+            return c if isinstance(c, dict) and c.get("refresh_token") else None
+        except (OSError, ValueError, AttributeError):
+            return None
+
+    def _ask(self, **params):
+        """One auth.gog.com/token call -> its JSON. False when GOG refused (bad / used / old
+        code or refresh token); raises GogError when GOG can't be reached."""
+        q = urllib.parse.urlencode({"client_id": CLIENT_ID, "client_secret": CLIENT_SECRET,
+                                    **params})
+        try:
+            data = json.loads(net.get(TOKEN_URL + "?" + q, timeout=30))
+        except net.NotFound:
+            return False
+        except net.Offline as e:
+            if str(e).startswith("HTTP 4"):          # 400 / 401: GOG said no
+                log.info("gog: token %s refused (%s)", params.get("grant_type"), e)
+                return False
+            log.warning("gog: token %s: %s", params.get("grant_type"), e)
+            raise GogError("Couldn't reach GOG") from None
+        except ValueError:
+            raise GogError("Couldn't reach GOG") from None
+        if not isinstance(data, dict) or not data.get("access_token"):
+            log.info("gog: token %s: no token in the answer", params.get("grant_type"))
+            return False
+        data["loginTime"] = time.time()
+        return data
+
+    def _save(self, data):
+        """gogdl's own auth file format ({client_id: token data}), so step 2's gogdl uses it."""
         d = auth_file().parent
         d.mkdir(parents=True, exist_ok=True)
         os.chmod(d, 0o700)                           # holds the GOG sign-in
-        cmd = [str(bin_path()), "--auth-config-path", str(auth_file()), *args]
-        try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
-                               env=child_env(), stdin=subprocess.DEVNULL)
-        except subprocess.TimeoutExpired:
-            log.warning("gog: gogdl %s timed out", args[0])
-            raise GogError("GOG didn't answer") from None
-        except OSError as e:
-            log.warning("gog: can't run gogdl: %s", e)
-            raise GogError("Couldn't start the GOG helper") from None
-        tail = (r.stderr or "").strip().splitlines()[-6:]
-        log.info("gog: gogdl %s -> %s%s", args[0], r.returncode,
-                 ("\n  " + "\n  ".join(tail)) if tail else "")
-        return r
-
-    @staticmethod
-    def _json(r):
-        try:
-            return json.loads((r.stdout or "").strip().splitlines()[-1])
-        except (ValueError, IndexError):
-            return None
+        tmp = auth_file().with_name("auth.json.tmp")
+        tmp.write_text(json.dumps({CLIENT_ID: data}))
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, auth_file())
 
     def login(self, code):
         """True when GOG accepted the code. Raises GogError when GOG can't be reached."""
-        auth_file().unlink(missing_ok=True)
-        user_file().unlink(missing_ok=True)
-        r = self._run(["auth", "--code", code], timeout=60)
-        data = self._json(r)
-        if not isinstance(data, dict) or not data.get("access_token"):
-            if "failed to reach" in (r.stderr or "").lower():
-                raise GogError("Couldn't reach GOG")
+        data = self._ask(grant_type="authorization_code", code=code, redirect_uri=REDIRECT)
+        if not data:
             log.info("gog: code rejected")
             return False
-        os.chmod(auth_file(), 0o600)
+        self._save(data)
         self._save_user(data["access_token"])
+        log.info("gog: signed in")
         return True
 
     def _save_user(self, token):
@@ -206,13 +187,18 @@ class GogStore:
         os.replace(tmp, user_file())
 
     def token(self):
-        """A working access token (gogdl refreshes it when old). Raises GogError."""
-        if not self.connected():
+        """A working access token, refreshed when it's about to run out. Raises GogError."""
+        c = self._creds()
+        if not c:
             raise GogError("Not signed in")
-        data = self._json(self._run(["auth"], timeout=30))
-        if isinstance(data, dict) and data.get("access_token"):
-            return data["access_token"]
-        raise GogError("Couldn't reach GOG")
+        if time.time() < c.get("loginTime", 0) + c.get("expires_in", 0) - 60:
+            return c["access_token"]
+        data = self._ask(grant_type="refresh_token", refresh_token=c["refresh_token"])
+        if not data:
+            raise GogError("Signed out of GOG")
+        data.setdefault("refresh_token", c["refresh_token"])
+        self._save(data)
+        return data["access_token"]
 
     def logout(self):
         """Forget the sign-in (GOG has no sign-out call for this kind of token)."""

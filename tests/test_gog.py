@@ -12,20 +12,6 @@ from itch_deck.stores import gog
 
 CODE = "Xy9_-" * 20
 ADDRESS = f"https://embed.gog.com/on_login_success?origin=client&code={CODE}"
-FAKE = r"""#!/bin/sh
-# stand-in gogdl: --auth-config-path FILE auth [--code C]
-f="$2"; shift 2
-if [ "$1 $2" = "auth --code" ]; then
-  [ -n "$OFFLINE" ] && { echo "[AUTH] ERROR: Failed to reach GOG (ConnectionError)" >&2; echo '{"error": true}'; exit 0; }
-  [ "$3" = "@CODE@" ] || { echo '{"error": true}'; exit 0; }
-  echo '{"46899977096215655": {"access_token": "TOKEN", "refresh_token": "SECRET", "expires_in": 3600, "loginTime": 1}}' > "$f"
-  echo '{"access_token": "TOKEN", "refresh_token": "SECRET"}'
-elif [ "$1" = "auth" ]; then
-  [ -n "$OFFLINE" ] && { echo null; exit 0; }
-  [ -f "$f" ] && echo '{"access_token": "TOKEN"}' || echo null
-fi
-""".replace("@CODE@", CODE)
-
 PAGE1 = {"totalPages": 2, "products": [
     {"id": 1207658924, "title": "Unreal Gold", "image": "//images-1.gog-statics.com/abc",
      "worksOn": {"Windows": True, "Mac": False, "Linux": False}, "category": "Shooter",
@@ -39,16 +25,34 @@ PRODUCT = {"description": {"lead": "Lead.", "full": "<p>First para.</p><p>Second
                             "https://images.gog-statics.com/s1_{formatter}.jpg"}]}
 
 
-def _setup(tmp_path, monkeypatch, api=None):
+def _setup(tmp_path, monkeypatch, api=None, offline=False):
+    """GOG stubbed: auth.gog.com/token (CODE good, any other code 400; refresh works unless
+    offline), the web API (list pages, user name, product pages)."""
+    import urllib.parse
     paths.use_root(tmp_path)
-    b = gog.bin_path()
-    b.parent.mkdir(parents=True, exist_ok=True)
-    b.write_text(FAKE)
-    b.chmod(0o755)
     calls = []
+
+    def get(url, key=None, timeout=20, **kw):
+        calls.append((url, key))
+        if offline:
+            raise net.Offline("URLError: no route")
+        if url.startswith(gog.TOKEN_URL):
+            q = dict(urllib.parse.parse_qsl(url.split("?", 1)[1]))
+            assert q["client_id"] == gog.CLIENT_ID and q["client_secret"] == gog.CLIENT_SECRET
+            if q["grant_type"] == "authorization_code" and q["code"] == CODE:
+                assert q["redirect_uri"] == gog.REDIRECT
+                return json.dumps({"access_token": "TOKEN", "refresh_token": "SECRET",
+                                   "expires_in": 3600}).encode()
+            if q["grant_type"] == "refresh_token" and q["refresh_token"] == "SECRET":
+                return json.dumps({"access_token": "TOKEN2", "refresh_token": "SECRET",
+                                   "expires_in": 3600}).encode()
+            raise net.Offline("HTTP 400")
+        raise net.Offline("no stub for " + url)
 
     def get_json(url, key=None, timeout=20):
         calls.append((url, key))
+        if offline:
+            raise net.Offline("URLError: no route")
         if api:
             return api(url, key)
         if "userData" in url:
@@ -58,6 +62,7 @@ def _setup(tmp_path, monkeypatch, api=None):
         if "api.gog.com/products/" in url:
             return PRODUCT
         raise net.Offline("no stub for " + url)
+    monkeypatch.setattr(net, "get", get)
     monkeypatch.setattr(net, "get_json", get_json)
     return gog.GogStore(), calls
 
@@ -77,11 +82,13 @@ def test_login_url_is_galaxys():
 
 def test_sign_in_list_sign_out(tmp_path, monkeypatch):
     st, calls = _setup(tmp_path, monkeypatch)
-    assert st.ready() and not st.connected() and st.user() is None
+    assert st.ready() and not st.connected() and st.user() is None    # no helper to download
     assert st.login(CODE)
     assert st.connected() and st.user() == "omri_gog"
     assert oct(gog.auth_file().stat().st_mode & 0o777) == "0o600"
     assert oct(gog.auth_file().parent.stat().st_mode & 0o777) == "0o700"
+    saved = json.loads(gog.auth_file().read_text())[gog.CLIENT_ID]    # gogdl's own format
+    assert saved["refresh_token"] == "SECRET" and saved["loginTime"] > 0
     games = {g["id"]: g for g in st.sync()}
     assert set(games) == {"gog-1207658924", "gog-3"}          # the movie is left out
     u = games["gog-1207658924"]
@@ -93,11 +100,21 @@ def test_sign_in_list_sign_out(tmp_path, monkeypatch):
     assert not st.connected() and st.user() is None
 
 
+def test_old_token_is_refreshed(tmp_path, monkeypatch):
+    st, _ = _setup(tmp_path, monkeypatch)
+    assert st.login(CODE)
+    d = json.loads(gog.auth_file().read_text())
+    d[gog.CLIENT_ID]["loginTime"] = 1                          # long expired
+    gog.auth_file().write_text(json.dumps(d))
+    assert st.token() == "TOKEN2"
+    assert st.token() == "TOKEN2"                              # saved: no second refresh needed
+
+
 def test_rejected_code_and_offline(tmp_path, monkeypatch):
     st, _ = _setup(tmp_path, monkeypatch)
     assert not st.login("w" * 60) and not st.connected()
-    monkeypatch.setenv("OFFLINE", "1")
-    with pytest.raises(gog.GogError):
+    st, _ = _setup(tmp_path, monkeypatch, offline=True)
+    with pytest.raises(gog.GogError, match="Couldn't reach GOG"):
         st.login(CODE)
 
 
@@ -110,8 +127,10 @@ def test_sync_failures_are_short(tmp_path, monkeypatch):
     assert st.login(CODE)
     with pytest.raises(gog.GogError, match="Signed out of GOG"):
         st.sync()
-    monkeypatch.setenv("OFFLINE", "1")                       # gogdl can't refresh the token
-    with pytest.raises(gog.GogError, match="Couldn't reach GOG"):
+    d = json.loads(gog.auth_file().read_text())
+    d[gog.CLIENT_ID].update(loginTime=1, refresh_token="REVOKED")
+    gog.auth_file().write_text(json.dumps(d))
+    with pytest.raises(gog.GogError, match="Signed out of GOG"):   # refresh refused
         st.sync()
 
 

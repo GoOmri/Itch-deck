@@ -791,6 +791,24 @@ GOG step 1 = v0.9.0 RELEASED 16 Nov (Omri "go" 11:17, "push" 11:28; branch gog-s
     phone "Connected as …", Deck jumps to the GOG tab, games + covers fill in. 4 Open a GOG game:
     text + screenshots, Coming soon box. 5 Y: itch, Epic, GOG all still there. 6 Restart: GOG tab
     still there. 7 Sign out of GOG: tab and games gone.
+v0.9.0 Deck test (16 Nov 11:41): ✗ Deck "Can't reach GOG. Check Wi-Fi", phone stuck on "Signing
+  in…". Cause (most likely, no log yet): the gogdl download failed. gogdl's build.yaml makes the
+  Linux file in a separate zipapp job and publishes releases as hand-made DRAFTS, so the asset
+  name/presence on "latest" isn't reliable; my v0.9.0 check only read the workflow. The phone hung
+  because the login waited for job["ready"], which never came, so phone_status never changed.
+Fix v0.9.1 (branch gog-fix-signin, NOT released, VERSION still 0.9.0: bump on push):
+  - stores/gog.py signs in WITHOUT gogdl: _ask() = GET auth.gog.com/token (client id + secret
+    from gogdl/auth.py; grant authorization_code with redirect_uri, or refresh_token); HTTP 4xx =
+    refused (False), other failures = GogError "Couldn't reach GOG". _save() writes gogdl's own
+    format {CLIENT_ID: data + loginTime} (600, dir 700) so step 2's gogdl can use it. token()
+    refreshes 60 s before expiry; refused refresh = "Signed out of GOG". ready() = True;
+    fetch_gogdl / bin_path / subprocess removed. Step 2 must decide how gogdl comes (vendor the
+    pure-Python package into our build, or the zipapp asset if a release has it).
+  - Phone never stuck: Epic's tick clears waiting phone text and says "can't reach Epic" when
+    legendary couldn't be fetched (same bug, Epic side).
+  - Tests: test_gog.py stubs net.get for auth.gog.com/token (+ refresh test). Selftest stubs
+    GogStore._ask. Checked pytest 3.13 + 3.11 (140), selftest both, itch-reject selftest, mockups.
+  Deck checklist v0.9.1 = v0.9.0's GOG list (steps 2-7). If it fails: app.log lines "gog:".
 v0.8.5 RELEASED 16 Nov 11:00 (Omri "push") = Move games + Controls row + design-balance docs.
   Omri 16 Nov 10:30 "go" incl. the registry address fix.
   - installer: move_target(gid, config.install_choices()) -> the other drive (needs 2 choices,

@@ -506,27 +506,14 @@ def _selftest_epic(app):
         app.phone = None
 
 
-GOGDL_STUB = """#!/bin/sh
-# stand-in gogdl: --auth-config-path FILE auth [--code C]
-f="$2"; shift 2
-if [ "$1 $2" = "auth --code" ]; then
-  echo '{"46899977096215655": {"access_token": "tok", "refresh_token": "r", "expires_in": 3600, "loginTime": 0}}' > "$f"
-  echo '{"access_token": "tok"}'
-elif [ "$1" = "auth" ]; then
-  [ -f "$f" ] && echo '{"access_token": "tok"}' || echo null
-fi
-"""
-
-
 def _selftest_gog(app):
-    """Settings → GOG → Sign in: QR page; the phone sends GOG's address -> stand-in gogdl signs in
-    -> GOG tab fills (GOG's web API stubbed); game page says Coming soon; then Sign out."""
+    """Settings → GOG → Sign in: QR page; the phone sends GOG's address -> sign-in (GOG's token
+    answer stubbed) -> GOG tab fills (GOG's web API stubbed); game page says Coming soon; then
+    Sign out."""
     from .stores import gog
-    b = gog.bin_path()
-    b.parent.mkdir(parents=True, exist_ok=True)
-    b.write_text(GOGDL_STUB)
-    b.chmod(0o755)
-    saved = gog.GogStore.sync, gog.GogStore._save_user
+    saved = gog.GogStore.sync, gog.GogStore._save_user, gog.GogStore._ask
+    gog.GogStore._ask = lambda self, **kw: {"access_token": "tok", "refresh_token": "r",
+                                            "expires_in": 3600, "loginTime": time.time()}
     gog.GogStore.sync = lambda self: [gog.game_from_json(
         {"id": 1207658924, "title": "Selftest GOG Game", "image": "//x/a",
          "worksOn": {"Windows": True}, "category": "Adventure"})] if self.token() else []
@@ -558,7 +545,7 @@ def _selftest_gog(app):
         assert not app.cfg.get("gog") and not app.lib.by_id("gog-1207658924") and app.lib.gog is None
         assert not gog.auth_file().exists()
     finally:
-        gog.GogStore.sync, gog.GogStore._save_user = saved
+        gog.GogStore.sync, gog.GogStore._save_user, gog.GogStore._ask = saved
     if app.phone:
         app.phone.stop()
         app.phone = None

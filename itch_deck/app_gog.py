@@ -1,6 +1,6 @@
-"""Sign in to GOG (Settings → Accounts → GOG): get gogdl once, phone QR sign-in (the player
-pastes the address GOG ends on), then the GOG tab fills in the background. Same flow as
-app_epic.py. Mixed into App (app.py)."""
+"""Sign in to GOG (Settings → Accounts → GOG): phone QR sign-in (the player pastes the address
+GOG ends on), then the GOG tab fills in the background. Same flow as app_epic.py, minus the
+helper download (signing in to GOG needs none since v0.9.1). Mixed into App (app.py)."""
 import logging
 import threading
 
@@ -19,21 +19,9 @@ class GogMixin:
                               "error": None, "text": None, "result": None, "busy": False}
         self.phone_status = ""
         self._phone_start("gog", self._gog_got)
-        if not job["ready"]:
-            threading.Thread(target=self._gog_fetch, daemon=True, name="gog-get").start()
         self._set("gog", GogConnect(self.t, status=self._gog_status(),
                                     qr=self.phone and self.phone.qr(),
                                     url=self.phone and self.phone.short_url))
-
-    def _gog_fetch(self):
-        from .stores.gog import GogError, fetch_gogdl
-        job = self.gog_job
-        try:
-            fetch_gogdl(on_bytes=lambda d, t: job.__setitem__("frac", d / t if t else None))
-            job["ready"] = True
-        except GogError as e:
-            job["error"] = "offline"
-            log.info("gog: %s", e)
 
     def _gog_status(self):
         job = self.gog_job
@@ -76,6 +64,7 @@ class GogMixin:
         if job["text"] and job["ready"] and not job["busy"]:
             text, job["text"] = job["text"], None
             job["busy"], job["error"] = True, None
+            self.phone_status = "Signing in…"
             threading.Thread(target=self._gog_login, args=(text,), daemon=True,
                              name="gog-auth").start()
         res, job["result"] = job["result"], None
