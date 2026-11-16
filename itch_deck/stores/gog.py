@@ -41,6 +41,7 @@ LOGIN_URL = ("https://auth.gog.com/auth?client_id=" + CLIENT_ID +
 LIST_URL = "https://embed.gog.com/account/getFilteredProducts?mediaType=1&sortBy=title&page={}"
 USER_URL = "https://embed.gog.com/userData.json"
 PRODUCT_URL = "https://api.gog.com/products/{}?expand=description,screenshots"
+GAME_URL = "https://api.gog.com/v2/games/{}?locale=en-US"   # store data: features (controller)
 COVER_SUFFIX = "_392.jpg"                # GOG image formatter: landscape product tile
 SHOT_FORMAT = "ggvgl"                    # GOG screenshot formatter: large
 PREFIX = "gog-"                          # game ids: never clash with itch / Epic ids
@@ -132,6 +133,33 @@ def page_from_json(d):
         elif (s or {}).get("image_id"):
             shots.append(f"https://images.gog-statics.com/{s['image_id']}_{SHOT_FORMAT}.jpg")
     return paras, shots
+
+
+def pad_from_json(d):
+    """Any "features" list in GOG's store data (v2 games: _embedded.features [{id, name}];
+    catalog: [{slug, name}]) -> True if one of them is controller support, False if none is;
+    None when there's no feature list at all."""
+    lists = []
+
+    def walk(x):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k == "features" and isinstance(v, list):
+                    lists.append(v)
+                else:
+                    walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(d)
+    if not lists:
+        return None
+    for f in (f for lst in lists for f in lst):
+        words = " ".join(str(f.get(k) or "") for k in ("id", "slug", "name")) \
+            if isinstance(f, dict) else str(f)
+        if "controller" in words.lower():
+            return True
+    return False
 
 
 class GogStore:
@@ -257,6 +285,17 @@ class GogStore:
     def details(self, app_name):
         """(paragraphs, screenshot urls) for a game page. Public API, no sign-in needed."""
         return page_from_json(net.get_json(PRODUCT_URL.format(app_name), timeout=25))
+
+    def controller(self, app_name):
+        """GOG's "Controller support" feature: True / False, or None when GOG's store data
+        has no feature list (or can't be read). Public API, no sign-in needed."""
+        try:
+            return pad_from_json(net.get_json(GAME_URL.format(app_name), timeout=25))
+        except net.Offline:
+            raise
+        except Exception as e:  # noqa: BLE001  - a bonus: never fail the page
+            log.info("gog: features of %s: %s", app_name, e)
+            return None
 
     # --- step 2: install / play / uninstall (v0.9.2) ---------------------------------
     def platforms_for(self, g):
@@ -478,3 +517,12 @@ def _stop(p):
             os.killpg(p.pid, signal.SIGKILL)
         except OSError:
             pass
+
+
+if __name__ == "__main__":     # live check (CI, .github/workflows/stores-live.yml): ids -> pad?
+    import sys as _sys
+    logging.basicConfig(level=logging.INFO)
+    for _id in _sys.argv[1:]:
+        _raw = net.get_json(GAME_URL.format(_id), timeout=25)
+        print(_id, "controller:", pad_from_json(_raw), "features:",
+              json.dumps((_raw.get("_embedded") or {}).get("features"))[:400])

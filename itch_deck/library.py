@@ -67,6 +67,13 @@ _GOG_GENRES = {"Role-playing": "Role Playing", "Rpg": "Role Playing", "RPG": "Ro
                "Sports": "Sports", "Puzzle": "Puzzle", "Platformer": "Platformer"}
 
 
+def inputs_for(pad):
+    """Epic / GOG have no itch "Inputs" row: the store's controller flag stands in for it, so
+    Controls -> Auto works the same (True -> Pad; False -> Keys, which moves the mouse too;
+    None = unknown -> Pad)."""
+    return ["Gamepad"] if pad else ["Keyboard", "Mouse"] if pad is False else []
+
+
 def _genre(g, page):
     """Genre from a saved page. Epic pages saved by v0.7.9 kept Steam's first label as is
     ("Indie", "RPG"): cleaned here until the page is fetched again."""
@@ -394,6 +401,8 @@ class Library:
             return False
         if g.get("store") == "epic" and "steam_genres" not in d:   # v0.7.9: first Steam label
             return False                                           # (often "Indie"): refetch once
+        if g.get("store") in ("epic", "gog") and "pad" not in d:   # v0.9.3: controller support
+            return False
         return "genre" in d
 
     def _work(self):
@@ -581,14 +590,15 @@ class Library:
             paras, src = info["paras"], "Steam"
         n = self._save_shots(g, (info or {}).get("shots", [])[:MAX_SHOTS])
         genre = (info or {}).get("genre")
+        pad = (info or {}).get("pad")
         _write_json(self._page_file(g), {
             "fetched": _now().isoformat(timespec="seconds"), "description": paras,
-            "comments": [], "comment_count": 0, "shots": n, "inputs": [],
+            "comments": [], "comment_count": 0, "shots": n, "inputs": inputs_for(pad), "pad": pad,
             "genre": [genre] if genre else [], "steam_genres": (info or {}).get("genres", []),
             "source": src,
             "shots_from": "Steam" if n else None})
-        log.info("page %s: epic, text from %s, %d shots, steam %s", g["id"], src,
-                 n, "matched" if info else "no match")
+        log.info("page %s: epic, text from %s, %d shots, steam %s, controller %s", g["id"], src,
+                 n, "matched" if info else "no match", pad)
         g.pop("details_at", None)
         self._apply_page(g)
 
@@ -602,11 +612,13 @@ class Library:
             paras, shots = [], []
         n = self._save_shots(g, shots[:MAX_SHOTS])
         cat = _GOG_GENRES.get(g.get("category") or "", g.get("category") or "")
+        pad = GogStore().controller(g["app_name"])
         _write_json(self._page_file(g), {
             "fetched": _now().isoformat(timespec="seconds"), "description": paras,
-            "comments": [], "comment_count": 0, "shots": n, "inputs": [],
+            "comments": [], "comment_count": 0, "shots": n, "inputs": inputs_for(pad), "pad": pad,
             "genre": [cat] if cat else [], "source": "GOG" if paras else None})
-        log.info("page %s: gog, %d paras, %d shots, genre %s", g["id"], len(paras), n, cat or "-")
+        log.info("page %s: gog, %d paras, %d shots, genre %s, controller %s", g["id"], len(paras),
+                 n, cat or "-", pad)
         g.pop("details_at", None)
         self._apply_page(g)
 

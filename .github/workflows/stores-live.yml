@@ -1,0 +1,20 @@
+name: stores-live
+# Live check of the store data SCRiTCH reads for Controls -> Auto (v0.9.3): GOG's "Controller
+# support" feature and Steam's controller categories. Branches only, never releases.
+on:
+  push:
+    branches-ignore: [main]
+    paths: ["itch_deck/stores/gog.py", "itch_deck/stores/steam.py", ".github/workflows/stores-live.yml"]
+  workflow_dispatch:
+jobs:
+  live:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - name: GOG features (Stardew Valley, Heroes 3, Serious Sam TFE)
+        run: python -m itch_deck.stores.gog 1453375253 1207658787 1440163901
+      - name: Steam controller categories (Celeste, Heroes 3 HD)
+        run: python -c "from itch_deck.stores import steam; print([(a, steam.details(a)['pad']) for a in (504230, 297000)])"

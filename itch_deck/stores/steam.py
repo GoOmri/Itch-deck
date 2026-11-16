@@ -52,7 +52,8 @@ def pick_genre(genres):
 
 
 def details(appid):
-    """{"paras": [...], "shots": [url, ...], "genre": str} or None."""
+    """{"paras": [...], "shots": [url, ...], "genre": str, "pad": bool} or None.
+    pad: Steam lists Full or Partial Controller Support (Controls -> Auto, v0.9.3)."""
     data = net.get_json(DETAILS.format(id=appid), timeout=20) or {}
     entry = data.get(str(appid)) or {}
     if not entry.get("success"):
@@ -61,7 +62,13 @@ def details(appid):
     shots = [s.get("path_full") for s in d.get("screenshots") or [] if s.get("path_full")]
     genres = [x.get("description") for x in d.get("genres") or [] if x.get("description")]
     return {"paras": html_paras(d.get("about_the_game") or d.get("detailed_description") or ""),
-            "shots": shots, "genre": pick_genre(genres), "genres": genres}
+            "shots": shots, "genre": pick_genre(genres), "genres": genres, "pad": pad_from(d)}
+
+
+def pad_from(d):
+    """True when Steam's categories list controller support (full or partial)."""
+    return any("controller" in (c.get("description") or "").lower()
+               for c in d.get("categories") or [] if isinstance(c, dict))
 
 
 # --- text ------------------------------------------------------------------------------
