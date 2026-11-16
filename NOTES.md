@@ -735,6 +735,20 @@ v0.8.4 RELEASED 16 Nov (Omri: "you can push when done") = ROADMAP 1, save backup
     backed up." 3 ⚙ → Saves lists it. 4 Dolphin: Documents/SCRiTCH saves/<game>/ has a zip.
     5 Play again without saving -> no new backup. 6 Put back the older one -> "Saves put back."
     and the game loads it; Saves now shows a "Before restore" entry.
+GOG PLAN (sent to Omri 16 Nov 11:12, waiting for "go" on step 1; code chat handed over to a new chat):
+  Helper = Heroic's gogdl (GPL-3, Python; gogdl manages auth itself, tokens in a json file we
+  choose, e.g. DATA/gog/auth.json). Opt-in like Epic: tab only after connecting, helper downloaded
+  on demand; if gogdl has no Linux release binary, vendor it (pure Python + requests) inside our
+  build instead. Check this first.
+  Sign-in by phone: QR -> phone page -> "Open GOG sign-in" (auth.gog.com, Galaxy client id) ->
+  GOG ends on embed.gog.com/on_login_success?...code=… -> player copies that page's ADDRESS,
+  pastes it on our phone page -> Send -> gogdl auth with the code -> "Connected as …".
+  Library: GOG API (owned games + product details: text, screenshots; covers); genre + time to
+  beat like other stores. Tabs: All · Installed · itch · Epic · GOG; GOG games in All like Epic.
+  Steps, one update each: v0.9.0 sign-in + read-only GOG tab (medium, 1 session). v0.9.1 install /
+  play / uninstall (Windows via Proton like itch; Linux native when GOG has it; launch from
+  goggame-<id>.info playTasks; save backups + Move work automatically) (medium-large, own Deck
+  round). v0.9.2 game updates (small-medium). Later: GOG DLC, GOG cloud saves (gogdl save-sync).
 v0.8.5 RELEASED 16 Nov 11:00 (Omri "push") = Move games + Controls row + design-balance docs.
   Omri 16 Nov 10:30 "go" incl. the registry address fix.
   - installer: move_target(gid, config.install_choices()) -> the other drive (needs 2 choices,
