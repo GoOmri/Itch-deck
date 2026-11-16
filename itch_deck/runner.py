@@ -200,6 +200,7 @@ def run(exe, slug, on_started=None, pump=None, size=None, umu=None, extra_env=No
     logs = paths.LOGS / "games"
     logs.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
+    keep_logs(logs, slug)
     with open(logs / f"{slug}.log", "w") as out:
         out.write(f"# {exe}\n# started {time.ctime(t0)}\n")
         out.flush()
@@ -266,6 +267,30 @@ HINTS = (  # (text in the game's log, a few plain words after "<game> couldn't s
     ("error while loading shared libraries", TRY_OTHER_BUILD),
     ("libfuse", "Reinstall it to fix this."),                         # AppImage without FUSE
 )
+
+
+KEEP_LOGS = 3
+
+
+def keep_logs(logs, slug):
+    """<slug>.log -> <slug>.1.log -> <slug>.2.log: the last KEEP_LOGS runs stay (v0.9.8: a later
+    run used to erase the one that showed the problem)."""
+    for n in range(KEEP_LOGS - 1, 0, -1):
+        src = logs / (f"{slug}.log" if n == 1 else f"{slug}.{n - 1}.log")
+        if src.exists():
+            try:
+                src.replace(logs / f"{slug}.{n}.log")
+            except OSError:
+                pass
+
+
+def log_tail(slug, lines=15):
+    """The game log's last lines (its own error, e.g. DOSBox's), for app.log."""
+    try:
+        text = (paths.LOGS / "games" / f"{slug}.log").read_text(errors="replace")
+    except OSError:
+        return []
+    return [ln for ln in text.splitlines() if ln.strip() and "gameoverlayrenderer" not in ln][-lines:]
 
 
 def crash_hint(slug):

@@ -522,3 +522,14 @@ def test_file_arguments_become_windows_paths(tmp_path):
     out = gog.windows_args(args, tmp_path / "DOSBOX")
     assert out[1] == "Z:" + str((tmp_path / "dosbox_eob1.conf").resolve()).replace("/", "\\")
     assert out[0] == "-conf" and out[3] == "..\\missing.conf" and out[4:] == ["-noconsole", "-c", "exit"]
+
+
+def test_uninstall_forgets_the_chosen_version(tmp_path, monkeypatch):
+    """v0.9.8: after Uninstall, Install starts from the default (Linux first) again, not the
+    version picked last time."""
+    from test_install import _wait
+    st, lib, inst = _gog_inst(tmp_path, monkeypatch, plats=("windows", "linux"))
+    inst.enqueue(lib.games[0], upload_id="windows")
+    _wait(inst)
+    assert inst.index["gog-3"]["platform"] == "windows" and inst.choices["gog-3"] == "windows"
+    assert inst.uninstall("gog-3") and "gog-3" not in inst.choices

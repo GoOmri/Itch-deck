@@ -69,3 +69,19 @@ def test_frozen_helper_processes_dont_reach_the_app():
     'unrecognized arguments: -B -S -I -c from multiprocessing.resource_tracker ...')."""
     src = open(os.path.join(os.path.dirname(__file__), "..", "run.py")).read()
     assert src.index("freeze_support()") < src.index("--gogdl") < src.index("from itch_deck.app")
+
+
+def test_game_logs_keep_the_last_three_runs(tmp_path, monkeypatch):
+    """v0.9.8: a later run (the Linux build) no longer erases the run that showed the problem."""
+    from itch_deck import paths, runner
+    paths.use_root(tmp_path / "home")
+    logs = paths.LOGS / "games"
+    logs.mkdir(parents=True)
+    for n in range(4):
+        runner.keep_logs(logs, "eob")
+        (logs / "eob.log").write_text(f"run {n}\nERROR: ld.so: gameoverlayrenderer\nDOSBox says {n}\n")
+    assert (logs / "eob.log").read_text().startswith("run 3")
+    assert (logs / "eob.1.log").read_text().startswith("run 2")
+    assert (logs / "eob.2.log").read_text().startswith("run 1")
+    assert not (logs / "eob.3.log").exists()
+    assert runner.log_tail("eob") == ["run 3", "DOSBox says 3"]

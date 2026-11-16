@@ -1309,3 +1309,16 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
 - Tests tests/test_dosbox.py (stand-in flatpak: install once, user fallback; launch args + conf
   copy; run.py order). UNVERIFIED: flatpak install on SteamOS without a password (system), staging
   reading GOG's 0.74 confs (output=overlay, -t overlay), the [sdl] fullscreen under gamescope.
+
+## v0.9.8 RELEASED 16 Nov (branch v098-logs; Omri "go ahead" 17:50) = logs that survive + forget version on uninstall
+- v0.9.7 Deck (app.log): 17:39 EOB Windows: "dosbox: installing io.github.dosbox-staging" -> ready in 4 s
+  (flatpak system install worked without a password), play "dosbox native", flatpak started,
+  window seen at 1.0 s, exited 0 after 1 s -> P03. 17:40 Omri switched to Linux; that run
+  overwrote eye-of-the-beholder.log, so DOSBox Staging's own message was lost. CAUSE OF THE 1 s
+  EXIT STILL UNKNOWN (guesses: a GOG conf line staging rejects, e.g. "-t overlay", or the pause).
+- runner.keep_logs: <slug>.log -> .1.log -> .2.log (last 3 runs). Crash: app.log gets the game
+  log's last 15 lines (runner.log_tail, overlay preload noise dropped).
+- Installer.uninstall drops self.choices[gid] (a reinstall came back as the version picked
+  last time, e.g. Linux).
+- Omri (16 Nov): doesn't want to spend much more time on EOB. Next: one Play of the Windows build
+  -> eye-of-the-beholder.log / app.log "game log ends" lines; if not quick, park EOB.

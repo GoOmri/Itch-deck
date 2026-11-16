@@ -124,7 +124,8 @@ class PlayMixin:
             self.say(words.with_code(f"{mode} controls didn't start.", "P02"), error=True)
         if runner.crashed(rc, secs):
             hint = runner.crash_hint(slug_of(g))
-            log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
+            log.info("play: %s crashed%s; game log ends:\n    %s", g["id"], f" ({hint})" if hint else "",
+                     "\n    ".join(runner.log_tail(slug_of(g))))
             if hint and info.get("store") == "gog" and hint == runner.TRY_OTHER_BUILD:
                 hint = ("Try the Windows version in Options." if info.get("platform") == "linux"
                         and "windows" in (g.get("platforms") or ()) else None)  # GOG: no builds list

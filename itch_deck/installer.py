@@ -1189,6 +1189,8 @@ class Installer:
             return False
         info = self.index.pop(gid, None)
         _write_json(paths.INSTALLS, self.index)
+        if self.choices.pop(gid, None) is not None:   # a fresh install starts from the default
+            _write_json(paths.BUILDS, self.choices)    # build again (v0.9.8)
         self._upd(gid, state=None, phase=None)
         if info and info.get("store") == "gog" and self.lib.gog:     # gogdl's manifest goes too
             self.lib.gog.forget(info.get("app_name"))
