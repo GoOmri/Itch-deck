@@ -18,9 +18,9 @@ def epic_in(value):
 
 def shown(label, value, sub):
     """Row as the player reads it: every store says the same 'Sign in to / Sign out of X'."""
-    if label == "Epic":
-        return ("Sign out of Epic", str(value)[len("Connected as "):], sub) if epic_in(value) \
-            else ("Sign in to Epic", "", sub)
+    if label in ("Epic", "GOG"):
+        return (f"Sign out of {label}", str(value)[len("Connected as "):], sub) \
+            if epic_in(value) else (f"Sign in to {label}", "", sub)
     return SHOWN.get(label, label), value, sub
 
 
@@ -40,7 +40,8 @@ class Settings(Scene):
               ("Refresh library", "", f"Last synced {v['last_sync']}")]),
             ("Accounts", "The stores your games come from.",       # one pair of rows per store
              [("Disconnect itch", v.get("itch_user", ""), ""),
-              ("Epic", v.get("epic", ""), "")]),
+              ("Epic", v.get("epic", ""), ""),
+              ("GOG", v.get("gog", ""), "")]),
             ("Storage", "Where games go and what they leave behind.",
              [("Install location", v["install_label"], ""),          # SD card / Internal storage
               ("Saves of uninstalled games", v["prefix_size"], "")]),
@@ -95,7 +96,7 @@ class Settings(Scene):
             return [("A", "Open"), ("B", "Back")]
         label, value, _ = self.items()[self.focus]
         act = self.ACTION.get(label, "Select")
-        if label == "Epic":
+        if label in ("Epic", "GOG"):
             act = "Sign out" if epic_in(value) else "Sign in"
         if label == "Proton version" and str(self.v.get("proton", "")).startswith("Not installed"):
             act = "Download"

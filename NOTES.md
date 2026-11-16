@@ -749,6 +749,48 @@ GOG PLAN (sent to Omri 16 Nov 11:12, waiting for "go" on step 1; code chat hande
   play / uninstall (Windows via Proton like itch; Linux native when GOG has it; launch from
   goggame-<id>.info playTasks; save backups + Move work automatically) (medium-large, own Deck
   round). v0.9.2 game updates (small-medium). Later: GOG DLC, GOG cloud saves (gogdl save-sync).
+GOG step 1 = v0.9.0 BUILT 16 Nov (Omri "go" 11:17; branch gog-signin; NOT released, VERSION still
+  0.8.5 on the branch: bump to 0.9.0 when Omri says push).
+  - gogdl check: release asset gogdl_linux_x86_64 (PyInstaller, built on ubuntu-24.04) exists ->
+    downloaded on demand like legendary (DATA/gog/gogdl, >1 MB check). gogdl has NO library list
+    command: it only does sign-in + token refresh (`--auth-config-path DATA/gog/auth.json auth
+    [--code C]`, prints JSON; {"error": true} on a bad code, stderr "Failed to reach GOG" offline).
+  - stores/gog.py: code_from_text (code= in the pasted address, or a lone long code), login ->
+    auth.json 600 (dir 700) + user.json {username} from embed.gog.com/userData.json; token() =
+    `gogdl auth` (refreshes); sync = embed.gog.com/account/getFilteredProducts?mediaType=1&page=N
+    with the token (isGame false skipped; worksOn -> platforms; image + "_392.jpg" cover;
+    category kept as g["category"]); ids "gog-<product id>", app_name = product id. details() =
+    api.gog.com/products/<id>?expand=description,screenshots (public): description.full HTML ->
+    steam.html_paras, screenshots formatter "ggvgl". logout = delete auth.json + user.json (local).
+    GogError short reasons: "Not signed in" / "Signed out of GOG" (401) / "Couldn't reach GOG".
+  - library: lib.gog, start_gog_sync/sync_gog/drop_gog (same isolation as Epic; keeps itch + Epic
+    games), _fetch_gog_page (genre = category in itch words via _GOG_GENRES, source "GOG"),
+    cache keeps "category".
+  - App: app_gog.GogMixin (copy of the Epic flow: go_gog, scene "gog" = ui/scenes/epic.GogConnect
+    = EpicConnect with TITLE/STEPS/STATUS class attributes), phonelink PAGES["gog"] (button = GOG
+    Galaxy login URL; "copy its address"), Settings → Accounts row "Sign in to GOG" / "Sign out of
+    GOG" (row added after Epic: Storage/Games rows shifted one index; mockups 21c=5, 21h=7).
+    Tabs All · Installed · itch · Epic · GOG (App._stores). Y and Settings → Refresh library now
+    sync every store (Refresh library didn't sync Epic before; DESIGN §6 says it should).
+  - Game page for GOG: Game.read_only -> no buttons, no ⚙, info box "Coming soon · Installing GOG
+    games is next."; cover not dimmed; "From GOG" under About.
+  - Tests: tests/test_gog.py (stand-in gogdl script + stubbed net.get_json: code parsing, sign
+    in/list/sign out, rejected/offline, sync errors, merge keeps other stores + no duplicates +
+    survives restart, page text/shots/genre, read-only page, 3 store tabs). Selftest _selftest_gog
+    (sign in via phone text -> GOG tab -> Coming soon page -> sign out). Mockups 21j, 27, 27b,
+    06g_library_gog_tab, 15q_game_gog; Deck gallery "Current work" updated (PATCH). Phone pages
+    gallery NOT yet updated with the GOG phone page (its index.html is 68 KB; do it with the
+    release if Omri wants).
+  - Checked: pytest 3.13 + 3.11 (139), selftest 3.13 + 3.11, selftest with itch rejecting every
+    key, mockups (176).
+  UNVERIFIED against real GOG (workspace can't reach it): the _392.jpg cover suffix, category
+    field names, whether the phone browser shows the on_login_success address with the code,
+    gogdl binary running on SteamOS. Deck log: "gog:", "gog sync", "page gog-…".
+  Deck checklist v0.9.0: 1 Update. 2 Settings → Accounts → Sign in to GOG: "Getting ready…" then
+    QR. 3 Phone: Open GOG sign-in → sign in → copy the address of the blank page → paste → Send:
+    phone "Connected as …", Deck jumps to the GOG tab, games + covers fill in. 4 Open a GOG game:
+    text + screenshots, Coming soon box. 5 Y: itch, Epic, GOG all still there. 6 Restart: GOG tab
+    still there. 7 Sign out of GOG: tab and games gone.
 v0.8.5 RELEASED 16 Nov 11:00 (Omri "push") = Move games + Controls row + design-balance docs.
   Omri 16 Nov 10:30 "go" incl. the registry address fix.
   - installer: move_target(gid, config.install_choices()) -> the other drive (needs 2 choices,

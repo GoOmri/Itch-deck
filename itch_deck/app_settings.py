@@ -39,6 +39,7 @@ class SettingsMixin:
             "pointer": self.cfg.get("pointer_speed", "normal").capitalize(),
             "symbols": self._symbols_label(),
             "epic": self._epic_label(),
+            "gog": self._gog_label(),
         }
 
     def _symbols_label(self):
@@ -150,7 +151,10 @@ class SettingsMixin:
         elif act == A:
             label = sc.items()[sc.focus][0]
             if label == "Refresh library":
-                self.say("Refreshing library…" if self.lib.start_sync() else "Already refreshing…")
+                started = self.lib.start_sync()
+                self.lib.start_epic_sync()             # every store (DESIGN §6)
+                self.lib.start_gog_sync()
+                self.say("Refreshing library…" if started else "Already refreshing…")
             elif label == "Update app":
                 u = self.updater
                 if u.state == "available":
@@ -212,6 +216,13 @@ class SettingsMixin:
                                  "Sign out", self._disconnect_epic)
                 else:
                     self.go_epic()
+            elif label == "GOG":
+                if self.lib.gog and self.lib.gog.connected():
+                    self.confirm("Sign out of GOG?",
+                                 ["GOG games leave your library.", "Sign in again any time."],
+                                 "Sign out", self._disconnect_gog)
+                else:
+                    self.go_gog()
             elif label == "Disconnect itch":
                 self.confirm("Sign out of itch?",
                              ["SCRiTCH forgets the key. Installed games still play.",

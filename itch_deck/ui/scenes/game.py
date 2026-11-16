@@ -46,8 +46,13 @@ class Game(Scene):
         self.card_out = card_out   # install location is an SD card that isn't in (app sets it)
 
     @property
+    def read_only(self):
+        """GOG step 1: games show, installing comes in the next update."""
+        return self.g.get("store") == "gog"
+
+    @property
     def playable(self):
-        return bool(self.g["platforms"] & {"linux", "windows"})
+        return bool(self.g["platforms"] & {"linux", "windows"}) and not self.read_only
 
     def actions(self):
         """[(label, icon, enabled)]: ONE main button + the ⚙ Options button (Omri)."""
@@ -214,7 +219,7 @@ class Game(Scene):
         cw = int((t.w - 2 * t.m) * 0.34)
         cover_r = pg.Rect(t.m, t.m, cw, int(cw * t.cover_ratio))
         img = W.rounded(W.cover(t, g, cover_r.size), t.radius)
-        if not self.playable:
+        if not self.playable and not self.read_only:     # coming soon isn't "can't play"
             o = pg.Surface(cover_r.size, pg.SRCALPHA)
             pg.draw.rect(o, (0, 0, 0, t.dimmed_a), o.get_rect(), border_radius=t.radius)
             img.blit(o, (0, 0))
@@ -317,12 +322,12 @@ class Game(Scene):
             w = min(t.w - 2 * t.m, t.read_w * 1.4)   # long reading: ~95 chars per line
             for para in paras:
                 y = W.wrap(t, s, para, t.m, y, t.f_body, w, color=t.text_c) + t.md
-            src = {"Epic": "From Epic Games", "Steam": "From Steam"}.get(
+            src = {"Epic": "From Epic Games", "Steam": "From Steam", "GOG": "From GOG"}.get(
                 g.get("details_from"), "From the game's itch.io page")
             if g.get("details_from") == "Epic" and n:
                 src += " · screenshots from Steam"
             y = W.text(t, s, src, t.m, y, t.f_small, color=t.dim).bottom
-        elif not n and g.get("store") == "epic":
+        elif not n and g.get("store") in ("epic", "gog"):
             msg = ("Loading details…" if g.get("details_loading") or not self.offline
                    and not g.get("details_at") else
                    "More details load the next time you're online." if self.offline else
@@ -398,6 +403,8 @@ class Game(Scene):
         """What to tell the player about this game: (kind, title, line) or None.
         Always drawn as ONE box under the buttons (Omri: consistent). Red only for errors."""
         g = self.g
+        if self.read_only:
+            return ("info", "Coming soon", "Installing GOG games is next.")
         if not self.playable:          # few plain words (Omri: casual players, no tech terms)
             if "html" in g["platforms"]:
                 return ("info", "Browser game", "Play it on itch.io.")

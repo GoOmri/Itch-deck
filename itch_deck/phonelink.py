@@ -63,6 +63,20 @@ PAGES = {
         "checking": "Signing in…", "retry": "Try again",
         "note": "Your sign-in goes straight to your Deck and is stored only there.",
     },
+    # GOG: its sign-in ends on a nearly blank page whose ADDRESS holds a one-time code
+    # (embed.gog.com/on_login_success?…&code=…); the player copies the address (stores/gog.py).
+    "gog": {
+        "title": "Connect GOG to SCRiTCH",
+        "steps": [
+            ('<a class="btn pri" href="https://auth.gog.com/auth?client_id=46899977096215655&amp;redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&amp;response_type=code&amp;layout=galaxy" '
+             'target="_blank" rel="noopener">Open GOG sign-in</a>', "Sign in to GOG if it asks."),
+            ("A blank page opens. Copy its address from the address bar.", ""),
+            ("Come back to this tab and paste it below.", ""),
+        ],
+        "field": "Paste the address from GOG",
+        "checking": "Signing in…", "retry": "Try again",
+        "note": "Your sign-in goes straight to your Deck and is stored only there.",
+    },
 }
 
 

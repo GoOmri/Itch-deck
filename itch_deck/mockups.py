@@ -124,6 +124,12 @@ def _shots(t, version):
                        screens=0, size_mb=0, ttb=None)
                   for g, title in zip(lib[:: max(1, n // 6)], epic_titles)]
     both = sorted(lib + epic_games, key=lambda g: g["title"].lower())
+    # GOG step 1 (read-only): a few sample games marked as GOG
+    gog_titles = ["Amber Atlas", "Cinder Choir", "Moss & Mortar", "Quiet Quarry Deluxe", "Rook Harbor"]
+    gog_games = [dict(g, id="gog-" + g["id"], title=title, store="gog", state=None, url=None,
+                      screens=0, size_mb=0, ttb=None, author="")
+                 for g, title in zip(lib[1:: max(1, n // 5)], gog_titles)]
+    three = sorted(both + gog_games, key=lambda g: g["title"].lower())
     picker = ("picker", "Choose a build",
               "Recommended: native Linux first, then a plain Windows zip.",
               [(name, "Recommended" if rec else "", sub) for name, sub, rec in fake.uploads()], 0)
@@ -141,7 +147,7 @@ def _shots(t, version):
         def draw(self, s):
             W.splash(t, s, self.msg, self.sub)
 
-    from .ui.scenes.epic import EpicConnect
+    from .ui.scenes.epic import EpicConnect, GogConnect
 
     if pads.current == "ps":           # DualSense set: the screens where its glyphs show
         return [
@@ -267,15 +273,20 @@ def _shots(t, version):
             0))),
         ("21_settings", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log")),
         ("21a_settings_account", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=2)),
-        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=4)),
+        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=5)),
         ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=3)),
         ("21f_settings_epic_in", Settings(t, dict(settings_vals, epic="Connected as omri"), version, "~/.local/state/scritch/logs/app.log", focus=3)),
         ("21i_settings_downloading", _act(Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=2), "Downloading 42% · Quiet Quarry")),
         ("21g_settings_app_refresh", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=1)),
-        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=6)),
+        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=7)),
         ("26_epic_connect", EpicConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("26b_epic_getting_ready", EpicConnect(t, "prep", qr=_qr(), url=PHONE_URL, progress=0.4)),
         ("26c_epic_rejected", EpicConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
+        ("21j_settings_gog", Settings(t, dict(settings_vals, gog="Not connected"), version, "~/.local/state/scritch/logs/app.log", focus=4)),
+        ("27_gog_connect", GogConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
+        ("27b_gog_rejected", GogConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
+        ("06g_library_gog_tab", Library(t, three, filt="gog", focus=0, stores=("itch", "epic", "gog"))),
+        ("15q_game_gog", Game(t, gog_games[1], pos=(2, len(gog_games)))),
         ("06e_library_two_stores", Library(t, both, focus=1, stores=("itch", "epic"))),
         ("06f_library_epic_tab", Library(t, both, filt="epic", focus=0, stores=("itch", "epic"))),
         ("15d_game_epic", Game(t, epic_games[1], pos=(2, len(epic_games)))),

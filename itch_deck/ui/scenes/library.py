@@ -8,7 +8,7 @@ from .base import Scene
 from ... import hltb
 
 
-STORE_NAMES = {"itch": "itch", "epic": "Epic"}
+STORE_NAMES = {"itch": "itch", "epic": "Epic", "gog": "GOG"}
 SORTS = (("az", "A–Z"), ("played", "Recently played"), ("added", "Recently added"),
          ("short", "Shortest first"))
 

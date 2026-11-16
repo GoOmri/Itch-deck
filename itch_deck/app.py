@@ -21,6 +21,7 @@ from .app_play import PlayMixin
 from .app_settings import SettingsMixin
 from .app_setup import SetupMixin
 from .app_epic import EpicMixin
+from .app_gog import GogMixin
 
 log = logging.getLogger("scritch")
 VERSION = "0.8.5"
@@ -34,7 +35,7 @@ def setup_logging():
     logging.basicConfig(level=logging.INFO, handlers=[h, logging.StreamHandler()], force=True)
 
 
-class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
+class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin):
     def __init__(self, windowed=False):
         import pygame
         self.pg = pygame
@@ -50,6 +51,9 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
         if self.cfg.get("epic"):                   # opt-in: Settings -> Account -> Epic Games
             from .stores.epic import EpicStore
             self.lib.epic = EpicStore()            # cached Epic games show at once
+        if self.cfg.get("gog"):                    # opt-in: Settings -> Accounts -> GOG
+            from .stores.gog import GogStore
+            self.lib.gog = GogStore()
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
         self.inst.clean_moves([p for _, p in config.install_choices()])   # a move cut short
         self._pin_root()
@@ -82,6 +86,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
             self.inst.resume()
         if self.lib.epic and self.lib.epic.ready():
             self.lib.start_epic_sync()             # background; failures stay in the log
+            if self.lib.gog and self.lib.gog.ready():
+                self.lib.start_gog_sync()
         else:
             self.go_setup("waiting")
 
@@ -117,13 +123,13 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
     def _set(self, kind, scene):
         from .ui import widgets as W
         if self.scene is not None and W.LIVE:
-            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3, "epic": 4}
+            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3, "epic": 4, "gog": 4}
             self.fade_dir = 1 if depth.get(kind, 0) >= depth.get(self.kind, 0) else -1  # in / back
             try:
                 self.fade_from, self.fade_t0 = self.screen.copy(), time.monotonic()  # slide + fade
             except Exception:  # noqa: BLE001  - display closed (game running): no fade
                 self.fade_from = None
-        if kind not in ("setup", "epic") and self.phone and not self.phone_stop_at:
+        if kind not in ("setup", "epic", "gog") and self.phone and not self.phone_stop_at:
             self.phone_stop_at = time.time() + 10  # let the phone read "Connected", then close
         self.kind, self.scene = kind, scene
         self.toast_until = 0
@@ -172,8 +178,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
 
     def _stores(self):
         """Connected stores: with two, the library gets a tab per store (All · Installed ·
-        itch · Epic)."""
-        return ("itch", "epic") if self.lib.epic else ("itch",)
+        itch · Epic · GOG)."""
+        return ("itch",) + (("epic",) if self.lib.epic else ()) + (("gog",) if self.lib.gog else ())
 
     def _views(self):
         """Sort & filter per library tab (cfg "library_views"). Before v0.7.5 there was one
@@ -234,6 +240,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
         elif act == Y:
             started = self.lib.start_sync()
             self.lib.start_epic_sync()
+            self.lib.start_gog_sync()
             if started:
                 self.say("Refreshing library…")
         elif act == START:
@@ -359,6 +366,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
             self._key_done()
         self._phone_tick(now)
         self._epic_tick(now)
+        self._gog_tick(now)
         if self.lib.auth_failed:
             self.lib.auth_failed = False
             self.go_setup("rejected")
@@ -498,6 +506,64 @@ def _selftest_epic(app):
         app.phone = None
 
 
+GOGDL_STUB = """#!/bin/sh
+# stand-in gogdl: --auth-config-path FILE auth [--code C]
+f="$2"; shift 2
+if [ "$1 $2" = "auth --code" ]; then
+  echo '{"46899977096215655": {"access_token": "tok", "refresh_token": "r", "expires_in": 3600, "loginTime": 0}}' > "$f"
+  echo '{"access_token": "tok"}'
+elif [ "$1" = "auth" ]; then
+  [ -f "$f" ] && echo '{"access_token": "tok"}' || echo null
+fi
+"""
+
+
+def _selftest_gog(app):
+    """Settings → GOG → Sign in: QR page; the phone sends GOG's address -> stand-in gogdl signs in
+    -> GOG tab fills (GOG's web API stubbed); game page says Coming soon; then Sign out."""
+    from .stores import gog
+    b = gog.bin_path()
+    b.parent.mkdir(parents=True, exist_ok=True)
+    b.write_text(GOGDL_STUB)
+    b.chmod(0o755)
+    saved = gog.GogStore.sync, gog.GogStore._save_user
+    gog.GogStore.sync = lambda self: [gog.game_from_json(
+        {"id": 1207658924, "title": "Selftest GOG Game", "image": "//x/a",
+         "worksOn": {"Windows": True}, "category": "Adventure"})] if self.token() else []
+    gog.GogStore._save_user = lambda self, tok: gog.user_file().write_text('{"username": "selftest"}')
+    try:
+        app.go_settings()
+        app.scene.focus = [r[0] for r in app.scene.items()].index("GOG")
+        assert app.scene.hints()[0] == ("A", "Sign in")
+        app.handle(A)
+        assert app.kind == "gog" and app.scene.status in ("phone", "nonet")
+        app._gog_got("https://embed.gog.com/on_login_success?origin=client&code=" + "Ab_-9" * 20)
+        for _ in range(200):                             # login + list run in threads
+            app.update()
+            if app.kind == "library" and not app.lib.gog_syncing and app.lib.by_id("gog-1207658924"):
+                break
+            time.sleep(0.02)
+        assert app.kind == "library" and app.scene.filt == "gog", app.kind
+        assert app.lib.by_id("gog-1207658924") and app.cfg.get("gog"), "GOG games didn't arrive"
+        assert app.phone_status.startswith("Connected as selftest")
+        assert "gog" in dict(app.scene.tabs())
+        app.go_game(app.lib.by_id("gog-1207658924"))
+        assert app.scene.message()[1] == "Coming soon" and not app.scene.options()
+        assert all(a[0] not in ("Install", "Play") for a in app.scene.actions())
+        app.go_settings()
+        app.scene.focus = [r[0] for r in app.scene.items()].index("GOG")
+        assert app.scene.hints()[0] == ("A", "Sign out")
+        app.handle(A)
+        app.handle(A)                                    # confirm
+        assert not app.cfg.get("gog") and not app.lib.by_id("gog-1207658924") and app.lib.gog is None
+        assert not gog.auth_file().exists()
+    finally:
+        gog.GogStore.sync, gog.GogStore._save_user = saved
+    if app.phone:
+        app.phone.stop()
+        app.phone = None
+
+
 def selftest(screenshot=None):
     """Headless: walk Setup -> Library (fake games) -> Game -> Settings without network."""
     import tempfile
@@ -588,6 +654,7 @@ def selftest(screenshot=None):
     assert app.kind == "setup" and "api_key" not in app.cfg and app.lib.store is None
     app.go_library()
     _selftest_epic(app)
+    _selftest_gog(app)
     # Play: a fake installed game (a tiny script) -> display released, game runs, display back
     app = App(windowed=True)
     app.lib.games = [dict(g) for g in fake.library()]

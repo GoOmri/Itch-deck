@@ -60,6 +60,13 @@ def _write_json(path, data):
 COVER_MAX = 720          # px, longest side of a saved cover (Epic sends 2560 px art)
 
 
+# GOG's library categories in itch's words (same genre filter for every store)
+_GOG_GENRES = {"Role-playing": "Role Playing", "Rpg": "Role Playing", "RPG": "Role Playing",
+               "Shooter": "Shooter", "Strategy": "Strategy", "Adventure": "Adventure",
+               "Action": "Action", "Racing": "Racing", "Simulation": "Simulation",
+               "Sports": "Sports", "Puzzle": "Puzzle", "Platformer": "Platformer"}
+
+
 def _genre(g, page):
     """Genre from a saved page. Epic pages saved by v0.7.9 kept Steam's first label as is
     ("Indie", "RPG"): cleaned here until the page is fetched again."""
@@ -107,6 +114,8 @@ class Library:
         self.epic = None               # EpicStore when connected (opt-in, read-only for now)
         self.epic_error, self.epic_syncing = None, False
         self.on_epic_sync = None       # Installer: compare installed Epic builds with Epic's
+        self.gog = None                # GogStore when connected (opt-in, read-only for now)
+        self.gog_error, self.gog_syncing = None, False
         self.games, self.synced_at = [], None
         self.syncing = None            # None | "first" | "bg"
         self.page = 0
@@ -204,7 +213,7 @@ class Library:
 
     def save_cache(self):
         keep = ("id", "title", "author", "cover_url", "url", "short_text", "platforms",
-                "download_key_id", "classification", "source", "store", "app_name", "long_text")
+                "download_key_id", "classification", "source", "store", "app_name", "long_text", "category")
         games = [{k: (sorted(g[k]) if k == "platforms" else g.get(k)) for k in keep} for g in self.games]
         _write_json(paths.LIBRARY, {"synced_at": self.synced_at, "games": games})
 
@@ -325,6 +334,45 @@ class Library:
         self.games = [g for g in self.games if g.get("store", "itch") != "epic"]
         self.save_cache()
 
+    # --- GOG (read-only, step 1) ---------------------------------------------------
+    def start_gog_sync(self):
+        """Refresh the GOG games in the background (GOG's web API: a few seconds online)."""
+        if not self.gog or self.gog_syncing:
+            return False
+        self.gog_syncing = True
+        threading.Thread(target=self.sync_gog, daemon=True, name="gog").start()
+        return True
+
+    def sync_gog(self):
+        """Replace the GOG games with GOG's current list. Any failure is logged and keeps the
+        GOG games we had (and never touches itch's or Epic's)."""
+        try:
+            if not self.gog:
+                return False
+            raw = self.gog.sync()
+        except Exception as e:  # noqa: BLE001  - isolated: never breaks the other stores
+            log.warning("gog sync failed: %s", e)
+            self.gog_error = str(e)
+            return False
+        finally:
+            self.gog_syncing = False
+        self.gog_error = None
+        if not self.gog:                       # signed out while the list was loading
+            return False
+        fresh = [self._prep(g) for g in raw]
+        self.games = sorted([g for g in self.games if g.get("store", "itch") != "gog"] + fresh,
+                            key=lambda g: g["title"].lower())
+        self.save_cache()
+        self.queue_covers()
+        self.queue_prefetch()
+        self.queue_hltb()
+        return True
+
+    def drop_gog(self):
+        self.gog = None
+        self.games = [g for g in self.games if g.get("store", "itch") != "gog"]
+        self.save_cache()
+
     def queue_prefetch(self):
         """Background page fetch: games never fetched, and caches from before Genre /
         Average session were read (so filters fill in without opening every game)."""
@@ -335,8 +383,9 @@ class Library:
 
     @staticmethod
     def _has_details(g):
-        """itch games: their itch page. Epic games: Epic's text + Steam (screenshots, genre)."""
-        return bool(g.get("url")) or g.get("store") == "epic"
+        """itch games: their itch page. Epic games: Epic's text + Steam (screenshots, genre).
+        GOG games: GOG's product page (text, screenshots); genre from the library list."""
+        return bool(g.get("url")) or g.get("store") in ("epic", "gog")
 
     def _has_page_fields(self, g):
         try:
@@ -491,6 +540,8 @@ class Library:
     def _fetch_page(self, g):
         if g.get("store") == "epic":
             return self._fetch_epic_page(g)
+        if g.get("store") == "gog":
+            return self._fetch_gog_page(g)
         if not g.get("url"):
             return
         html = net.get(g["url"], timeout=25).decode("utf-8", "replace")
@@ -538,6 +589,24 @@ class Library:
             "shots_from": "Steam" if n else None})
         log.info("page %s: epic, text from %s, %d shots, steam %s", g["id"], src,
                  n, "matched" if info else "no match")
+        g.pop("details_at", None)
+        self._apply_page(g)
+
+    def _fetch_gog_page(self, g):
+        """GOG game page: GOG's own description + screenshots (public API, no sign-in);
+        genre = GOG's category from the library list. Saved like an itch page."""
+        from .stores.gog import GogStore
+        try:
+            paras, shots = GogStore().details(g["app_name"])
+        except net.NotFound:
+            paras, shots = [], []
+        n = self._save_shots(g, shots[:MAX_SHOTS])
+        cat = _GOG_GENRES.get(g.get("category") or "", g.get("category") or "")
+        _write_json(self._page_file(g), {
+            "fetched": _now().isoformat(timespec="seconds"), "description": paras,
+            "comments": [], "comment_count": 0, "shots": n, "inputs": [],
+            "genre": [cat] if cat else [], "source": "GOG" if paras else None})
+        log.info("page %s: gog, %d paras, %d shots, genre %s", g["id"], len(paras), n, cat or "-")
         g.pop("details_at", None)
         self._apply_page(g)
 
