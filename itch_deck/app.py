@@ -24,7 +24,7 @@ from .app_epic import EpicMixin
 from .app_gog import GogMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.1"
+VERSION = "0.9.2"
 
 
 def setup_logging():
@@ -84,8 +84,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin):
             self.lib.queue_covers()
             self.lib.start_sync()
             self.inst.resume()
-        if self.lib.epic and self.lib.epic.ready():
-            self.lib.start_epic_sync()             # background; failures stay in the log
+            if self.lib.epic and self.lib.epic.ready():
+                self.lib.start_epic_sync()         # background; failures stay in the log
             if self.lib.gog and self.lib.gog.ready():
                 self.lib.start_gog_sync()
         else:
@@ -508,15 +508,22 @@ def _selftest_epic(app):
 
 def _selftest_gog(app):
     """Settings → GOG → Sign in: QR page; the phone sends GOG's address -> sign-in (GOG's token
-    answer stubbed) -> GOG tab fills (GOG's web API stubbed); game page says Coming soon; then
-    Sign out."""
+    answer stubbed) -> GOG tab fills (GOG's web API stubbed); game page: Install (gogdl stubbed:
+    it writes a start.sh) -> Play + ⚙ without Change build -> Uninstall; then Sign out."""
     from .stores import gog
-    saved = gog.GogStore.sync, gog.GogStore._save_user, gog.GogStore._ask
+    saved = (gog.GogStore.sync, gog.GogStore._save_user, gog.GogStore._ask, gog.GogStore.info,
+             gog.GogStore.install)
+
+    def fake_install(self, app_name, platform, folder, **kw):
+        (Path(folder) / "start.sh").write_text("#!/bin/sh\necho gog game\n")
+        return gog.launch_info(folder, app_name, platform)
+    gog.GogStore.info = lambda self, app_name, platform: {"need": 1000, "build": "B1", "version": "1"}
+    gog.GogStore.install = fake_install
     gog.GogStore._ask = lambda self, **kw: {"access_token": "tok", "refresh_token": "r",
                                             "expires_in": 3600, "loginTime": time.time()}
     gog.GogStore.sync = lambda self: [gog.game_from_json(
         {"id": 1207658924, "title": "Selftest GOG Game", "image": "//x/a",
-         "worksOn": {"Windows": True}, "category": "Adventure"})] if self.token() else []
+         "worksOn": {"Linux": True}, "category": "Adventure"})] if self.token() else []
     gog.GogStore._save_user = lambda self, tok: gog.user_file().write_text('{"username": "selftest"}')
     try:
         app.go_settings()
@@ -534,9 +541,21 @@ def _selftest_gog(app):
         assert app.lib.by_id("gog-1207658924") and app.cfg.get("gog"), "GOG games didn't arrive"
         assert app.phone_status.startswith("Connected as selftest")
         assert "gog" in dict(app.scene.tabs())
-        app.go_game(app.lib.by_id("gog-1207658924"))
-        assert app.scene.message()[1] == "Coming soon" and not app.scene.options()
-        assert all(a[0] not in ("Install", "Play") for a in app.scene.actions())
+        g = app.lib.by_id("gog-1207658924")
+        app.go_game(g)
+        assert [a[0] for a in app.scene.actions()] == ["Install"]
+        app.game_action(g, "Install")
+        for _ in range(200):
+            app.update()
+            if not app.inst.queue and not app.inst.current:
+                break
+            time.sleep(0.02)
+        info = app.inst.index.get(g["id"])
+        assert info and info["store"] == "gog" and info["exe"] == "start.sh", g.get("fail_reason")
+        app.go_game(app.lib.by_id(g["id"]))
+        assert [a[0] for a in app.scene.actions()] == ["Play", "Options"]
+        assert app.scene.options() == ["Uninstall", "Controls", "Saves"]
+        assert app.inst.uninstall(g["id"]) and g["id"] not in app.inst.index
         app.go_settings()
         app.scene.focus = [r[0] for r in app.scene.items()].index("GOG")
         assert app.scene.hints()[0] == ("A", "Sign out")
@@ -545,7 +564,8 @@ def _selftest_gog(app):
         assert not app.cfg.get("gog") and not app.lib.by_id("gog-1207658924") and app.lib.gog is None
         assert not gog.auth_file().exists()
     finally:
-        gog.GogStore.sync, gog.GogStore._save_user, gog.GogStore._ask = saved
+        (gog.GogStore.sync, gog.GogStore._save_user, gog.GogStore._ask, gog.GogStore.info,
+         gog.GogStore.install) = saved
     if app.phone:
         app.phone.stop()
         app.phone = None

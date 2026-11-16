@@ -46,13 +46,8 @@ class Game(Scene):
         self.card_out = card_out   # install location is an SD card that isn't in (app sets it)
 
     @property
-    def read_only(self):
-        """GOG step 1: games show, installing comes in the next update."""
-        return self.g.get("store") == "gog"
-
-    @property
     def playable(self):
-        return bool(self.g["platforms"] & {"linux", "windows"}) and not self.read_only
+        return bool(self.g["platforms"] & {"linux", "windows"})
 
     def actions(self):
         """[(label, icon, enabled)]: ONE main button + the ⚙ Options button (Omri)."""
@@ -82,7 +77,7 @@ class Game(Scene):
         g, st = self.g, self.g.get("state")
         if not self.playable:
             return []
-        epic = g.get("store") == "epic"             # one build per game: no Change build
+        epic = g.get("store") in ("epic", "gog")    # one build per game: no Change build
         if st == "installed":
             return (["Uninstall", "Controls"] if epic else
                     ["Uninstall", "Change build", "Controls"]) + ["Saves"] + \
@@ -219,7 +214,7 @@ class Game(Scene):
         cw = int((t.w - 2 * t.m) * 0.34)
         cover_r = pg.Rect(t.m, t.m, cw, int(cw * t.cover_ratio))
         img = W.rounded(W.cover(t, g, cover_r.size), t.radius)
-        if not self.playable and not self.read_only:     # coming soon isn't "can't play"
+        if not self.playable:
             o = pg.Surface(cover_r.size, pg.SRCALPHA)
             pg.draw.rect(o, (0, 0, 0, t.dimmed_a), o.get_rect(), border_radius=t.radius)
             img.blit(o, (0, 0))
@@ -403,8 +398,6 @@ class Game(Scene):
         """What to tell the player about this game: (kind, title, line) or None.
         Always drawn as ONE box under the buttons (Omri: consistent). Red only for errors."""
         g = self.g
-        if self.read_only:
-            return ("info", "Coming soon", "Installing GOG games is next.")
         if not self.playable:          # few plain words (Omri: casual players, no tech terms)
             if "html" in g["platforms"]:
                 return ("info", "Browser game", "Play it on itch.io.")

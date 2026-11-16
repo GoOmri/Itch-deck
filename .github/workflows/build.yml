@@ -26,6 +26,8 @@ jobs:
       - run: sh packaging/build.sh
       - name: Smoke test (through the launcher, which unpacks into release/app)
         run: ./release/scritch --selftest
+      - name: GOG helper is inside the build (hidden mode)
+        run: test "$(./release/scritch --gogdl --version)" = "1.4.0"
       - name: Render mockups (draws every page/state; also a crash test)
         run: ./release/scritch --render-mockups mockups
       - uses: actions/upload-artifact@v4

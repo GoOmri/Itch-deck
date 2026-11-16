@@ -124,7 +124,7 @@ def _shots(t, version):
                        screens=0, size_mb=0, ttb=None)
                   for g, title in zip(lib[:: max(1, n // 6)], epic_titles)]
     both = sorted(lib + epic_games, key=lambda g: g["title"].lower())
-    # GOG step 1 (read-only): a few sample games marked as GOG
+    # GOG: a few sample games marked as GOG (installable since v0.9.2)
     gog_titles = ["Amber Atlas", "Cinder Choir", "Moss & Mortar", "Quiet Quarry Deluxe", "Rook Harbor"]
     gog_games = [dict(g, id="gog-" + g["id"], title=title, store="gog", state=None, url=None,
                       screens=0, size_mb=0, ttb=None, author="")
@@ -286,7 +286,16 @@ def _shots(t, version):
         ("27_gog_connect", GogConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("27b_gog_rejected", GogConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("06g_library_gog_tab", Library(t, three, filt="gog", focus=0, stores=("itch", "epic", "gog"))),
-        ("15q_game_gog", Game(t, gog_games[1], pos=(2, len(gog_games)))),
+        ("15q_game_gog", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300),
+                              pos=(2, len(gog_games)))),
+        ("15r_game_gog_downloading", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300,
+                                                  state="downloading", phase="download", progress=0.37,
+                                                  speed_mbs=18.4, eta_s=95), pos=(2, len(gog_games)))),
+        ("15s_game_gog_options", with_overlay(
+            Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300, state="installed",
+                         move_to="internal storage"), pos=(2, len(gog_games))),
+            ("menu", "Options", "", [("Uninstall", "", ""), ("Controls", "Auto · Pad", ""),
+                                     ("Saves", "", ""), ("Move to internal storage", "", "")], 0))),
         ("06e_library_two_stores", Library(t, both, focus=1, stores=("itch", "epic"))),
         ("06f_library_epic_tab", Library(t, both, filt="epic", focus=0, stores=("itch", "epic"))),
         ("15d_game_epic", Game(t, epic_games[1], pos=(2, len(epic_games)))),

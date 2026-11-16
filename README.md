@@ -179,3 +179,5 @@ named after `VERSION` in `itch_deck/app.py`. Read `NOTES.md` (working notes and 
 ## Licence
 scritch is free software under the **GNU General Public License v3.0** (see `LICENSE`). You may
 use, change and share it; versions you share must stay under the GPL with their source code.
+It carries a copy of [gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl) (GPL-3, Heroic
+Games Launcher) for GOG downloads: `itch_deck/vendor/`.

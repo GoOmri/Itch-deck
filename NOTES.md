@@ -820,6 +820,50 @@ GOG step 2 = v0.9.2, APPROVED by Omri 16 Nov 12:00 (handed to a new code chat), 
   arguments, workingDir); ⚙ = Uninstall / Controls / Saves / Move (no Change build); auth file =
   DATA/gog/auth.json (already gogdl's format, written by stores/gog.py since v0.9.1). Risk: games
   needing redist / first-run setup -> error code, fix per game after the Deck test.
+GOG step 2 = v0.9.2 RELEASED 16 Nov (branch gog-install; pushed under Omri's "push when done").
+  Other unmerged branches at release: design-tabs (scrapped) and design-notice-align (design chat,
+  12:02, game-page notice alignment; NOT merged, told Omri).
+  - gogdl VENDORED: itch_deck/vendor/gogdl = heroic-gogdl 6c6ef53 (1.4.0), unchanged + LICENSE;
+    vendor/README.md says how to update it. Its C extension gogdl_xdelta3 (patch files, only
+    for updates) is a stand-in that raises -> GOG STEP 3 must build it or update by chunks.
+    Runs as a hidden mode of our own binary: run.py / __main__ `--gogdl <args>` ->
+    itch_deck/gogdl_mode.run (multiprocessing "fork", no pygame). build.sh: --paths
+    itch_deck/vendor --collect-submodules gogdl --hidden-import gogdl_xdelta3 requests;
+    requirements + requests. CI checks `release/scritch --gogdl --version` = 1.4.0. Checked
+    here: frozen build runs gogdl, requests + certifi bundled ("info" reached the proxy).
+  - stores/gog.py: helper_cmd() (frozen: [exe, --gogdl]; source: run.py), env = child_env +
+    GOGDL_CONFIG_PATH=DATA/gog (gogdl's manifests/exclude in DATA/gog/heroic_gogdl). _prepare:
+    our token refresh + an empty exclude/<id> file (gogdl opens it unchecked). info() = `gogdl
+    info` -> need bytes ("*" + en-US disk_size, Linux disk_size), build id, version.
+    install() = `gogdl update <id> --platform P --path <game>/files --lang en-US --skip-dlcs`
+    (update = no extra folder level; empty folder = full download; .gogdl-resume resumes),
+    progress "= Progress: 37.00 a/b … ETA: hh:mm:ss" + "+ Download - N MiB/s", cancel = SIGTERM
+    to its group. Fresh install drops a leftover manifest (else files count as present).
+    launch_info(): Linux = start.sh (chmod +x); Windows = goggame-<id>.info primary FileTask
+    (path/workingDir matched case-insensitively, string arguments shlex-split like gogdl, cwd =
+    game root when no workingDir, like gogdl). "setup" = goggame-*.script present (first-run
+    setup we don't run). forget() = delete manifest (uninstall).
+  - installer._install_gog: Linux build when GOG lists Linux, else Windows (GE-Proton + umu
+    first); Linux failing with "Couldn't install" -> Windows tried. Space check from info.
+    install.json: store gog, app_name, platform, exe, args, cwd, build_id, version, prefix
+    (Windows), setup. Codes: I05 (gogdl failed), I06 (nothing to start), P03 (crash + setup
+    scripts). words: "Sign in to GOG again", "Couldn't reach GOG" -> No internet.
+    check_updates skips every non-itch store.
+  - app_play: GOG args/cwd from install.json. Game page: read_only gone; GOG ⚙ = Uninstall /
+    Controls / Saves / Move (no Change build, like Epic). Saves + Move need nothing GOG-specific.
+  - FIXED (bug since v0.7.6): App start with an itch key but NO Epic went to Setup ("waiting")
+    and GOG only synced when Epic was connected (else attached to the Epic if). Now inside
+    `if key:`; both stores sync on their own.
+  - Tests: test_gog.py stand-in gogdl (Windows + Linux + fallback, progress, space x2, I06,
+    cancel, setup flag, signed out, launch_info), real vendored gogdl --version/--help + import
+    with the xdelta stand-in. Selftest: GOG game installs (stubbed) -> Play + ⚙ -> uninstall.
+    Mockups 15q (Install), 15r (downloading), 15s (⚙). Checked pytest 3.13 + 3.11 (145),
+    selftest 3.13 + 3.11, itch-reject selftest, mockups (180), PyInstaller build.
+  UNVERIFIED (no GOG here): real gogdl downloads on the Deck (fork workers in the frozen
+    build, 1 GiB shared memory), Linux installer layout (start.sh at the root), how many
+    Windows games need their first-run setup (VC++ etc.; P03).
+  Deck checklist v0.9.2: see the release message (install Windows game, cancel/resume, play,
+    quit combo, saves, move, uninstall, Linux-build game, a game failing -> code).
 v0.8.5 RELEASED 16 Nov 11:00 (Omri "push") = Move games + Controls row + design-balance docs.
   Omri 16 Nov 10:30 "go" incl. the registry address fix.
   - installer: move_target(gid, config.install_choices()) -> the other drive (needs 2 choices,

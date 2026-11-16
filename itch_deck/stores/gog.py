@@ -1,6 +1,7 @@
 """GOG through gogdl (Heroic's GOG helper, GPL-3).
 
-Step 1 (v0.9.x, this file): sign in + a read-only library tab. Step 2 adds install / play.
+Step 1 (v0.9.0/0.9.1): sign in + library tab. Step 2 (v0.9.2): install / play / uninstall with
+the vendored gogdl (itch_deck/vendor, run as `scritch --gogdl …` in its own process).
 
 - Signing in needs NO helper (v0.9.1): SCRiTCH makes gogdl's two token calls itself
   (auth.gog.com/token: authorization_code, refresh_token; Galaxy's public client id + secret)
@@ -19,8 +20,12 @@ import json
 import logging
 import os
 import re
+import shlex
+import subprocess
+import sys
 import time
 import urllib.parse
+from pathlib import Path
 
 from .. import net, paths
 
@@ -52,6 +57,27 @@ def auth_file():
 
 def user_file():
     return paths.DATA / "gog" / "user.json"
+
+
+def gogdl_home():
+    """gogdl's own config folder (GOGDL_CONFIG_PATH -> <this>/heroic_gogdl): manifests, excludes."""
+    return paths.DATA / "gog" / "heroic_gogdl"
+
+
+def manifest_file(app_name):
+    """gogdl's record of the files of an installed Windows build (Linux builds keep theirs
+    inside the game folder). A leftover one would make a reinstall skip files, so it goes with
+    the game."""
+    return gogdl_home() / "manifests" / str(app_name)
+
+
+def helper_cmd():
+    """How to start the vendored gogdl: our own binary in its hidden mode (frozen build), or
+    run.py from the source tree."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "--gogdl"]
+    run = Path(__file__).resolve().parents[2] / "run.py"
+    return [sys.executable, str(run), "--gogdl"]
 
 
 def code_from_text(text):
@@ -231,3 +257,224 @@ class GogStore:
     def details(self, app_name):
         """(paragraphs, screenshot urls) for a game page. Public API, no sign-in needed."""
         return page_from_json(net.get_json(PRODUCT_URL.format(app_name), timeout=25))
+
+    # --- step 2: install / play / uninstall (v0.9.2) ---------------------------------
+    def platforms_for(self, g):
+        """Builds to try, best first: Linux when GOG has one, else Windows (through Proton)."""
+        have = set(g.get("platforms") or [])
+        return [p for p in ("linux", "windows") if p in have]
+
+    def _env(self):
+        from ..runner import child_env               # never hand our bundled libs on
+        return dict(child_env(), GOGDL_CONFIG_PATH=str(gogdl_home().parent),
+                    PYTHONUNBUFFERED="1", PYINSTALLER_RESET_ENVIRONMENT="1")
+
+    def _cmd(self, *args):
+        return [*helper_cmd(), "--auth-config-path", str(auth_file()), *args]
+
+    def _prepare(self, app_name):
+        """A fresh token in auth.json (gogdl refreshes too, but our refresh says *why* it fails)
+        and gogdl's exclude file, which its downloaders open without checking it exists."""
+        self.token()
+        ex = gogdl_home() / "exclude" / str(app_name)
+        ex.parent.mkdir(parents=True, exist_ok=True)
+        if not ex.exists():
+            ex.write_text("")
+
+    def info(self, app_name, platform):
+        """gogdl info: {"need": bytes on disk or 0, "build": build id, "version": name}.
+        None when GOG has no such build. Raises GogError."""
+        self._prepare(app_name)
+        try:
+            r = subprocess.run(self._cmd("info", str(app_name), "--platform", platform,
+                                         "--lang", "en-US", "--skip-dlcs"),
+                               capture_output=True, text=True, timeout=180, env=self._env(),
+                               stdin=subprocess.DEVNULL)
+        except subprocess.TimeoutExpired:
+            raise GogError("Couldn't reach GOG") from None
+        except OSError as e:
+            log.warning("gog: can't start gogdl: %s", e)
+            raise GogError("Couldn't start the GOG helper") from None
+        data = None
+        for line in reversed((r.stdout or "").splitlines()):
+            if line.startswith("{"):
+                try:
+                    data = json.loads(line)
+                except ValueError:
+                    pass
+                break
+        if r.returncode != 0 or not isinstance(data, dict):
+            tail = (r.stderr or "").strip().splitlines()[-6:]
+            log.info("gog: info %s %s -> %s\n  %s", app_name, platform, r.returncode,
+                     "\n  ".join(tail))
+            _raise_for("\n".join(tail), none_ok=True)
+            return None
+        return {"need": _disk_size(data), "build": data.get("buildId"),
+                "version": data.get("versionName"), "folder": data.get("folder_name")}
+
+    def install(self, app_name, platform, folder, on_progress=None, cancel=None, log_file=None,
+                fresh=True):
+        """Download the build straight into folder (gogdl `update`: no extra folder level). An
+        interrupted one resumes (gogdl's .gogdl-resume in folder). fresh: forget an old manifest
+        first, so nothing counts as already there. on_progress(frac, mb_s, eta_s); cancel() ->
+        True stops (raises Cancelled). Returns launch_info(folder, …). Raises GogError."""
+        from ..net import Cancelled
+        self._prepare(app_name)
+        if fresh and not (Path(folder) / ".gogdl-resume").exists():
+            manifest_file(app_name).unlink(missing_ok=True)
+        cmd = self._cmd("update", str(app_name), "--platform", platform, "--path", str(folder),
+                        "--lang", "en-US", "--skip-dlcs")
+        try:
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                 bufsize=1, env=self._env(), stdin=subprocess.DEVNULL,
+                                 start_new_session=True)
+        except OSError as e:
+            log.warning("gog: can't start gogdl: %s", e)
+            raise GogError("Couldn't start the GOG helper") from None
+        tail, speed = [], 0.0
+        out = open(log_file, "w") if log_file else None
+        stopper = None
+        try:
+            if cancel:                                # cancel even while gogdl is quiet
+                import threading
+                stopper = threading.Event()
+
+                def watch():
+                    while not stopper.wait(0.5):
+                        if cancel() and p.poll() is None:
+                            _stop(p)
+                            return
+                threading.Thread(target=watch, daemon=True, name="gog-cancel").start()
+            for line in p.stdout:
+                if out:
+                    out.write(line)
+                tail = (tail + [line.rstrip()])[-25:]
+                m = PROGRESS.search(line)
+                if m and on_progress:
+                    h, mi, s_ = (int(x) for x in m.group(2, 3, 4))
+                    on_progress(float(m.group(1)) / 100, speed, h * 3600 + mi * 60 + s_)
+                m = SPEED.search(line)
+                if m:
+                    speed = float(m.group(1)) * 1.048576     # MiB/s -> MB/s
+            p.wait()
+        finally:
+            if stopper:
+                stopper.set()
+            if out:
+                out.close()
+        if cancel and cancel():
+            raise Cancelled()
+        text = "\n".join(tail)
+        if p.returncode != 0 or "Traceback (most recent call last)" in text:
+            log.info("gog: install %s (%s) -> %s\n  %s", app_name, platform, p.returncode,
+                     "\n  ".join(tail[-8:]))
+            _raise_for(text)
+        return launch_info(folder, app_name, platform)
+
+    def forget(self, app_name):
+        """The game was uninstalled: drop gogdl's manifest so a reinstall downloads everything."""
+        manifest_file(app_name).unlink(missing_ok=True)
+
+
+PROGRESS = re.compile(r"= Progress: ([\d.]+) \d+/\d+.*?ETA: (\d+):(\d+):(\d+)")
+SPEED = re.compile(r"\+ Download\s*-\s*([\d.]+) MiB/s")
+NO_PLAY = "no play task"        # InstallError text for code I06
+
+
+def _raise_for(text, none_ok=False):
+    """gogdl's last lines -> a short GogError (none_ok: return quietly when nothing matched)."""
+    low = text.lower()
+    if "disk space" in low:
+        raise GogError("Not enough space")
+    if "401" in low or "unauthorized" in low or "failed to refresh credentials" in low:
+        raise GogError("Signed out of GOG")
+    if any(w in low for w in ("connectionerror", "max retries", "name resolution",
+                              "failed to reach", "timed out", "read timed out")):
+        raise GogError("Couldn't reach GOG")
+    if not none_ok:
+        raise GogError("Couldn't install")
+
+
+def _disk_size(data):
+    """Bytes on disk from gogdl info: Linux = disk_size; Windows = the shared files ("*") plus
+    the English ones."""
+    if isinstance(data.get("disk_size"), (int, float)):
+        return int(data["disk_size"])
+    size = data.get("size") or {}
+    total = 0
+    for k in ("*", "en-US"):
+        v = size.get(k) if isinstance(size, dict) else None
+        if isinstance(v, dict):
+            total += int(v.get("disk_size") or 0)
+    return total
+
+
+def _ci(root, rel):
+    """root/rel, matching each part case-insensitively (GOG's paths come from Windows)."""
+    cur = Path(root)
+    for part in [x for x in rel.replace("\\", "/").split("/") if x and x != "."]:
+        nxt = cur / part
+        if not nxt.exists() and cur.is_dir():
+            low = part.lower()
+            nxt = next((c for c in cur.iterdir() if c.name.lower() == low), nxt)
+        cur = nxt
+    return cur
+
+
+def launch_info(folder, app_name, platform):
+    """How to start an installed GOG game, relative to folder:
+    {"exe", "args", "cwd", "setup"}. Linux builds: start.sh (GOG's own launcher script).
+    Windows: the primary play task of goggame-<id>.info (path, arguments, workingDir; the game
+    root when no workingDir, like gogdl/Heroic). "setup": the game ships first-run setup
+    scripts (goggame-*.script) that SCRiTCH doesn't run yet (error code P03 if it then fails).
+    Raises GogError(NO_PLAY) when there's nothing to start."""
+    folder = Path(folder)
+    if platform == "linux":
+        sh = folder / "start.sh"
+        if not sh.is_file():
+            raise GogError(NO_PLAY)
+        try:
+            sh.chmod(sh.stat().st_mode | 0o111)
+        except OSError:
+            pass
+        return {"exe": "start.sh", "args": [], "cwd": "", "setup": False}
+    infos = sorted(folder.glob("goggame-*.info"), key=lambda f: f.name != f"goggame-{app_name}.info")
+    tasks = []
+    for f in infos:
+        try:
+            tasks = json.loads(f.read_text(encoding="utf-8-sig")).get("playTasks") or []
+        except (OSError, ValueError, AttributeError):
+            tasks = []
+        if tasks:
+            break
+    files = [t for t in tasks if isinstance(t, dict) and t.get("path")
+             and t.get("type", "FileTask") == "FileTask"]
+    task = next((t for t in files if t.get("isPrimary")), files[0] if files else None)
+    if not task:
+        raise GogError(NO_PLAY)
+    exe = _ci(folder, task["path"])
+    if not exe.is_file():
+        raise GogError(NO_PLAY)
+    args = task.get("arguments") or []
+    if isinstance(args, str):                     # gogdl does the same with a string
+        try:
+            args = shlex.split(args.replace("\\", "/"))
+        except ValueError:
+            args = args.split()
+    cwd = _ci(folder, task.get("workingDir") or "")
+    return {"exe": exe.relative_to(folder).as_posix(), "args": [str(a) for a in args],
+            "cwd": cwd.relative_to(folder).as_posix() if cwd.is_dir() else "",
+            "setup": any(folder.glob("goggame-*.script"))}
+
+
+def _stop(p):
+    """Stop gogdl and its download workers (own process group); it keeps a resume file."""
+    import signal
+    try:
+        os.killpg(p.pid, signal.SIGTERM)
+        p.wait(10)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except OSError:
+            pass

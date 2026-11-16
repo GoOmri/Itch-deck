@@ -17,9 +17,11 @@ log = logging.getLogger("scritch")
 CODES = {
     # I = install
     "I01": "install: unexpected error (traceback in the log)",
-    "I02": "itch: no Linux or Windows download for this game",
+    "I02": "itch / GOG: no Linux or Windows download for this game",
     "I03": "itch: install started without an itch key",
     "I04": "Epic: legendary couldn't install the game",
+    "I05": "GOG: gogdl couldn't install the game (its output: logs/games/<game>-install.log)",
+    "I06": "GOG: the installed files have no play task / start.sh to start",
     # W = Windows games, GE-Proton, umu-launcher
     "W01": "umu-launcher: no download found in its GitHub release",
     "W02": "GE-Proton: no download found in its GitHub release",
@@ -35,6 +37,7 @@ CODES = {
     # P = play
     "P01": "game: closed straight away, no known hint",
     "P02": "Mouse or Keys mode didn't start",
+    "P03": "GOG game closed straight away and ships first-run setup scripts SCRiTCH doesn't run yet",
     # L = library
     "L01": "library: refresh failed (not offline, not the key)",
     # U = app update
@@ -78,6 +81,9 @@ _HINTS = (
     ("API key", "Sign in to itch again"),
     ("Signed out of Epic", "Connect Epic again"),
     ("Connect Epic Games", "Connect Epic again"),
+    ("Signed out of GOG", "Sign in to GOG again"),
+    ("Sign in to GOG", "Sign in to GOG again"),
+    ("Couldn't reach GOG", "No internet"),
     # the build itself is the problem: another build usually works (⚙ Options → Change build)
     ("program to run", "Try another build in Options"),
     ("couldn't be unpacked", "Try another build in Options"),

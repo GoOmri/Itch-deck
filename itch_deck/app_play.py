@@ -63,6 +63,10 @@ class PlayMixin:
             cwd = lp.get("working_directory") or None
             log.info("play: epic %s -> %s (%d args, %d sign-in args)", info["app_name"],
                      exe, len(args), len(secret))
+        elif info.get("store") == "gog":          # from GOG's play task (stores/gog.launch_info)
+            args = list(info.get("args") or [])
+            cwd = str(Path(info["dir"]) / "files" / info["cwd"]) if info.get("cwd") else None
+            log.info("play: gog %s -> %s (%d args)", info.get("app_name"), exe, len(args))
         state = {"closed": False}
         mm = None
         eff = self.controls_of(g)[1]
@@ -110,6 +114,9 @@ class PlayMixin:
             log.info("play: %s crashed%s", g["id"], f" ({hint})" if hint else "")
             if hint:
                 self.say(f"{g['title']} couldn't start. {hint}", error=True)
+            elif info.get("setup"):              # GOG first-run setup we don't run yet
+                words.log_code("P03", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
+                self.say(words.with_code(f"{g['title']} couldn't start.", "P03"), error=True)
             else:
                 words.log_code("P01", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
                 self.say(words.with_code(f"{g['title']} couldn't start.", "P01"), error=True)
