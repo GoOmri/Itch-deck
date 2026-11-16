@@ -24,7 +24,7 @@ from .app_epic import EpicMixin
 from .app_gog import GogMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.0"
+VERSION = "0.9.1"
 
 
 def setup_logging():

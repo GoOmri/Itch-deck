@@ -796,7 +796,7 @@ v0.9.0 Deck test (16 Nov 11:41): ✗ Deck "Can't reach GOG. Check Wi-Fi", phone 
   Linux file in a separate zipapp job and publishes releases as hand-made DRAFTS, so the asset
   name/presence on "latest" isn't reliable; my v0.9.0 check only read the workflow. The phone hung
   because the login waited for job["ready"], which never came, so phone_status never changed.
-Fix v0.9.1 (branch gog-fix-signin, NOT released, VERSION still 0.9.0: bump on push):
+Fix v0.9.1 RELEASED 16 Nov (Omri "push" 11:51; branch gog-fix-signin; only other branch design-tabs = scrapped):
   - stores/gog.py signs in WITHOUT gogdl: _ask() = GET auth.gog.com/token (client id + secret
     from gogdl/auth.py; grant authorization_code with redirect_uri, or refresh_token); HTTP 4xx =
     refused (False), other failures = GogError "Couldn't reach GOG". _save() writes gogdl's own
