@@ -512,3 +512,13 @@ def test_gog_setup_tool_is_downloaded(tmp_path, monkeypatch):
     info = inst.index["gog-3"]
     isi = next(s_ for s_ in info["setup_steps"] if s_["name"] == "ISI")
     assert gog.step_exe(isi, paths.Path(info["dir"]) / "files")
+
+
+def test_file_arguments_become_windows_paths(tmp_path):
+    """Eye of the Beholder: DOSBox's -conf "..\\dosbox_eob1.conf" as a full Z:\\ path."""
+    (tmp_path / "DOSBOX").mkdir()
+    (tmp_path / "dosbox_eob1.conf").write_text("")
+    args = ["-conf", "../dosbox_eob1.conf", "-conf", "..\\missing.conf", "-noconsole", "-c", "exit"]
+    out = gog.windows_args(args, tmp_path / "DOSBOX")
+    assert out[1] == "Z:" + str((tmp_path / "dosbox_eob1.conf").resolve()).replace("/", "\\")
+    assert out[0] == "-conf" and out[3] == "..\\missing.conf" and out[4:] == ["-noconsole", "-c", "exit"]

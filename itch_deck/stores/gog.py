@@ -593,6 +593,22 @@ def windows_path(p):
     return "Z:" + str(p).replace("/", "\\")
 
 
+def windows_args(args, cwd):
+    """Arguments that name a file of the game (DOSBox's -conf "..\\x.conf") as full Windows
+    paths (Z:\\…), so the game finds them whatever folder Proton starts it in. Eye of the Beholder
+    (16 Nov): DOSBox loaded only its default settings, ran nothing and closed."""
+    out = []
+    for a in args:
+        rel = a.replace("\\", "/")
+        if a and not a.startswith(("-", "/")) and ("/" in rel or "." in rel):
+            p = Path(cwd) / rel
+            if p.exists():
+                out.append(windows_path(p.resolve()))
+                continue
+        out.append(a)
+    return out
+
+
 OK_CODES = (0, 1638, 3010, 1641)      # 1638 already installed, 3010/1641 = reboot wanted
 
 

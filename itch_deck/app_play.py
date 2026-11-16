@@ -68,6 +68,9 @@ class PlayMixin:
         elif info.get("store") == "gog":          # from GOG's play task (stores/gog.launch_info)
             args = list(info.get("args") or [])
             cwd = str(Path(info["dir"]) / "files" / info["cwd"]) if info.get("cwd") else None
+            if info.get("platform") == "windows":
+                from .stores.gog import windows_args
+                args = windows_args(args, cwd or exe.parent)
             log.info("play: gog %s -> %s (%d args)", info.get("app_name"), exe, len(args))
         state = {"closed": False}
         mm = None
