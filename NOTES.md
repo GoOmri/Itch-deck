@@ -952,13 +952,10 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - Logo font: pick a font, then make SCRiTCH an outlined SVG (colours baked in) used by the app
   wordmark, the phone pages and the README, so it looks the same everywhere. Check the licence.
 
-## Design chat 16 Nov (branch design-balance, not merged)
+## Design chat 16 Nov (branch design-balance: DESIGN.md + NOTES only)
 - Galleries were behind: the Deck gallery held only the last batch (3 screens), the phone gallery
   had no Epic pages and said v0.7. Both rebuilt (see working rules above).
-- Balance idea, mockup only: `Game.balance` (default off, the app never sets it) skips putting the
-  buttons on the cover's bottom edge. Mockups 15i_game_sparse (today) / 15j_game_sparse_balance:
-  it only shows for games with little info. Waiting for Omri.
-- Setup (itch) words audit, nothing changed yet: 10 places marked in the gallery (file names,
-  Warpinator, ~/Downloads, "Steam + X" written out instead of glyphs, "read and then deleted",
-  RustDesk, "import it again" after a phone send). Epic's setup already reads clean. Belongs with
-  ROADMAP 3 "Ready to share"; waiting for Omri on which are on purpose.
+- DECIDED (Omri): no "balance". Game page buttons stay on the cover's bottom edge so every page
+  looks the same whatever the description length. In DESIGN.md §6.
+- DECIDED (Omri): Setup's technical words (API keys, itch_key.txt, ~/Downloads, Warpinator,
+  Steam + X, RustDesk, the QR address) are needed for onboarding. DESIGN.md §10 exception.

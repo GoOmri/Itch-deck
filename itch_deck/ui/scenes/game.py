@@ -247,9 +247,7 @@ class Game(Scene):
             y = W.wrap(t, s, g["short_text"], x, y, t.f_body, tw, max_lines=2)
         y += t.md
 
-        # buttons sit on the cover's bottom edge unless pushed down; "balance" (mockup only,
-        # waiting for Omri) keeps them right under the text instead
-        if self.actions() and not getattr(self, "balance", False):
+        if self.actions():              # buttons sit on the cover's bottom edge unless pushed down
             y = max(y, cover_r.bottom - t.btn_h)
         acts = self.actions()                    # one row; LEFT/RIGHT moves focus
         on = self.section == "actions" and not self.overlay

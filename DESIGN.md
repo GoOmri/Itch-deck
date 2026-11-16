@@ -74,6 +74,9 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   + a square **⚙ Options** next to it. When itch has a newer build: **Play · Update · ⚙**
   (Update grey, Play stays the purple main action), no message box. Uninstall, Change build, Controls live in Options;
   ☰ opens it too (on a game page ☰ = Options, never Settings).
+  The buttons sit on the cover's bottom edge (pushed lower only when the text is longer), so
+  every game page looks the same whatever its description length (Omri 16 Nov: decided, not
+  "buttons right under the text").
 - **Game page info:** title (wraps to 2 lines, then "…"), "by author" (dim), then the facts as icon + value pairs
   (`W.facts`, drawn icons, dim icon / white value, wraps to a second row): ✓ Installed
   (purple) · size (+ free space before installing, red when it won't fit) · genre · time to
@@ -162,6 +165,10 @@ a few plain words the player can act on ("Not enough space", "No internet"), or 
 place maps reasons to those words: `words.short()`; crash hints in `runner.HINTS`. An action
 gets a button, never a sentence telling the player where to find it ("Options → Update"). No explanations of how things work
 ("installer runs silently"): if it doesn't help decide or act, cut it.
+**Onboarding is the exception** (Omri 16 Nov): Setup may name what the player must find or
+use outside SCRiTCH: itch's own words ("API keys", "Generate new API key"), the key file and
+its folder, Warpinator, Steam + X, Ctrl+V (RustDesk), the address under the QR. Without them
+a first-time player can't get through. Keep it to Setup / sign-in screens.
 Dialogs: at most 2 short sentences, one per line, always wrapped inside the box (`W.modal`
 wraps; pass a list of lines). Text is never cut off.
 *Why:* every extra line is something to read with a controller in your hands.
