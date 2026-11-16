@@ -1273,3 +1273,19 @@ libFLAC.so.8 (not on SteamOS); message said "Try another build in Options" but G
   15t_game_gog_versions. Checked pytest 3.13 + 3.11 (153), selftest both, itch-reject, mockups (182).
 UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/gog/redist?), ISI
   args on real games, update detection on a real patched GOG game.
+
+## v0.9.6 RELEASED 16 Nov (branch v095b-gog-fix; Omri "push" 15:55) = Eye of the Beholder fixes
+- v0.9.5 Deck: EOB Windows build showed DOSBox ~2 s then exit 0. setup log: "ISI: __redist/ISI/
+  scriptinterpreter.exe not found" (redist ids never included ISI). DOSBOX/stdout.txt: only
+  "Loading primary settings from ...AppData\Local\DOSBox\dosbox-0.74-2.1.conf": the game's -conf
+  "..\dosbox_eob1.conf" / "..\dosbox_eob1_single.conf" (autoexec: pause, mount c "..", start.exe)
+  were never read. stdout.txt was in files/DOSBOX = cwd right.
+- Fix 1: _install_gog adds "ISI" to the redist ids when goggame-*.script exist. app_play
+  _gog_needs_setup: run the first-run setup again when a step's file is missing (heals v0.9.5
+  installs); first-run fetches missing redist parts itself (lib.gog.redist) before running.
+  setup_done only when every step's file exists.
+- Fix 2: gog.windows_args at Play (Windows GOG builds): an argument that names an existing file
+  relative to the working dir becomes a full Z:\ path. Cause not proven (Proton cwd vs "/"),
+  this covers both. Next if it still fails: native DOSBox (gogdl uses dosbox-staging/flatpak if
+  present) or a GOG DOSBox fix list.
+- Tests: ISI asked, windows_args. pytest 3.13 + 3.11 (155), selftest.
