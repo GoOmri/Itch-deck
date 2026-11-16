@@ -961,4 +961,5 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   Steam + X, RustDesk, the QR address) are needed for onboarding. DESIGN.md §10 exception.
 - SCRAPPED (Omri 16 Nov): centred tab carousel (chosen tab dead centre, row slides, opacity
   ramp, soft band). It clashed with the info on the right (count, filter tag). Tabs stay next to
-  the logo with the purple underline. Don't re-propose.
+  the logo with the purple underline. Don't re-propose. Branch design-tabs = scrapped, NEVER
+  merge it (couldn't delete it from here; Omri can delete it on GitHub).
