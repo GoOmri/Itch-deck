@@ -959,3 +959,6 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   looks the same whatever the description length. In DESIGN.md §6.
 - DECIDED (Omri): Setup's technical words (API keys, itch_key.txt, ~/Downloads, Warpinator,
   Steam + X, RustDesk, the QR address) are needed for onboarding. DESIGN.md §10 exception.
+- SCRAPPED (Omri 16 Nov): centred tab carousel (chosen tab dead centre, row slides, opacity
+  ramp, soft band). It clashed with the info on the right (count, filter tag). Tabs stay next to
+  the logo with the purple underline. Don't re-propose.
