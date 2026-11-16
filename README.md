@@ -37,6 +37,9 @@ You need a Steam Deck (or another SteamOS / Linux PC) and an itch.io account.
 2. In the tile's **Properties**, rename it (for example *SCRiTCH*). Leave **Compatibility**
    off, because it's a native Linux app.
 3. Back in Game Mode: tile → controller icon → pick the **Gamepad** template.
+4. Optional, for a proper tile: download the art from
+   [`packaging/steam-art`](packaging/steam-art), then in Steam right-click the tile →
+   **Manage → Set custom artwork** (and set the logo and icon the same way).
 
 That's the only Desktop Mode step. Everything below happens in Game Mode.
 

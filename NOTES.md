@@ -1182,3 +1182,13 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   ramp, soft band). It clashed with the info on the right (count, filter tag). Tabs stay next to
   the logo with the purple underline. Don't re-propose. Branch design-tabs = scrapped, NEVER
   merge it (couldn't delete it from here; Omri can delete it on GitHub).
+
+## Logo (16 Nov, branch design-logo)
+- Omri's SVG: `itch_deck/assets/logo.svg`; `W.wordmark` draws it (cap height of Inter Bold at
+  `size`, same baseline/box as before), text fallback if SDL_image can't read SVG. Phone pages
+  inline it on top (`phonelink.LOGO`); headings under it drop " to SCRiTCH" (tab title keeps it).
+  README uses `<picture>` with `docs/logo-on-light.svg` (white parts -> #10101e) for GitHub light.
+- Steam art: `packaging/steam_art.py` -> `packaging/steam-art/` tile 600x900, wide-tile 920x430,
+  hero 3840x1240, logo (transparent), icon 256 (the i alone). README step 4 sets it by hand.
+  FOR THE CODE CHAT (optional): the app could copy these into Steam's grid folder itself
+  (userdata/<id>/config/grid/<shortcut appid>p.png, .png, _hero.png, _logo.png, _icon.png).
