@@ -1130,12 +1130,17 @@ def toast(t, s, msg, error=False):
     s.blit(box, r)
 
 
+def notice_h(t, body=None):
+    """Height of a notice box (to line one up before drawing it)."""
+    lh = t.f_btn.get_linesize() + (t.f_small.get_linesize() if body else 0)
+    return int(lh + (t.md if body else t.sm) * 2)  # one-liners stay slim
+
+
 def notice(t, s, x, y, w, title, body=None, kind="error"):
     """Status box. kind="error": red bar + error_bg (red only for errors);
     kind="info": neutral panel (SD card missing, queued…); kind="busy": neutral + spinner."""
-    lh = t.f_btn.get_linesize() + (t.f_small.get_linesize() if body else 0)
-    vpad = t.md if body else t.sm                 # one-liners stay slim
-    r = pg.Rect(int(x), int(y), int(w), int(lh + vpad * 2))
+    vpad = t.md if body else t.sm
+    r = pg.Rect(int(x), int(y), int(w), notice_h(t, body))
     panel(t, s, r, t.error_bg if kind == "error" else t.panel)
     if kind == "error":
         pg.draw.rect(s, t.error, (r.x, r.y, max(3, t.u // 2), r.h),
