@@ -332,7 +332,9 @@ class Library(Scene):
         i0 = int(at); f = at - i0
         c_at = cs[i0] + (cs[min(i0 + 1, len(cs) - 1)] - cs[i0]) * f
         cx = t.w // 2
-        shift = cx - c_at
+        mid = (cs[0] - ws[0] / 2 + cs[-1] + ws[-1] / 2) / 2      # middle of the whole row
+        pull = {"tab": 1.0, "half": 0.5, "group": 0.0}[getattr(self, "tab_center", "tab")]
+        shift = cx - (mid + (c_at - mid) * pull)     # how far the row follows the chosen tab
         # the band: lightest in the middle, gone at both sides
         bw, bh = int(t.u * 44), int(t.u * 5.6)
         band = pg.Surface((bw, bh), pg.SRCALPHA)
@@ -341,21 +343,27 @@ class Library(Scene):
             for py in range(bh):
                 ay = 1 - (abs(py - bh / 2) / (bh / 2)) ** 3
                 band.set_at((px, py), (*t.panel_hi, int(190 * ax * ay)))
-        s.blit(band, (cx - bw // 2, base - W.x_mid(t.f_btn) - bh // 2))
-        fade = t.u * 6                                  # tabs fade out before the logo / count
+        tx = int(c_at + shift)                         # the chosen tab's centre
+        s.blit(band, (tx - bw // 2, base - W.x_mid(t.f_btn) - bh // 2))
+        # the text: all white, drawn on one layer, then an opacity ramp from the middle
+        # (full in the middle, fading towards the sides) and gone before the logo / count
+        row = pg.Surface((t.w, big.get_height() + t.u * 2), pg.SRCALPHA)
+        top = base - big.get_ascent() - t.u
         for i, (key, label) in enumerate(keys):
-            d = abs(i - at)
-            on = d < 0.5
-            font = big if on else small
-            col = t.text_c if on else (t.dim if d < 1.5 else t.faint)
-            img = font.render(label, True, col)
-            c = cs[i] + shift
-            r = img.get_rect(bottomleft=(int(c - img.get_width() / 2), base + (-font.get_descent())))
-            edge = min(r.left - left, right - r.right)
-            if edge < 0 and edge < -r.w:
-                continue
-            img.set_alpha(max(0, min(255, int(255 * (edge + r.w * 0.5) / fade))) if edge < fade else 255)
-            s.blit(img, r)                 # background work lives in the footer now
+            font = big if abs(i - at) < 0.5 else small
+            img = font.render(label, True, t.text_c)
+            row.blit(img, img.get_rect(bottomleft=(int(cs[i] + shift - img.get_width() / 2),
+                                                   base - top + (-font.get_descent()))))
+        ramp = pg.Surface((t.w, 1), pg.SRCALPHA)
+        reach, fade = t.u * 34, t.u * 5          # ramp length; fade-out zone at the sides
+        hold = big.size(keys[cur][1])[0] / 2      # the chosen tab stays fully white
+        for px in range(t.w):
+            d = max(0, abs(px - tx) - hold) / reach
+            a = 1 - 0.85 * min(1, d) ** 0.8       # 100% in the middle -> 15% at the far end
+            a *= max(0, min(1, min(px - left, right - px) / fade))
+            ramp.set_at((px, 0), (255, 255, 255, int(255 * a)))
+        row.blit(pg.transform.scale(ramp, row.get_size()), (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+        s.blit(row, (0, top))                 # background work lives in the footer now
 
     def footer_status(self):
         return self.activity or ("Refreshing library" if self.syncing == "bg" else None), self.notice
