@@ -1331,3 +1331,14 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
   latin-1: GOG's CP437 boxes; v0.9.7 re-encoded them as UTF-8), and return its commands minus
   cls/pause/echo/rem/exit; mount/imgmount paths "\\" -> "/". launch passes them as -c, then GOG's
   own -c ("exit"). Copy-protection notice + pause no longer shown (the in-game question stays).
+
+## v0.9.10 (17 Nov, branch v0910-gog-heroic-setup, pushed to main at Omri's request; tests only run on Windows partially) = GOG first-run setup like Heroic's setup.ts
+- stores/gog.setup_steps now follows Heroic: game's own setup first (ISI when the saved gogdl manifest says
+  scriptInterpreter, or goggame-*.script exist; else the product's temp_executable from DATA/gog/heroic_gogdl/
+  support/<id>/), then the shared parts. ISI args gained /lang-code=en-US + /supportDir=; /LANG=English.
+  PHYSXLEGACY runs as `msiexec /i … /qb`; ScummVM games get a Linux /DIR. Redist steps run with the redist
+  folder as cwd, ISI/setup with the game folder (Heroic's startFolder). Takes effect on (re)install.
+- NOT changed: DOS games (dosbox.exe) still skip Proton setup. EOB's 1 s DOSBox exit is still unexplained;
+  Heroic passes the play-task args unchanged (conf autoexec intact), we strip [autoexec] since v0.9.9.
+  Next, if it still P03s: send logs/games/eye-of-the-beholder.log + app.log "game log ends".
+- tests/test_gog.py: 11 of 22 fail on Windows even before this (POSIX stand-ins); need a Linux run.

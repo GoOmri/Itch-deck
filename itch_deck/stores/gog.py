@@ -78,9 +78,24 @@ def redist_dir():
     return paths.DATA / "gog" / "redist"
 
 
-ISI_ARGS = ["/VERYSILENT", "/DIR={dir}", "/Language=English", "/LANG=english",
+ISI_ARGS = ["/VERYSILENT", "/DIR={dir}", "/Language=English", "/LANG=English",
             "/ProductId={id}", "/galaxyclient", "/buildId={build}", "/versionName={version}",
+            "/lang-code=en-US", "/supportDir={support}",
             "/nodesktopshorctut", "/nodesktopshortcut"]   # (sic: both spellings, like Heroic)
+
+
+def support_dir(app_name=""):
+    """Where GOG's per-game support files (setup helpers) are kept, like Heroic's gogSupportPath."""
+    return gogdl_home() / "support" / str(app_name)
+
+
+def manifest_data(app_name):
+    """gogdl's saved manifest of a Windows build, or {} (Heroic reads it for the setup)."""
+    try:
+        d = json.loads(manifest_file(app_name).read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
 
 
 def helper_cmd():
@@ -548,12 +563,38 @@ def launch_info(folder, app_name, platform):
 
 def setup_steps(folder, app_name, deps, repo, build=None, version=None):
     """GOG's first-run setup for a Windows build, as SCRiTCH will run it on the first Play:
-    [{"name", "base": "redist"|"game", "path", "args"}] (paths relative, so Move doesn't break
-    them). deps = the game's dependency ids (gogdl info); repo = GOG's dependency list
-    (redist()). GOG's setup tool (ISI) runs last when the game ships goggame-*.script files."""
+    [{"name", "base": "redist"|"game"|"support", "path", "args"}] (paths relative, so Move
+    doesn't break them). deps = the game's dependency ids (gogdl info); repo = GOG's dependency
+    list (redist()). Order like Heroic (setup.ts): the game's own setup first (GOG's script
+    interpreter ISI when its manifest says scriptInterpreter, else a product's temp_executable),
+    then the shared parts (Visual C++, DirectX…)."""
     depots = {d.get("dependencyId"): d for d in (repo or {}).get("depots") or []
               if isinstance(d, dict)}
+    man = manifest_data(app_name)
+    scummvm = any(str(d).lower() == "scummvm" for d in deps or [])
     steps = []
+    wants_isi = bool(man.get("scriptInterpreter")) or any(Path(folder).glob("goggame-*.script"))
+    if wants_isi:
+        isi = (depots.get("ISI") or {}).get("executable") or {}
+        sup = str(support_dir(app_name)) if scummvm else windows_path(support_dir(app_name))
+        steps.append({"name": "ISI", "base": "redist",
+                      "path": (isi.get("path") or "__redist/ISI/scriptinterpreter.exe").replace("\\", "/"),
+                      "args": [a.format(dir="{dir}", id=app_name, build=build or "",
+                                        version=version or "", support=sup) for a in ISI_ARGS],
+                      "linux_dir": scummvm})
+    else:
+        for prod in man.get("products") or []:
+            if not isinstance(prod, dict) or str(prod.get("productId")) != str(app_name):
+                continue
+            exe = prod.get("temp_executable")
+            if exe:
+                steps.append({"name": "setup", "base": "support",
+                              "path": f"{app_name}/{exe}".replace("\\", "/"),
+                              "args": ["/VERYSILENT", "/DIR={dir}", "/Language=English",
+                                       "/LANG=English", "/lang-code=en-US",
+                                       f"/ProductId={app_name}", "/galaxyclient",
+                                       f"/buildId={build or ''}", f"/versionName={version or ''}",
+                                       "/nodesktopshorctut", "/nodesktopshortcut"]})
     for dep in deps or []:
         exe = (depots.get(dep) or {}).get("executable") or {}
         path = (exe.get("path") or "").replace("\\", "/")
@@ -563,21 +604,24 @@ def setup_steps(folder, app_name, deps, repo, build=None, version=None):
             args = shlex.split(exe.get("arguments") or "")
         except ValueError:
             args = (exe.get("arguments") or "").split()
+        if dep == "PHYSXLEGACY":                  # Heroic: force the hands-free MSI install
+            args = ["/qb"]
+            steps.append({"name": dep, "base": "redist", "path": path, "args": args,
+                          "msi": True})
+            continue
         steps.append({"name": dep, "base": "redist" if path.startswith("__redist") else "game",
                       "path": path, "args": args})
-    if any(Path(folder).glob("goggame-*.script")):
-        isi = (depots.get("ISI") or {}).get("executable") or {}
-        steps.append({"name": "ISI", "base": "redist",
-                      "path": (isi.get("path") or "__redist/ISI/scriptinterpreter.exe").replace("\\", "/"),
-                      "args": [a.format(dir="{dir}", id=app_name, build=build or "",
-                                        version=version or "") for a in ISI_ARGS]})
     return steps
 
 
 def step_exe(step, folder):
     """Where a setup step's program is (case-insensitive; redist files may sit with or without
     the __redist folder level). None if it isn't there."""
-    bases = [redist_dir()] if step["base"] == "redist" else [Path(folder)]
+    bases = {"redist": [redist_dir()], "support": [support_dir(Path(step["path"]).parts[0])
+                                                    if "/" in step["path"] else support_dir()]
+             }.get(step["base"], [Path(folder)])
+    if step["base"] == "support":
+        step = dict(step, path=step["path"].split("/", 1)[-1])
     rels = [step["path"]]
     if step["path"].startswith("__redist/"):
         rels.append(step["path"][len("__redist/"):])
@@ -628,7 +672,7 @@ def run_setup(steps, folder, umu, env, log_file, timeout=900):
             out.write(f"# {st['name']}: {exe} {' '.join(args)}\n")
             out.flush()
             try:
-                r = subprocess.run([str(umu), str(exe), *args], cwd=str(exe.parent),
+                r = subprocess.run(cmd, cwd=str(cwd),
                                    env=dict(child_env(), **env), stdout=out,
                                    stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                    timeout=timeout, start_new_session=True)
