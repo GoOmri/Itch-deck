@@ -24,7 +24,7 @@ from .app_epic import EpicMixin
 from .app_gog import GogMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.3"
+VERSION = "0.9.4"
 
 
 def setup_logging():
@@ -78,6 +78,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin):
         widgets.LIVE = True                # animate scrolling + spinners (mockups stay still)
         self.updater = Updater(VERSION)
         self.updater.check(quiet=True)     # one GitHub call at launch; Settings shows the result
+        from . import steam_art
+        steam_art.apply_in_background()    # SCRiTCH's own Steam tile art, once (v0.9.4)
         self.update_told = False
         if key:
             self.go_library()

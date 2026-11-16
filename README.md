@@ -37,9 +37,10 @@ You need a Steam Deck (or another SteamOS / Linux PC) and an itch.io account.
 2. In the tile's **Properties**, rename it (for example *SCRiTCH*). Leave **Compatibility**
    off, because it's a native Linux app.
 3. Back in Game Mode: tile → controller icon → pick the **Gamepad** template.
-4. Optional, for a proper tile: download the art from
-   [`packaging/steam-art`](packaging/steam-art), then in Steam right-click the tile →
-   **Manage → Set custom artwork** (and set the logo and icon the same way).
+4. Optional, the icon: in the same **Properties**, click the icon square and pick
+   `~/Applications/scritch/scritch-icon.png` (SCRiTCH puts it there on its first start).
+   The tile, banner and logo art set themselves the first time SCRiTCH starts (Steam may show
+   them after going back to Game Mode). Art you've set yourself is never replaced.
 
 That's the only Desktop Mode step. Everything below happens in Game Mode.
 

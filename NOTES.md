@@ -1217,3 +1217,19 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
 - Steam shows new grid files after a Steam restart (or Game Mode reload) at worst. Read-only on
   shortcuts.vdf; a test with a hand-made binary VDF. Then README step 4 (set art by hand) goes.
 - Size: small-medium (VDF reader + copy + tests), one update.
+
+## v0.9.4 = Steam art set automatically (branch steam-art-auto; Omri 13:32 "build it", waits for "push")
+- Pulled forward from ROADMAP 3 (item above). itch_deck/steam_art.py: read_vdf (binary VDF, types
+  0/1/2/7/8), find_shortcuts (every Steam root + userdata/<user>; entry whose Exe resolves to the
+  launcher, updater.launcher_path(); appid & 0xFFFFFFFF), apply() copies tile/wide-tile/hero/logo
+  as <appid>p/<appid>/<appid>_hero/<appid>_logo .png; skips names that exist as any picture type;
+  once per user/appid (DATA/steam_art.json, so art removed on purpose stays gone); icon.png ->
+  <launcher dir>/scritch-icon.png for the player (Steam reads the icon from shortcuts.vdf, which
+  we never write). Started in a thread from App.__init__; only in real builds (launcher known).
+- build.sh: --add-data packaging/steam-art:steam-art (art_dir() = _MEIPASS/steam-art). The design
+  chat can keep changing the PNGs: each build ships what's in packaging/steam-art (git add -f!).
+- README step 4 = only the icon now.
+- Tests tests/test_steam_art.py (hand-made VDF, negative appid, no overwrite, once, broken vdf,
+  art shipped). Checked pytest 3.13 + 3.11 (151), selftest both, itch-reject, mockups, PyInstaller
+  build has _internal/steam-art. UNVERIFIED on the Deck: real shortcuts.vdf of his tile
+  (~/Applications/itch-deck/itch-deck), when Steam shows the art.
