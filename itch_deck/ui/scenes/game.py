@@ -278,9 +278,9 @@ class Game(Scene):
             y += t.btn_h + t.sm
         msg = self.message()
         if msg:                                  # the one place for messages: under the buttons
-            if not acts:                         # no buttons (not playable): box takes their place
-                y = max(y, cover_r.bottom - t.btn_h - t.sm)
             kind, title, line = msg
+            if not acts:                         # no buttons: the box takes their place, its
+                y = max(y, cover_r.bottom - W.notice_h(t, line))     # bottom on the cover's
             y = W.notice(t, s, x, y + (t.xs if acts else 0), min(maxw, t.read_w), title, line,
                          kind=kind).bottom + t.sm
         return max(cover_r.bottom, y) + t.lg
