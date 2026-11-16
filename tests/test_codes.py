@@ -14,9 +14,9 @@ def test_every_code_used_is_listed_and_every_listed_code_is_used():
     for f in SRC.rglob("*.py"):
         if f.name == "words.py":
             continue
-        used |= set(re.findall(r'"([IWPLEU]\d\d)"', f.read_text()))
+        used |= set(re.findall(r'"([IWPLEUS]\d\d)"', f.read_text()))
     assert used == set(words.CODES), (used ^ set(words.CODES))
-    assert all(re.fullmatch(r"[IWPLEU]\d\d", c) for c in words.CODES)
+    assert all(re.fullmatch(r"[IWPLEUS]\d\d", c) for c in words.CODES)
 
 
 def test_no_screen_text_mentions_the_log():

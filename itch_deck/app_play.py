@@ -1,9 +1,11 @@
 """Launching a game: hand the screen over, wait, come back.
 Mixed into App (app.py); split out of app.py on 15 Nov, code unchanged."""
 import logging
+import threading
+import time
 from pathlib import Path
 
-from . import mouse, proton, runner, words
+from . import backups, mouse, proton, runner, words
 from .installer import slug_of
 
 log = logging.getLogger("scritch")
@@ -80,6 +82,7 @@ class PlayMixin:
                 if not (mm and mm.start()):
                     combo.start()
 
+        t0 = time.time()
         rc, secs = runner.run(exe, slug_of(g), on_started=release, pump=pg.event.pump,
                               size=self.screen.get_size(), umu=umu, extra_env=env, hold=hold,
                               args=args, secret_args=secret, cwd=cwd)
@@ -94,6 +97,7 @@ class PlayMixin:
             self._splash("Returning…")
         self.inp.flush()
         self.go_game(self.lib.by_id(g["id"]) or g)
+        self._backup_after_play(g, info, t0 - 2)
         if combo.fired:                      # closed with the shortcut: not a crash
             self.say(f"{g['title']} closed.")
             return
@@ -109,6 +113,21 @@ class PlayMixin:
             else:
                 words.log_code("P01", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
                 self.say(words.with_code(f"{g['title']} couldn't start.", "P01"), error=True)
+
+    def _backup_after_play(self, g, info, since):
+        """Saves backup (16 Nov): automatic after every play, only when the saves changed. In a
+        thread (zipping can take a few seconds); the toast comes via self.backup_note."""
+        def work():
+            try:
+                if info.get("platform") != "windows":
+                    backups.learn(g["id"], g["title"], since)
+                if backups.backup(g["id"], g["title"], info):
+                    self.backup_note = ("Saves backed up.", False)
+            except Exception as e:  # noqa: BLE001
+                log.exception("backup %s failed", g["id"])
+                words.log_code("S01", f"{g['id']} ({g['title']}): {e}")
+                self.backup_note = (words.with_code("Couldn't back up the saves.", "S01"), True)
+        threading.Thread(target=work, daemon=True, name="backup").start()
 
     def _hide_window(self):
         """Hide our window while a game runs instead of closing the display: showing it again is

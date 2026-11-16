@@ -4,7 +4,7 @@ import logging
 import threading
 from pathlib import Path
 
-from . import config, mouse, pads
+from . import backups, config, mouse, pads, words
 from .input import (A, B, START, L1, R1)
 from .app_common import LATER
 
@@ -73,6 +73,8 @@ class GameMixin:
             self.change_build(g)
         elif label.startswith("Controls"):
             self.cycle_controls(g)
+        elif label == "Saves":
+            self.saves_picker(g)
         else:
             self.say(LATER)
 
@@ -141,6 +143,11 @@ class GameMixin:
             return
         gid, order, _, extra = self.picker
         i = sc.overlay[4] - extra
+        if order == "saves":               # Saves list: restore one
+            z = self._zips[sc.overlay[4]]
+            sc.overlay, self.picker = None, None
+            self._ask_restore(self.lib.by_id(gid) or sc.g, z)
+            return
         if order == "exe":                 # program picker
             sc.overlay, self.picker = None, None
             if self.inst.set_exe(gid, self._progs[i]):
@@ -167,6 +174,39 @@ class GameMixin:
         self.picker = (gid, "exe", True, 0)
         self.scene.overlay = ("picker", "Choose the program", "Pick the file that starts the game. "
                               "Helpers like crash reporters are left out.", items, 0)
+
+    def saves_picker(self, g):
+        """⚙ → Saves: the game's backups, newest first; A restores one (after a confirm)."""
+        self._zips = backups.listing(g["id"], g["title"])
+        if not self._zips:
+            self.say("No saves backed up yet. They're saved after you play.")
+            return
+        items = []
+        for i, z in enumerate(self._zips):
+            when, tag = backups.label(z)
+            items.append((when, tag or ("Latest" if i == 0 else ""),
+                          f"{max(1, z.stat().st_size // 1000)} KB"))
+        self.picker = (g["id"], "saves", True, 0)
+        self.scene.overlay = ("picker", "Saves", "Backed up after each play. A puts one back.",
+                              items, 0)
+
+    def _ask_restore(self, g, z):
+        when, _ = backups.label(z)
+        self.confirm(f"Put back the saves from {when}?", ["Your saves now are backed up first.",
+                     "You can go back to them."], "Put back", lambda: self._restore(g, z))
+
+    def _restore(self, g, z):
+        info = dict(self.inst.index.get(g["id"]) or {})
+
+        def work():
+            try:
+                backups.restore(g["id"], g["title"], info, z)
+                self.backup_note = ("Saves put back.", False)
+            except Exception as e:  # noqa: BLE001
+                log.exception("restore %s failed", g["id"])
+                words.log_code("S02", f"{g['id']} ({g['title']}) from {z.name}: {e}")
+                self.backup_note = (words.with_code("Couldn't put the saves back.", "S02"), True)
+        threading.Thread(target=work, daemon=True, name="restore").start()
 
     def _uninstall(self, g):
         if not self.inst.uninstall(g["id"]):

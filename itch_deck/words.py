@@ -39,6 +39,9 @@ CODES = {
     "L01": "library: refresh failed (not offline, not the key)",
     # U = app update
     "U01": "app update: download failed",
+    # S = save backups
+    "S01": "save backup: couldn't write the backup",
+    "S02": "save backup: couldn't restore",
 }
 
 

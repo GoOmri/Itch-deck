@@ -706,6 +706,31 @@ v0.8.0 Deck test (15 Nov): all ✓ except the install-done feedback: no toast, n
 OPEN (Omri 15 Nov: "ruminate some other time"): Details shows raw log lines - useless to a casual
   player. Idea on the table: "Get help" = the plain reason + a QR that opens the full log on the
   phone (phonelink) to send to whoever helps; no log text on the TV. Not decided.
+v0.8.4 RELEASED 16 Nov (Omri: "you can push when done") = ROADMAP 1, save backups (branch
+  save-backups). Omri: automatic after every play, visible Documents folder.
+  - backups.py: ~/Documents/SCRiTCH saves/<Title>/<YYYY-MM-DD HH-MM-SS>[ before restore].zip, KEEP 5,
+    about.json (id, title, linux_dirs, fingerprint). Same title, other game -> "<Title> (<id>)".
+    Windows (itch + Epic): prefix drive_c/users/steamuser {AppData/Roaming, LocalLow, Local,
+    Documents, Saved Games}, SKIP cache-like dir names, files > 100 MB and *.log/.tmp/.lock/.pid.
+    Linux: learn() after each play = folders under ~/.local/share, ~/.config, ~/.local/state with
+    files modified since play start (NOT_GAMES list: Steam, flatpak, KDE, …; godot/app_userdata/X
+    and unity3d/<studio>/<game> one/two levels deeper, love/X). Backup only when the fingerprint
+    (names, sizes, mtimes) changed. Not covered: games that save inside their own install folder.
+  - Restore: backup(note="before restore", protect=z) first (prune never deletes the zip being
+    restored: bug found by test), writes files over (nothing deleted), path-traversal guarded,
+    then stores the restored fingerprint (no new backup until the saves change).
+  - App: app_play._backup_after_play (thread; toast via self.backup_note, shown in update()).
+    ⚙ menu "Saves" on installed games -> picker ("saves") -> confirm "Put back" -> thread.
+    Codes S01 (backup failed), S02 (restore failed).
+  - Tests: tests/test_backups.py (Windows keep-5 + restore + undo, Linux learning, same title,
+    unsafe zip). Selftest: the fake game writes a save -> learned, backed up, put back.
+  - Mockups 15b (Saves in ⚙), 15k_game_saves, 15l_game_saves_confirm (15i/15j are the design
+    chat's). Gallery: the design chat owns its layout now; add screens with publish_files
+    mode PATCH + a small edit_version in "Current work". Never mode replace.
+  Deck checklist v0.8.4: 1 Update. 2 Play any game a few minutes and save in it; quit -> "Saves
+    backed up." 3 ⚙ → Saves lists it. 4 Dolphin: Documents/SCRiTCH saves/<game>/ has a zip.
+    5 Play again without saving -> no new backup. 6 Put back the older one -> "Saves put back."
+    and the game loads it; Saves now shows a "Before restore" entry.
 ROADMAP NOW (Omri 16 Nov 09:38, replaces the list below; done: 1 rename = v0.8.2, 2 error codes
   = v0.8.3). One item per update, plan + size first: 1 Save backups (copy a game's saves to a safe
   folder + restore; all stores). 2 Recently played as a Sort & filter sort. 3 Move a game between

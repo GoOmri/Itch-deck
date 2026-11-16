@@ -145,7 +145,7 @@ def test_tabs_and_epic_game_page():
     gp = Game(t, games[1])
     assert [a[0] for a in gp.actions()] == ["Install"] and gp.options() == []   # no Change build
     games[1]["state"] = "installed"
-    assert Game(t, games[1]).options() == ["Uninstall", "Controls"]
+    assert Game(t, games[1]).options() == ["Uninstall", "Controls", "Saves"]
 
 
 def test_epic_install_play_uninstall(tmp_path, monkeypatch):

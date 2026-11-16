@@ -23,7 +23,7 @@ from .app_setup import SetupMixin
 from .app_epic import EpicMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.8.3"
+VERSION = "0.8.4"
 
 
 def setup_logging():
@@ -346,6 +346,10 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin):
         pads.set_current(self.pad_kind())
         if self.toast_until and now > self.toast_until:
             self.scene.toast, self.toast_until = None, 0
+        if getattr(self, "backup_note", None):            # from the backup thread
+            msg, err = self.backup_note
+            self.backup_note = None
+            self.say(msg, error=err)
         if self.key_result and self.kind == "setup":
             self._key_done()
         self._phone_tick(now)
@@ -584,7 +588,9 @@ def selftest(screenshot=None):
     g = next(g for g in app.lib.games if g.get("state") == "installed")
     d = paths.HOME / "games" / "fake"
     (d / "files").mkdir(parents=True, exist_ok=True)
-    (d / "files" / "run.sh").write_text("#!/bin/sh\necho hello from the game LD=$LD_LIBRARY_PATH\n")
+    save = paths.HOME / ".local/share/selftest-game/save.dat"      # the game saves (Linux)
+    (d / "files" / "run.sh").write_text("#!/bin/sh\necho hello from the game LD=$LD_LIBRARY_PATH\n"
+                                        f"mkdir -p '{save.parent}' && echo slot1 > '{save}'\n")
     (d / "files" / "run.sh").chmod(0o755)
     app.inst.index[g["id"]] = {"dir": str(d), "exe": "run.sh"}
     app.go_game(g)
@@ -592,6 +598,22 @@ def selftest(screenshot=None):
     out = (paths.LOGS / "games" / f"{slug_of(g)}.log").read_text()
     assert app.kind == "game" and "hello" in out
     assert "_MEI" not in out and "/_internal" not in out, "game inherited our bundled libs"
+    # Save backups: learned + backed up after play; ⚙ → Saves → confirm puts them back
+    def toast_is(msg):
+        for _ in range(100):
+            app.update()
+            if app.scene.toast == msg:
+                return True
+            time.sleep(0.05)
+        return False
+    assert toast_is("Saves backed up."), app.scene.toast
+    save.write_text("lost\n")
+    app.game_action(g, "Saves")
+    assert app.scene.overlay and app.scene.overlay[1] == "Saves", app.scene.overlay
+    app.handle(A)
+    assert app.scene.overlay and app.scene.overlay[0] == "confirm", app.scene.overlay
+    app.handle(A)
+    assert toast_is("Saves put back.") and save.read_text() == "slot1\n", app.scene.toast
     if screenshot:
         import pygame
         pygame.init()

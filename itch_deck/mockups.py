@@ -220,7 +220,16 @@ def _shots(t, version):
         ("15f_game_other_downloading", _act(game("Moss & Rivets"), "Downloading 42% · Quiet Quarry (+1)")),
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
-                                    ("Controls", "", "")], 0))),
+                                    ("Controls", "", ""), ("Saves", "", "")], 0))),
+        ("15k_game_saves", with_overlay(game("Moss & Rivets"), (
+            "picker", "Saves", "Backed up after each play. A puts one back.",
+            [("16 Nov, 21:40", "Latest", "48 KB"), ("16 Nov, 18:05", "", "47 KB"),
+             ("15 Nov, 22:12", "Before restore", "45 KB"), ("14 Nov, 20:31", "", "31 KB"),
+             ("12 Nov, 19:02", "", "12 KB")], 1))),
+        ("15l_game_saves_confirm", with_overlay(game("Moss & Rivets"), (
+            "confirm", "Put back the saves from 16 Nov, 18:05?",
+            ["Your saves now are backed up first.", "You can go back to them."],
+            [("A", "Put back"), ("B", "Cancel")]))),
         ("16_game_failed", game("Grave Gardener",           # nothing to act on: the code
                                 fail_reason="Code W09")),  # (same code + reason in the log)
         ("16b_game_failed_build", game("Grave Gardener", fail_reason="Try another build in Options")),

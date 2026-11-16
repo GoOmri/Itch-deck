@@ -79,7 +79,8 @@ class Game(Scene):
             return []
         epic = g.get("store") == "epic"             # one build per game: no Change build
         if st == "installed":
-            return ["Uninstall", "Controls"] if epic else ["Uninstall", "Change build", "Controls"]
+            return (["Uninstall", "Controls"] if epic else
+                    ["Uninstall", "Change build", "Controls"]) + ["Saves"]
         if st == "missing":
             return [] if g.get("missing") == "card" else ["Uninstall"]
         if st in ("downloading", "queued") or self.phase:
