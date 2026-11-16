@@ -1218,7 +1218,8 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   shortcuts.vdf; a test with a hand-made binary VDF. Then README step 4 (set art by hand) goes.
 - Size: small-medium (VDF reader + copy + tests), one update.
 
-## v0.9.4 = Steam art set automatically (branch steam-art-auto; Omri 13:32 "build it", waits for "push")
+## v0.9.4 RELEASED 16 Nov = Steam art set automatically (branch steam-art-auto + design-art-stars; Omri "push update" 13:35;
+  only design-tabs left unmerged = scrapped)
 - Pulled forward from ROADMAP 3 (item above). itch_deck/steam_art.py: read_vdf (binary VDF, types
   0/1/2/7/8), find_shortcuts (every Steam root + userdata/<user>; entry whose Exe resolves to the
   launcher, updater.launcher_path(); appid & 0xFFFFFFFF), apply() copies tile/wide-tile/hero/logo
