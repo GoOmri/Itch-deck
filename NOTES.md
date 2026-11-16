@@ -1200,3 +1200,20 @@ Two copies bug (in v0.7.2): v0.7.1 Deck log shows two app
   pointed at nothing. Generated with packaging/steam_art.py and added with `git add -f` (144 KB).
   Regenerate + `git add -f` again whenever the logo changes.
 - Not a release: VERSION stays 0.9.3 (CI builds, skips releasing). The logo ships with the next one.
+
+## ROADMAP 3 "Ready to share" — new item (Omri 16 Nov 13:24): SCRiTCH sets its own Steam art
+- Ship packaging/steam-art/*.png in the release (build.sh --add-data, like assets).
+- On start: find SCRiTCH's own non-Steam shortcut = the entry in
+  ~/.local/share/Steam/userdata/<user>/config/shortcuts.vdf (binary VDF, every <user>) whose Exe
+  is our launcher (SCRITCH_LAUNCHER; also the old ~/Applications/itch-deck/ path). Its "appid"
+  field (signed int32 in the file -> unsigned for file names).
+- Copy into userdata/<user>/config/grid/: <appid>p.png (tile), <appid>.png (wide tile),
+  <appid>_hero.png, <appid>_logo.png. Never overwrite: skip any name that already exists with
+  ANY extension (.png/.jpg/.webp: the player's own or SteamGridDB's art).
+- Icon: Steam does NOT read <appid>_icon.png from grid/; the tile icon is shortcuts.vdf's "icon"
+  key, and Steam rewrites shortcuts.vdf while running. Options: copy icon.png next to the
+  launcher and tell the player to pick it (one README line), or write the key only while Steam
+  is closed. Decide with Omri when building.
+- Steam shows new grid files after a Steam restart (or Game Mode reload) at worst. Read-only on
+  shortcuts.vdf; a test with a hand-made binary VDF. Then README step 4 (set art by hand) goes.
+- Size: small-medium (VDF reader + copy + tests), one update.
