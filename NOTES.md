@@ -820,7 +820,8 @@ GOG step 2 = v0.9.2, APPROVED by Omri 16 Nov 12:00 (handed to a new code chat), 
   arguments, workingDir); ⚙ = Uninstall / Controls / Saves / Move (no Change build); auth file =
   DATA/gog/auth.json (already gogdl's format, written by stores/gog.py since v0.9.1). Risk: games
   needing redist / first-run setup -> error code, fix per game after the Deck test.
-v0.9.3 RELEASED 16 Nov (branch v093-fixes; Omri "include everything, go and push") = v0.9.2 Deck test fixes.
+v0.9.3 RELEASED 16 Nov (branch v093-fixes; Omri "include everything, go and push") = v0.9.2 Deck test fixes
+  + design chat's design-notice-align (merged in; only design-tabs left unmerged = scrapped).
   v0.9.2 Deck test (Serious Sam, GOG): installed + played ✓. ✗ "0 MB of 0 MB" (GOG/Epic lists
   have no sizes); ✗ Auto = Pad (GOG has no Inputs row) -> pad ignored until Keys; B = Esc in Keys
   is by design (Esc = pause menu). ✗ game page: back UP from screenshots left the screenshot
