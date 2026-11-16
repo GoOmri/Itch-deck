@@ -749,8 +749,8 @@ GOG PLAN (sent to Omri 16 Nov 11:12, waiting for "go" on step 1; code chat hande
   play / uninstall (Windows via Proton like itch; Linux native when GOG has it; launch from
   goggame-<id>.info playTasks; save backups + Move work automatically) (medium-large, own Deck
   round). v0.9.2 game updates (small-medium). Later: GOG DLC, GOG cloud saves (gogdl save-sync).
-GOG step 1 = v0.9.0 BUILT 16 Nov (Omri "go" 11:17; branch gog-signin; NOT released, VERSION still
-  0.8.5 on the branch: bump to 0.9.0 when Omri says push).
+GOG step 1 = v0.9.0 RELEASED 16 Nov (Omri "go" 11:17, "push" 11:28; branch gog-signin; was
+  built at 0.8.5, bumped on release. Other unmerged branch at release: design-tabs only = scrapped).
   - gogdl check: release asset gogdl_linux_x86_64 (PyInstaller, built on ubuntu-24.04) exists ->
     downloaded on demand like legendary (DATA/gog/gogdl, >1 MB check). gogdl has NO library list
     command: it only does sign-in + token refresh (`--auth-config-path DATA/gog/auth.json auth
