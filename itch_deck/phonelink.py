@@ -303,25 +303,29 @@ u=()=>b.disabled=!x.value.trim();x.addEventListener('input',u);u()}}</script>
 
 
 def logs_page(token, report, issue_url):
-    """Send your logs (v0.9.15): the cleaned report in a box the person can read and edit, a Copy
-    button, the GitHub issue link and the full zip. Copy works on plain HTTP too (the modern
-    clipboard API needs https): the old select-and-copy call is the fallback."""
+    """Send your logs: ONE tap opens the GitHub issue with version, system and a short cleaned log
+    filled in (no copying needed: Copy did not work in a phone browser on plain HTTP, Deck test
+    17 Nov). Below: the longer cleaned text to copy by hand and the full zip."""
     t = html.escape(token)
     return _page("Send your logs to the developer", f"""
-<p>This is the end of your Deck's log. Keys, sign-in codes, e-mail addresses, user name, folders and
-network addresses are hidden. <b>Read it before you paste it</b>: an issue on GitHub is public, and you
-can delete any line you don't want to share.</p>
-<textarea id="r" rows="14" spellcheck="false" autocomplete="off" autocapitalize="off">{html.escape(report)}</textarea>
-<button id="c" type="button">Copy the text</button>
-<p class="note" id="m">&nbsp;</p>
+<p>Tap the purple button. GitHub opens a form with your SCRiTCH version and the end of your log
+already filled in. Read it and change anything before you post.</p>
 <a class="btn pri wide" href="{html.escape(issue_url)}" target="_blank" rel="noopener">Open a GitHub issue</a>
-<p class="note">Paste the text into the issue. You need a free GitHub account to post one.</p>
+<p class="note">A free GitHub account is needed, and the issue is <b>public</b>. Keys, sign-in codes,
+e-mail addresses, your user name, folders and network addresses are hidden from the log.</p>
+<h2 style="font-size:1.1rem;margin:1.6rem 0 .4rem">Want to share more?</h2>
+<p class="note">The longer text. If Copy doesn't work in your browser, touch and hold the text, choose
+Select all, then Copy.</p>
+<textarea id="r" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" readonly>{html.escape(report)}</textarea>
+<button id="c" type="button">Copy the text</button>
+<p id="m" style="min-height:1.5em;font-weight:600">&nbsp;</p>
 <p><a class="btn wide" href="/zip?t={t}">Download all logs (zip)</a></p>
 <p class="note">The zip is cleaned the same way, but it holds more. Send it to the developer
 privately; don't post it in a public issue.</p>
-<script>{{const r=document.getElementById('r'),m=document.getElementById('m'),
-done=ok=>m.textContent=ok?'Copied. Now paste it into the issue.':'Press and hold the text, choose Select all, then Copy.';
-document.getElementById('c').addEventListener('click',()=>{{r.focus();r.select();r.setSelectionRange(0,r.value.length);
+<script>{{const r=document.getElementById('r'),m=document.getElementById('m'),b=document.getElementById('c'),
+done=ok=>{{m.textContent=ok?'Copied. Now paste it where you want it.':'Copy did not work here. Touch and hold the text, choose Select all, then Copy.';
+b.textContent=ok?'Copied':'Copy the text';}};
+b.addEventListener('click',()=>{{r.focus();r.select();r.setSelectionRange(0,r.value.length);
 let ok=false;try{{ok=document.execCommand('copy')}}catch(e){{}}
 if(!ok&&navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(r.value).then(()=>done(true),()=>done(false));
 else done(ok)}})}}</script>

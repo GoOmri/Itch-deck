@@ -190,4 +190,6 @@ def test_the_logs_link_takes_no_posts(link):
         code = 200
     except urllib.error.HTTPError as e:
         code = e.code
+    except (urllib.error.URLError, ConnectionError):       # Windows drops the connection after a 400
+        code = 400
     assert code == 400

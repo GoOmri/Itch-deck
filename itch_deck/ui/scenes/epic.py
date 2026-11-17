@@ -69,10 +69,10 @@ class LogsShare(EpicConnect):
     """Settings -> Help -> Send logs: a QR code for the phone page that shows the cleaned end of the
     log (to copy into a GitHub issue); A also saves the full cleaned zip into Documents."""
     TITLE = "Send your logs"
-    SUB = "Nothing is sent by the Deck. Secrets and names are hidden."
+    SUB = "Scan the code, or press A to save the logs as a zip in Documents."
     STEPS = [("Scan the QR code", "Use your phone's camera."),
              ("Read the text", "Secrets and names are hidden."),
-             ("Copy and paste", "Tap Copy, then paste it into a GitHub issue.")]
+             ("Open the issue", "Tap the purple button. Your log is filled in.")]
     STATUS = {"prep": (False, "Getting ready…"),
               "phone": (False, "Ready on your phone. The link works for a few minutes."),
               "nonet": (True, "No Wi-Fi. Press A to save the logs, then send the file.")}

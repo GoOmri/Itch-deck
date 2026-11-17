@@ -16,8 +16,8 @@ from . import paths
 
 log = logging.getLogger("scritch")
 
-REPORT_LINES = 150           # last app.log lines in the short report
-GAME_LINES = 40              # last lines of the most recent game's log
+REPORT_LINES = 60            # last app.log lines in the short report (Deck test 17 Nov: 150 was a lot to read)
+GAME_LINES = 30              # last lines of the most recent game's log
 REPORT_CHARS = 30_000        # a GitHub issue holds ~65,000; stay well under
 ZIP_FILE_BYTES = 2_000_000   # per file in the zip (the end of each log)
 HIDDEN = "<hidden>"
@@ -167,9 +167,28 @@ def save_zip(version, when):
 REPO = "GoOmri/Itch-deck"
 
 
-def issue_url(version):
-    """New-issue page of the repo, with the issue form's version and system fields filled in."""
+COMPACT_CHARS = 2200         # what fits in a link (GitHub reads it from the address, ~8 KB limit)
+
+
+def compact(chars=COMPACT_CHARS):
+    """The very end of the logs, cleaned, small enough to travel inside the issue link. Nothing has
+    to be copied on the phone (Deck test 17 Nov: Copy did not work in the phone's browser)."""
+    app = _tail(paths.LOGS / "app.log", 40)
+    parts = ["--- app.log (last lines) ---"] + (app or ["(empty)"])
+    g = _latest_game_log()
+    if g:
+        parts += [f"--- game log: {g.name} ---"] + (_tail(g, 10) or ["(empty)"])
+    text = scrub("\n".join(parts))
+    if len(text) > chars:                      # keep the END, start on a whole line
+        text = text[-chars:]
+        text = text[text.find("\n") + 1:] if "\n" in text else text
+    return text
+
+
+def issue_url(version, log=""):
+    """New-issue page of the repo, with the issue form's version, system and (short) log filled in."""
     from urllib.parse import urlencode
-    q = urlencode({"template": "bug_report.yml", "version": version,
-                   "system": system_line() or "SteamOS"})
-    return f"https://github.com/{REPO}/issues/new?{q}"
+    q = {"template": "bug_report.yml", "version": version, "system": system_line() or "SteamOS"}
+    if log:
+        q["log"] = log
+    return f"https://github.com/{REPO}/issues/new?{urlencode(q)}"
