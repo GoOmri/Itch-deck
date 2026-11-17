@@ -49,6 +49,8 @@ class Settings(Scene):
              [("Proton version", v["proton"], ""),
               ("Button symbols", v.get("symbols", "Auto"), ""),
               ("Pointer speed", v.get("pointer", "Normal"), "")]),
+            ("Help", "Something not working? Send your logs.",
+             [("Send logs", "", "")]),
         ]
 
     def items(self):
@@ -89,7 +91,7 @@ class Settings(Scene):
     ACTION = {"Refresh library": "Refresh", "Install location": "Change",
               "Saves of uninstalled games": "Delete", "Proton version": "Change",
               "Pointer speed": "Change", "Update app": "Check", "Disconnect itch": "Sign out",
-              "Button symbols": "Change"}
+              "Button symbols": "Change", "Send logs": "Open"}
 
     def hints(self):
         if self.side:

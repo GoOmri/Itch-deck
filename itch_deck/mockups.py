@@ -147,7 +147,7 @@ def _shots(t, version):
         def draw(self, s):
             W.splash(t, s, self.msg, self.sub)
 
-    from .ui.scenes.epic import EpicConnect, GogConnect
+    from .ui.scenes.epic import EpicConnect, GogConnect, LogsShare
 
     if pads.current == "ps":           # DualSense set: the screens where its glyphs show
         return [
@@ -283,6 +283,9 @@ def _shots(t, version):
         ("26b_epic_getting_ready", EpicConnect(t, "prep", qr=_qr(), url=PHONE_URL, progress=0.4)),
         ("26c_epic_rejected", EpicConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("21j_settings_gog", Settings(t, dict(settings_vals, gog="Not connected"), version, "~/.local/state/scritch/logs/app.log", focus=4)),
+        ("21k_settings_help", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=10)),
+        ("28_send_logs", LogsShare(t, "phone", qr=_qr(), url=PHONE_URL)),
+        ("28b_send_logs_no_wifi", LogsShare(t, "nonet")),
         ("27_gog_connect", GogConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("27b_gog_rejected", GogConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("06g_library_gog_tab", Library(t, three, filt="gog", focus=0, stores=("itch", "epic", "gog"))),

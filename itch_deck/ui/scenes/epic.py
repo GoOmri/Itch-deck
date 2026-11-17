@@ -20,6 +20,7 @@ class EpicConnect(Setup):
              ("Sign in to Epic", "Tap Open Epic sign-in on the page."),
              ("Copy and send", "Copy the page Epic shows, paste it, tap Send.")]
     STATUS = STATUS
+    SUB = "One time only. Your sign-in stays on this Deck."
 
     def __init__(self, t, status="prep", qr=None, url=None, progress=None, **kw):
         Scene.__init__(self, t, **kw)
@@ -41,8 +42,7 @@ class EpicConnect(Setup):
         x = int(t.cx - w / 2)
         y = W.wordmark(t, s, x, t.m).bottom + t.md
         y = W.text(t, s, self.TITLE, x, y, t.f_h1).bottom + t.xs
-        y = W.text(t, s, "One time only. Your sign-in stays on this Deck.", x, y, t.f_body,
-                   color=t.dim).bottom + t.md
+        y = W.text(t, s, self.SUB, x, y, t.f_body, color=t.dim).bottom + t.md
         if self.qr:
             steps = self.STEPS
             side = min(int(t.h * 0.30), int(w * 0.30))
@@ -63,3 +63,19 @@ class GogConnect(EpicConnect):
     STATUS = dict(STATUS, checking=(False, "Signing in to GOG…"),
                   rejected=(True, "GOG didn't accept that. Sign in again and send the new address."),
                   offline=(True, "Can't reach GOG. Check Wi-Fi, then try again."))
+
+
+class LogsShare(EpicConnect):
+    """Settings -> Help -> Send logs: a QR code for the phone page that shows the cleaned end of the
+    log (to copy into a GitHub issue); A also saves the full cleaned zip into Documents."""
+    TITLE = "Send your logs"
+    SUB = "Nothing is sent by the Deck. Secrets and names are hidden."
+    STEPS = [("Scan the QR code", "Use your phone's camera."),
+             ("Read the text", "Secrets and names are hidden."),
+             ("Copy and paste", "Tap Copy, then paste it into a GitHub issue.")]
+    STATUS = {"prep": (False, "Getting ready…"),
+              "phone": (False, "Ready on your phone. The link works for a few minutes."),
+              "nonet": (True, "No Wi-Fi. Press A to save the logs, then send the file.")}
+
+    def hints(self):
+        return [("A", "Save a copy"), ("B", "Back")]

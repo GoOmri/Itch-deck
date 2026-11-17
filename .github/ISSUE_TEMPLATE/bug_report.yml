@@ -1,0 +1,42 @@
+name: Something isn't working
+description: Report a problem with SCRiTCH. The app's Send logs screen fills in the first two boxes for you.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping. **This page is public.** Read what you paste and delete anything private.
+        The Send logs screen on your Deck already hides keys, sign-in codes, e-mail addresses, your
+        user name, folders and network addresses, but you are the last check.
+  - type: input
+    id: version
+    attributes:
+      label: SCRiTCH version
+      description: Settings, App. Filled in if you came from the Send logs screen.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: For example SteamOS 3.7. Filled in if you came from the Send logs screen.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Which game, what you did, what you expected, what you saw. An error code such as P03 helps.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Paste the text from the Send logs page. Do not paste anything you want to keep private.
+      render: text
+  - type: checkboxes
+    id: ok
+    attributes:
+      label: Before you post
+      options:
+        - label: I read the text above and removed anything private.
+          required: true

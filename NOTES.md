@@ -288,3 +288,27 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   all touched modules compile. CI is the real test. Left from the audit: merging the duplicated Epic/GOG
   code (app_epic/app_gog, library sync, installer start/end), long functions, `requests` is needed by the
   vendored gogdl (keep), check helper stderr can't hold tokens.
+
+## v0.9.15 (17 Nov, branch v0915-send-logs) = Settings -> Help -> Send logs (roadmap item 2)
+- Omri's decision: the phone page copies the LAST LINES of the log so people can paste them into a GitHub
+  issue. Safety rules (reports are public): nothing is uploaded by the app and there is no GitHub token in it;
+  itch_deck/logshare.py scrub() hides secrets (Bearer/key=value/JSON tokens/URL codes/JWT/long mixed-case
+  strings), e-mails, IPv4, account names ("connected as X"), /home/<user> -> ~, /run/media/<user>/<id> -> <sd>
+  (also Proton's backslash form). The short report = version + system + last 150 app.log lines + last 40 lines
+  of the newest game log, max 30,000 chars (oldest dropped, version line kept). The page shows the text in an
+  editable box first; Copy uses execCommand (the clipboard API needs https; the phone page is plain http).
+  Also on the page: "Open a GitHub issue" (prefilled version/system via .github/ISSUE_TEMPLATE/bug_report.yml
+  field ids) and the full cleaned zip (private use). Same one-time link/expiry as the sign-in pages.
+- Deck screen LogsShare (scenes/epic.py, app_logs.py): QR + 3 steps; A saves the zip to ~/Documents/SCRiTCH
+  logs/ (toast), B back. New Settings group "Help" at the END (no existing row index moved).
+- Tested against the real Deck logs in deck-logs/: no /home/deck, SD id, e-mail, IP or token left.
+  tests/test_logshare.py (21, run on Windows too). Mockups 21k, 28, 28b rendered and looked at.
+- UNVERIFIED on the Deck/phone: QR scan, Copy button on iOS/Android browsers over http, zip download.
+  Not done: scrubbing is pattern based (a secret in an odd format could slip through; the person reads the
+  text before posting), no "private" route besides the zip.
+- Reviewer-agent findings on v0.9.15, all fixed: scrub() ran quadratic on one very long line (now line by
+  line, lines over 2000 chars cut, e-mail pattern bounded); names with spaces/quotes ("Omri Cohen"), "as:",
+  "Username = x", quoted secrets with spaces, camelCase keys, `--auth-code x` flags, Steam userdata/SteamID64/
+  "for user N" ids, /media|/mnt/<user>, Z:\Users\<user> now hidden; a game called "2048" is no longer skipped as
+  a rotated log; POST to a logs link = 400 (was a KeyError). 3 new tests + 15 new scrub cases.
+- tests/test_phone.py::test_big_or_empty_posts fails on Windows with or without this change (socket quirk).

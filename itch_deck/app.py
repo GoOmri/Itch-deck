@@ -22,9 +22,10 @@ from .app_settings import SettingsMixin
 from .app_setup import SetupMixin
 from .app_epic import EpicMixin
 from .app_gog import GogMixin
+from .app_logs import LogsMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.14"
+VERSION = "0.9.15"
 
 
 def setup_logging():
@@ -35,7 +36,7 @@ def setup_logging():
     logging.basicConfig(level=logging.INFO, handlers=[h, logging.StreamHandler()], force=True)
 
 
-class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin):
+class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, LogsMixin):
     def __init__(self, windowed=False):
         import pygame
         self.pg = pygame
@@ -125,13 +126,13 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin):
     def _set(self, kind, scene):
         from .ui import widgets as W
         if self.scene is not None and W.LIVE:
-            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3, "epic": 4, "gog": 4}
+            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3, "epic": 4, "gog": 4, "logs": 4}
             self.fade_dir = 1 if depth.get(kind, 0) >= depth.get(self.kind, 0) else -1  # in / back
             try:
                 self.fade_from, self.fade_t0 = self.screen.copy(), time.monotonic()  # slide + fade
             except Exception:  # noqa: BLE001  - display closed (game running): no fade
                 self.fade_from = None
-        if kind not in ("setup", "epic", "gog") and self.phone and not self.phone_stop_at:
+        if kind not in ("setup", "epic", "gog", "logs") and self.phone and not self.phone_stop_at:
             self.phone_stop_at = time.time() + 10  # let the phone read "Connected", then close
         self.kind, self.scene = kind, scene
         self.toast_until = 0
@@ -369,6 +370,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin):
         self._phone_tick(now)
         self._epic_tick(now)
         self._gog_tick(now)
+        self._logs_tick(now)
         if self.lib.auth_failed:
             self.lib.auth_failed = False
             self.go_setup("rejected")
@@ -631,6 +633,12 @@ def selftest(screenshot=None):
         app.scene.focus = labels.index(lab)
         app.handle(A)
         assert app.scene.toast != LATER, lab
+    app.scene.focus = labels.index("Send logs")         # v0.9.15: phone page with the cleaned log
+    assert app.scene.hints()[0] == ("A", "Open")
+    app.handle(A)
+    assert app.kind == "logs" and app.scene.status in ("phone", "nonet"), app.kind
+    app.handle(B)
+    assert app.kind == "settings"
     # Button symbols: Auto -> Steam Deck -> PlayStation -> Xbox -> Auto; glyphs follow
     from . import pads as P
     app.scene.focus = labels.index("Button symbols")

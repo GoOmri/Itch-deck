@@ -140,6 +140,13 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | "needs a newer GE-Proton" | Settings → Proton version → pick the newest (or Auto). |
 | A game's controls do nothing | It may need a mouse or keyboard: Options → Controls → Mouse or Keys. To get out: hold View + Menu for 2 s. |
 
+**Something not working?** Settings → Help → Send logs shows a QR code. Scan it with your phone
+(same Wi-Fi): the page shows the end of the log with keys, sign-in codes, e-mail addresses, your user
+name, folders and network addresses hidden. Read it, tap Copy, and paste it into a
+[GitHub issue](https://github.com/GoOmri/Itch-deck/issues/new?template=bug_report.yml) (issues are
+public). Nothing is sent by the Deck itself. A on that screen saves the cleaned logs as a zip in
+`Documents/SCRiTCH logs`.
+
 **Logs** (open them in Dolphin; turn on *Show hidden files*):
 - `~/.local/state/scritch/logs/app.log`: what scritch did
 - `~/.local/state/scritch/logs/games/<game>.log`: the game's own output from its last run,
