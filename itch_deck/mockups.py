@@ -115,7 +115,8 @@ def _shots(t, version):
         "install_label": "SD card", "install_path": "/run/media/deck/SD/itch", "free": "112 GB",
         "proton": "Auto · GE-Proton9-20", "prefix_size": "2 games · 1.2 GB", "last_sync": "today 11:02", "itch_user": "omri",
         "update": (f"v{version[:-1]}9 available", "Update"),
-        "dos_row": ("DOS games", "SD card \u00b7 3 games", "Folder: scritch/dos"), "symbols": "Auto · Steam Deck",
+        "dos_row": ("DOS games", "SD card \u00b7 3 games", "Folder: scritch/dos"),
+        "manage": "12 games \u00b7 38.4 GB", "symbols": "Auto · Steam Deck",
         "epic": "Connected as omri",
     }
     # Epic step 1 (read-only): a few sample games marked as Epic, sorted in with itch's
@@ -134,6 +135,13 @@ def _shots(t, version):
     picker = ("picker", "Choose a build",
               "Recommended: native Linux first, then a plain Windows zip.",
               [(name, "Recommended" if rec else "", sub) for name, sub, rec in fake.uploads()], 0)
+    store_names = ["Quiet Quarry", "Moss & Rivets", "Amber Atlas", "Cinder Choir", "Bramble Run", "Night Orchard",
+                   "Pocket Volcano", "Sundial Thieves", "Glass Harbour", "Tin Lantern", "Paper Tiger", "Low Tide"]
+    store_items = [{"id": f"s{i}", "title": n, "size_mb": mb, "drive": "SD card" if i % 3 else "Internal",
+                    "played": f"2026-11-{17 - i:02d}T20:00:00" if i % 4 else ""}
+                   for i, (n, mb) in enumerate(zip(store_names, (4300, 1900, 1650, 1200, 940, 760, 520, 410, 330, 120, 64, 12)))]
+    store_drives = [{"name": "SD card", "free": 112_000_000_000, "total": 256_000_000_000},
+                    {"name": "Internal storage", "free": 41_000_000_000, "total": 233_000_000_000}]
     quit_dlg = ("confirm", "Quit SCRiTCH?", "Downloads in progress pause and resume next time.",
                 [("A", "Quit"), ("B", "Cancel")])
 
@@ -157,6 +165,7 @@ def _shots(t, version):
             W.splash(t, s, self.msg, self.sub)
 
     from .ui.scenes.epic import EpicConnect, GogConnect, LogsShare
+    from .ui.scenes.storage import StorageManager
 
     if pads.current == "ps":           # DualSense set: the screens where its glyphs show
         return [
@@ -307,15 +316,23 @@ def _shots(t, version):
         ("21f_settings_epic_in", Settings(t, dict(settings_vals, epic="Connected as omri"), version, "~/.local/state/scritch/logs/app.log", focus=3)),
         ("21i_settings_downloading", _act(Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=2), "Downloading 42% · Quiet Quarry")),
         ("21g_settings_app_refresh", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=1)),
-        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=8)),
+        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=9)),
         ("26_epic_connect", EpicConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("26b_epic_getting_ready", EpicConnect(t, "prep", qr=_qr(), url=PHONE_URL, progress=0.4)),
         ("26c_epic_rejected", EpicConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("21j_settings_gog", Settings(t, dict(settings_vals, gog="Not connected"), version, "~/.local/state/scritch/logs/app.log", focus=4)),
-        ("21k_settings_help", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=11)),
+        ("21k_settings_help", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=12)),
         ("28_send_logs", LogsShare(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("28b_send_logs_no_wifi", LogsShare(t, "nonet")),
         # --- DOS games folder (v0.9.19): the Settings row, the "Add DOS games" box, a DOS game's page ---
+        ("22_storage_manager", StorageManager(t, store_items, store_drives, sort="size", focus=1)),
+        ("22b_storage_selected", StorageManager(t, store_items, store_drives, selected={"s1", "s3", "s4"}, focus=3)),
+        ("22c_storage_confirm", with_overlay(StorageManager(t, store_items, store_drives,
+                                                            selected={"s1", "s3", "s4"}, focus=3), (
+            "confirm", "Uninstall 3 games?", ["Frees about 4.0 GB.", "Windows saves are kept."],
+            [("A", "Uninstall"), ("B", "Cancel")]))),
+        ("22d_storage_empty", StorageManager(t, [], store_drives)),
+        ("22e_storage_az", StorageManager(t, store_items, store_drives, sort="az", focus=0)),
         ("21m_dos_row", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=5)),
         ("21o_dos_howto", with_overlay(Settings(t, settings_vals, version,
                                                 "~/.local/state/scritch/logs/app.log", focus=5), (

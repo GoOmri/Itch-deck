@@ -178,6 +178,10 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 ### Settings
 - **Install location:** SD card or internal storage. This only applies to new installs;
   installed games stay where they are. If the SD card is out, installs say "SD card missing".
+- **Manage games:** Settings -> Storage -> **Manage games** lists your installed games by size (largest first; Y
+  switches to A-Z or Last played) and shows the free space on the SD card and internal storage. Tick games with A,
+  press X, confirm, and they are uninstalled together. Windows saves are kept, and games you added in the DOS folder
+  are not listed (removing them frees nothing).
 - **Saves of uninstalled games:** Windows games keep their saves after an uninstall, so a
   reinstall picks them up again. This row shows how much space those saves take, and A deletes
   them.
