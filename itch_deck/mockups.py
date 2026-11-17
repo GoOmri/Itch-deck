@@ -320,12 +320,6 @@ def _shots(t, version):
     ]
 
 
-def _with(scene, **kw):
-    for k, v in kw.items():
-        setattr(scene, k, v)
-    return scene
-
-
 def render(outdir, version, real=None):
     global REAL
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")

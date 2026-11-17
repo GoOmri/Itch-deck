@@ -10,3 +10,6 @@ release/
 .claude/
 mockups-out/
 deck-logs/
+.pytest_cache/
+*.log
+!packaging/steam-art/*.png

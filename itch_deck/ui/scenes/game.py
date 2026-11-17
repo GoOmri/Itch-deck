@@ -6,10 +6,6 @@ from .. import widgets as W
 from ... import hltb
 from .base import Scene
 
-PLATFORM = {"linux": "Linux", "windows": "Windows", "html": "Browser",
-            "mac": "macOS only", "android": "Android only", "soundtrack": "Soundtrack",
-            "book": "Book", "other": "No download"}
-
 
 def _mb(mb):
     return f"{mb / 1024:.1f} GB" if mb >= 1024 else f"{mb} MB"

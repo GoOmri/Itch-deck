@@ -176,9 +176,6 @@ class PhoneLink:
             return True
         return False
 
-    def renew(self):
-        self._new_token()
-
     def stop(self):
         if self.httpd:
             self.httpd.shutdown()

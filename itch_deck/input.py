@@ -109,9 +109,6 @@ class Input:
         if self._guessed & set(self.pads):
             self._kinds()          # Steam may write its slot file after the pad appeared
 
-    def pad_names(self):
-        return [c.name for c in self.pads.values()]
-
     def flush(self):
         self.pg.event.clear()
         self.stick_dir = self.btn_dir = self.page_held = None
