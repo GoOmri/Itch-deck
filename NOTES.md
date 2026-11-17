@@ -1378,3 +1378,6 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
   dosbox_eob*.conf. UNVERIFIED on the Deck. Check logs: eye-of-the-beholder-setup.log (ISI exit code),
   then app.log "dosbox: commands [...]" should be non-empty; if the .conf is still missing, the
   "folder has:" line lists the files.
+- v0.9.12 also: net.get percent-encodes spaces in URLs (net._safe_url): 6 Epic covers failed with
+  InvalidURL "control characters" (names like "Store Primary Promo (Landscape)-...jpg"). Checked the helper
+  on sample URLs; UNVERIFIED on the Deck (covers should show after a sync).

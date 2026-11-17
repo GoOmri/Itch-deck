@@ -3,6 +3,7 @@ import json
 import socket
 import ssl
 import urllib.error
+import urllib.parse
 import urllib.request
 
 UA = "scritch (+https://github.com/GoOmri/Itch-deck)"
@@ -31,11 +32,20 @@ def _ctx():
 _CTX = None
 
 
+def _safe_url(url):
+    """Epic's image links contain spaces (".../Store Primary Promo (Landscape)-...jpg"): urllib
+    refuses them. Percent-encode what isn't allowed, keep what is already encoded."""
+    sp = urllib.parse.urlsplit(url)
+    q = "/:@!$&'()*+,;=-._~%"
+    return urllib.parse.urlunsplit((sp.scheme, sp.netloc, urllib.parse.quote(sp.path, safe=q),
+                                    urllib.parse.quote(sp.query, safe=q + "?"), sp.fragment))
+
+
 def get(url, key=None, timeout=20, accept=None, headers=None, data=None):
     """GET (or POST when data is given). headers override the defaults."""
     global _CTX
     _CTX = _CTX or _ctx()
-    req = urllib.request.Request(url, data=data, headers={"User-Agent": UA, **(headers or {})})
+    req = urllib.request.Request(_safe_url(url), data=data, headers={"User-Agent": UA, **(headers or {})})
     if key:
         req.add_header("Authorization", f"Bearer {key}")
     if accept:
