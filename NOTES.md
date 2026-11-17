@@ -497,3 +497,36 @@ DECIDED AGAINST: console emulators / a ROM library (Omri 17 Nov: not planned), a
 LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are 60 per hour PER INTERNET ADDRESS, and the
   Deck shares Omri's home address: my polling made the Deck's app say "can't reach GitHub" until the hour reset.
   After a push look ONCE, a little later (github.com/GoOmri/Itch-deck/releases is fine to read), never a loop.
+
+## v0.9.23 (17 Nov, branch v0925-hide-games; waits for "push v0.9.23") = Hide from SCRiTCH (roadmap 4)
+- Omri's choices: only games that are NOT installed can be hidden; purple "Hide" confirm; the way back is a library
+  FILTER (Sort & filter -> Show -> "Hidden games"), not a Settings row; this Deck only, store accounts untouched.
+- cfg "hidden" = list of game ids; Library.hidden / set_hidden(ids) (App passes cfg at start); Library._apply_install sets
+  g["hidden"] = id in hidden and state not installed/missing/downloading/queued (installing a hidden game brings it back).
+  visible(): show="hidden" lists only hidden, every other Show value excludes them (all tabs). Empty message
+  "No hidden games. Hide a game from its Options and it shows up here."
+- Game page Options: "Hide from SCRiTCH" for state None/failed and not busy (also non-playable games and Epic/GOG
+  pages, which had no Options before: their page now shows Install + Options); a hidden game's Options = "Show in
+  SCRiTCH" (no confirm). App._set_hidden saves config, hides -> back to the library + toast "X is hidden.".
+- tests/test_epic.py + test_gog.py: the not-installed Epic/GOG page now has Options ["Hide from SCRiTCH"]. New
+  tests/test_hidden.py (5). Mockups 15z/15za/15zb, 06k/06l/06m rendered and looked at. UNVERIFIED on the Deck.
+- Deck check: open a not-installed game -> Options -> Hide -> Hide: tile gone from All and its store tab; X -> Show ->
+  Hidden games: it is there; open it -> Options -> Show in SCRiTCH: back. Restart SCRiTCH: still hidden. Hide survives a sync.
+- Reviewer-agent findings on v0.9.23, fixed: (1) the hidden flag was only recalculated at start or on a sync, so a hidden game
+  that got installed stayed hidden (Options = only "Show in SCRiTCH") and a later uninstall hid it again: Library.refresh_hidden
+  runs on every install-state change (Installer._upd) and forgets the id (on_unhide -> App drops it from config "hidden");
+  (2) the top bar said "2 of 50 games" inside the Hidden filter: now just "2 games"; (3) the Genre filter offered genres of
+  hidden games: it uses the games of the current Show. Tests 7 in tests/test_hidden.py.
+- Steam tile art (Omri 17 Nov, after seeing v0.9.22 on his Deck: "an image on a blurred copy of itself because the tile is high"):
+  in the same release as Hide from SCRiTCH. (1) Epic keeps its portrait box image (stores/epic.py `tall_url`, types
+  DieselGameBoxTall/DieselStoreFrontTall/OfferImageTall; library cache keeps it); Add to Steam downloads it once (steam_games.
+  fetch_tall, 8 s timeout, offline = the normal cover) and uses it for the <appid>p portrait tile only. (2) compose(): a cover
+  FILLS the tile (cropped) when that cuts at most 45 % of it (steam_games.fills: square/tall covers on the tall tile, wide
+  covers on the wide tile), else fitted over a darkened blurred copy ("more squared", his words). itch has one cover only;
+  GOG might have a vertical image format (UNVERIFIED, not done); own DOS games: a tall cover.png in the folder is used.
+  Existing tiles keep their art (never overwritten): Remove + Add again to get the new look.
+- Reviewer-agent findings on the tall art (v0.9.23), fixed: (1) a download that is not a picture (an HTML error page, cut-off file)
+  was cached forever and gave a title card: fetch_tall writes <id>-tall.jpg.part, checks it loads as a picture, then renames;
+  a damaged cached file is deleted and fetched again; (2) the screen waited on the download once per Steam user: it is fetched
+  ONCE before the user loop, in a thread, and gives up after 8 s in total; (3) a fill could come out 1 px short (a black line
+  at one edge): sizes round up when filling; a transparent cover shows the dark tile, not black. Tests 22 in test_steam_games.py.

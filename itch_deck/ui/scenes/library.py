@@ -26,7 +26,7 @@ def tabs(stores=("itch",), dos=False):
     return tuple(out)
 
 
-SHOWS = (("all", "Everything"), ("playable", "Playable here"))
+SHOWS = (("all", "Everything"), ("playable", "Playable here"), ("hidden", "Hidden games"))
 LENGTHS = (("any", "Any"), ("short", "Under 2 h"), ("mid", "2–10 h"), ("long", "10 h+"))
 
 
@@ -54,7 +54,12 @@ def letter(title):
 
 def visible(games, filt="all", sort="az", show="all", genre="any", length="any"):
     """The games a tab shows, in order (the app uses it too, for L1/R1 on the game page)."""
-    gs = [g for g in games if playable(g)] if show == "playable" else list(games)
+    if show == "hidden":                                    # games hidden from SCRiTCH (v0.9.23)
+        gs = [g for g in games if g.get("hidden")]
+    else:
+        gs = [g for g in games if not g.get("hidden")]
+        if show == "playable":
+            gs = [g for g in gs if playable(g)]
     if genre != "any":
         gs = [g for g in gs if g.get("genre") == genre]
     if length != "any":
@@ -157,7 +162,8 @@ class Library(Scene):
         elif label == "Show":
             self.show = turn(self.show, [k for k, _ in SHOWS])
         elif label == "Genre":
-            self.genre = turn(self.genre, ["any"] + genres(self.games))
+            self.genre = turn(self.genre, ["any"] + genres(          # the genres of the games this Show lists
+                [g for g in self.games if bool(g.get("hidden")) == (self.show == "hidden")]))
         elif label == "Length":
             self.length = turn(self.length, [k for k, _ in LENGTHS])
         elif label == "Clear filters":
@@ -272,6 +278,9 @@ class Library(Scene):
             return self._center_msg(s, y, f"Syncing library… page {self.sync_page}",
                                     "This is only slow the first time.", spinner=True)
         if not self.shown:
+            if self.show == "hidden":
+                return self._center_msg(s, y, "No hidden games.",
+                                        "Hide a game from its Options and it shows up here.")
             if self.filtered():                 # games exist, the filter hides them all
                 return self._center_msg(s, y, "No games match this filter.",
                                         "Press {X} to change it.")
@@ -311,7 +320,7 @@ class Library(Scene):
         if self.offline_since:
             right = W.offline_mark(t, s, right, base, self.offline_since)
         count = f"{n} game{'s' if n != 1 else ''}"
-        if self.filtered():                     # say it's a filter, and that games are hidden
+        if self.filtered() and self.show != "hidden":      # say it's a filter, and that games are hidden
             count = f"{n} of {self._count(show='all', genre='any', length='any')} games"
         rr = W.text(t, s, count, right, base, t.f_small, color=t.dim, anchor="baseright")
         if self.filtered():

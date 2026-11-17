@@ -135,6 +135,7 @@ class Library:
         self._queued = set()
         self._worker = None
         self.installs, self.live = {}, {}   # set by Installer: install index, in-progress fields
+        self.hidden = set()            # game ids the player hid from SCRiTCH (config "hidden")
         self.jobs = {"cover": [0, 0], "page": [0, 0], "hltb": [0, 0]}   # [done, total] (top bar)
         self._hltb, self._hltb_client, self._hltb_down = self._load_hltb(), None, False
         self.load_cache()
@@ -223,6 +224,27 @@ class Library:
         elif g.get("state") in ("installed", "missing"):
             g["state"] = None
         g.update(self.live.get(g["id"], {}))
+        self.refresh_hidden(g)
+
+    BUSY_OR_HAD = ("installed", "missing", "downloading", "queued")
+
+    def refresh_hidden(self, g):
+        """g["hidden"] from the id list and the game's state. A hidden game that is installed (or on its way) is
+        not hidden any more and is forgotten (on_unhide: App drops it from the config), so uninstalling it later
+        does not hide it again (reviewer, v0.9.23)."""
+        hid = getattr(self, "hidden", set())
+        if g["id"] in hid and g.get("state") in self.BUSY_OR_HAD:
+            hid.discard(g["id"])
+            cb = getattr(self, "on_unhide", None)
+            if cb:
+                cb(g["id"])
+        g["hidden"] = g["id"] in hid
+
+    def set_hidden(self, ids):
+        """The ids of the games hidden from SCRiTCH; every game's flag is brought up to date."""
+        self.hidden = set(ids or [])
+        for g in self.games:
+            self._apply_install(g)
 
     def apply_installs(self):
         for g in self.games:
@@ -230,7 +252,8 @@ class Library:
 
     def save_cache(self):
         keep = ("id", "title", "author", "cover_url", "url", "short_text", "platforms",
-                "download_key_id", "classification", "source", "store", "app_name", "long_text", "category")
+                "download_key_id", "classification", "source", "store", "app_name", "long_text", "category",
+                "tall_url")
         games = [{k: (sorted(g[k]) if k == "platforms" else g.get(k)) for k in keep} for g in self.games]
         _write_json(paths.LIBRARY, {"synced_at": self.synced_at, "games": games})
 

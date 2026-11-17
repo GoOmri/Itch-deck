@@ -137,6 +137,10 @@ def _shots(t, version):
     quit_dlg = ("confirm", "Quit SCRiTCH?", "Downloads in progress pause and resume next time.",
                 [("A", "Quit"), ("B", "Cancel")])
 
+    def with_flags(scene, **flags):                  # game-dict flags the app sets (hidden...)
+        scene.g = dict(scene.g, **flags)             # a copy: the shared fake library stays as it is
+        return scene
+
     def with_steam(scene, on=False):                 # Options shows Add to / Remove from Steam
         scene.g.update(steam_ok=True, on_steam=on)
         return scene
@@ -202,6 +206,18 @@ def _shots(t, version):
         ("10b_library_toast_code", Library(t, lib, focus=idx["Grave Gardener"],
                                            toast="Couldn't refresh the library · Code L01",
                                            toast_error=True)),
+        ("15z_game_options_hide", with_overlay(game("Quiet Quarry"), (
+            "menu", "Options", "", [("Change build", "", ""), ("Hide from SCRiTCH", "", "")], 1))),
+        ("15za_game_hide_confirm", with_overlay(game("Quiet Quarry"), (
+            "confirm", "Hide Quiet Quarry from SCRiTCH?",
+            ["It stays in your store account.", "Sort & filter > Show > Hidden games brings it back."],
+            [("A", "Hide"), ("B", "Cancel")], "main"))),
+        ("15zb_game_hidden_options", with_overlay(with_flags(game("Quiet Quarry"), hidden=True), (
+            "menu", "Options", "", [("Show in SCRiTCH", "", "")], 0))),
+        ("06k_library_hidden", Library(t, [dict(g, hidden=True) for g in lib[:3]], show="hidden", focus=0)),
+        ("06l_library_hidden_empty", Library(t, lib, show="hidden", focus=0)),
+        ("06m_library_filter_hidden", _menu(Library(t, [dict(g, hidden=(i % 5 == 0)) for i, g in enumerate(lib)],
+                                                     focus=0, show="hidden"), 1)),
         ("11_game_not_installed", game("Quiet Quarry")),
         ("11b_game_free_space", _set(game("Quiet Quarry"), free_mb=42_300)),
         ("11c_game_no_space", _set(game("Quiet Quarry"), free_mb=120)),

@@ -137,10 +137,15 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | L2 / R2 | Page up / down | — | — |
 | Start (☰) | Settings | Options | Back |
 
-- **Sort & filter (X in the library):** sort A–Z, by date added, or *Shortest first*; filter by
-  Genre or Length (Under 2 h / 2–10 h / 10 h+). Lengths come from
+- **Sort & filter (X in the library):** sort A–Z, by date added, or *Shortest first*; show everything, playable games
+  or hidden games; filter by Genre or Length (Under 2 h / 2–10 h / 10 h+). Lengths come from
   [HowLongToBeat](https://howlongtobeat.com), looked up in the background and refreshed monthly.
   Games HLTB doesn't know (many small itch games) show no time rather than a wrong one.
+- **Hide from SCRiTCH:** for a game that is not installed, Options -> **Hide from SCRiTCH** (after a purple
+  *Hide* confirm) takes its tile out of every tab on this Deck. Nothing changes in your store account, and nothing
+  is deleted. Sort & filter -> Show -> **Hidden games** lists them; open one and choose Options -> **Show in
+  SCRiTCH** to bring it back. Installing a hidden game also brings it back. (Games you added in the DOS folder
+  have **Remove from library** instead.)
 - **Installing:** press Install. The download runs in the background (one at a time) and resumes
   if you quit. Then the button turns into **Play**.
 - **Change build:** some games have several downloads (Linux, Windows, 32/64-bit, demos). Options
@@ -154,7 +159,7 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 - **Updates:** SCRiTCH checks itch for newer builds of installed games. The tile shows *Update*,
   and Options → Update installs it; if that fails, the old build stays.
 - **Add to Steam:** Options -> **Add to Steam** makes a Steam shortcut for just this game, with its cover as the
-  tile. Starting that tile opens SCRiTCH straight into the game (`scritch --play <game id>`), and when the game
+  tile (Epic games use Epic's tall box art; a square or tall cover fills the tile, a wide one is fitted over a blurred copy of itself). Starting that tile opens SCRiTCH straight into the game (`scritch --play <game id>`), and when the game
   ends you are back in Steam. Steam only reads its shortcut list at start-up, so the tile shows after Steam
   restarts (Power -> Switch to Desktop, then Return to Gaming Mode). Options -> **Remove from Steam** takes it out
   again, with the art SCRiTCH made. Your own shortcuts and art are never touched, and a backup of Steam's

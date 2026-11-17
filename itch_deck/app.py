@@ -26,7 +26,7 @@ from .app_logs import LogsMixin
 from .app_dos import DosMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.22"
+VERSION = "0.9.23"
 
 
 def setup_logging():
@@ -51,6 +51,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         self.open_display()
         key = self.cfg.get("api_key")
         self.lib = Library(ItchStore(key) if key else None)
+        self.lib.on_unhide = self._forget_hidden           # an installed game is not hidden any more
+        self.lib.set_hidden(self.cfg.get("hidden"))      # games the player hid from SCRiTCH
         if self.cfg.get("epic"):                   # opt-in: Settings -> Account -> Epic Games
             from .stores.epic import EpicStore
             self.lib.epic = EpicStore()            # cached Epic games show at once
@@ -59,6 +61,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
             self.lib.gog = GogStore()
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)
         self.inst.clean_moves([p for _, p in config.install_choices()])   # a move cut short
+        self.lib.set_hidden(self.cfg.get("hidden"))      # again: now the install state is known (hidden + installed = no)
         self._pin_root()
         self.picker = None              # (gid, builds) behind an open Change build picker
         self._progs = []                # program picker rows (relative exe paths)
@@ -99,6 +102,11 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
                 self.lib.start_gog_sync()
         else:
             self.go_setup("waiting")
+
+    def _forget_hidden(self, gid):
+        """A hidden game got installed: drop its id from the config ("hidden")."""
+        self.cfg["hidden"] = [i for i in (self.cfg.get("hidden") or []) if i != gid]
+        config.save(self.cfg)
 
     # --- display -------------------------------------------------------
     def open_display(self):

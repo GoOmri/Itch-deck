@@ -251,3 +251,121 @@ def test_adding_again_draws_missing_art_without_a_second_shortcut(steam, monkeyp
     assert _names(steam).count("KIDS") == 1 and len(list(steam.grid.iterdir())) == 3
     assert len(steam_games._record()["kids-1"]["users"]["4242"]["art"]) == 3
     assert len(list(steam.vdf.parent.glob("shortcuts.vdf.scritch-backup-*"))) == 1     # the file was written once
+
+
+def _solid(tmp_path, size, name):
+    surf = pg.Surface(size)
+    surf.fill((200, 40, 40))
+    f = tmp_path / name
+    pg.image.save(surf, str(f))
+    return f
+
+
+def test_square_and_tall_covers_fill_the_tall_tile_wide_ones_are_fitted(tmp_path):
+    """Omri 17 Nov ("more squared"): a cover close to the tile's shape fills it; a wide one on a tall tile would lose
+    most of its picture, so it is fitted over a blurred copy instead."""
+    assert steam_games.fills((300, 300), (600, 900)) and steam_games.fills((600, 800), (600, 900))
+    assert not steam_games.fills((460, 215), (600, 900))                    # a wide cover on the tall tile
+    assert steam_games.fills((460, 215), (920, 430))                         # ... fills the wide tile
+    red = (200, 40, 40)
+    sq = steam_games.compose(pg, _solid(tmp_path, (300, 300), "sq.png"), "T", (600, 900))
+    assert tuple(sq.get_at((2, 2)))[:3] == red and tuple(sq.get_at((597, 897)))[:3] == red       # filled to the corners
+    wide = steam_games.compose(pg, _solid(tmp_path, (460, 215), "w.png"), "T", (600, 900))
+    assert tuple(wide.get_at((2, 2)))[:3] != red                              # the blurred, darkened background
+
+
+def test_epic_tall_art_becomes_the_portrait_tile_and_failures_fall_back(steam, tmp_path, monkeypatch):
+    from itch_deck import net
+    tall = tmp_path / "tallsrc.png"
+    surf = pg.Surface((300, 400))
+    surf.fill((20, 160, 60))
+    pg.image.save(surf, str(tall))
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: tall.read_bytes())
+    g = {"id": "epic-Fern", "title": "Fern", "cover_file": str(steam.cover), "tall_url": "https://x/tall.jpg"}
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)
+    appid = S.shortcut_appid(f'"{LAUNCHER}"', "Fern")
+    portrait = pg.image.load(str(steam.grid / f"{appid}p.png"))
+    assert tuple(portrait.get_at((5, 5)))[:3] == (20, 160, 60)             # the tall art, not the red wide cover
+    assert tuple(pg.image.load(str(steam.grid / f"{appid}.png")).get_at((5, 5)))[:3] != (20, 160, 60)   # wide tile: the cover
+    steam_games.remove("epic-Fern", steam.roots)
+    (paths.COVERS / "epic-Fern-tall.jpg").unlink()
+    def offline(*a, **k):
+        raise OSError("offline")
+    monkeypatch.setattr(net, "get", offline)
+    assert steam_games.fetch_tall(g) is None                                # offline: the normal cover is used
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)
+    assert len(steam_games._record()["epic-Fern"]["users"]["4242"]["art"]) == 3
+
+
+def test_epic_games_keep_their_tall_image_url():
+    from itch_deck.stores import epic
+    data = {"app_name": "Fern", "app_title": "Fern", "metadata": {"keyImages": [
+        {"type": "DieselGameBox", "url": "https://x/wide.jpg"},
+        {"type": "DieselGameBoxTall", "url": "https://x/tall.jpg"}]}, "asset_infos": {"Windows": {}}}
+    g = epic.game_from_json(data)
+    assert g["cover_url"] == "https://x/wide.jpg" and g["tall_url"] == "https://x/tall.jpg"
+    data["metadata"]["keyImages"] = [{"type": "DieselGameBox", "url": "https://x/wide.jpg"}]
+    assert epic.game_from_json(data)["tall_url"] is None
+
+
+def test_a_bad_tall_download_is_never_kept_and_the_cover_is_used(steam, tmp_path, monkeypatch):
+    """Reviewer v0.9.23: an HTML error page was cached as the tall art forever and gave a title card."""
+    from itch_deck import net
+    g = {"id": "epic-Bad", "title": "Bad", "cover_file": str(steam.cover), "tall_url": "https://x/t.jpg"}
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: b"<html>502 Bad Gateway</html>")
+    assert steam_games.fetch_tall(g) is None
+    assert not list(paths.COVERS.glob("epic-Bad-tall*")) if paths.COVERS.exists() else True       # nothing kept
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)                  # the normal (red) cover is used
+    appid = S.shortcut_appid(f'"{LAUNCHER}"', "Bad")
+    assert tuple(pg.image.load(str(steam.grid / f"{appid}p.png")).get_at((300, 450)))[:3] == (200, 40, 40)
+    steam_games.remove("epic-Bad", steam.roots)
+    # a damaged file left by an earlier run is replaced
+    paths.COVERS.mkdir(parents=True, exist_ok=True)
+    (paths.COVERS / "epic-Bad-tall.jpg").write_bytes(b"cut off")
+    good = tmp_path / "good.png"
+    surf = pg.Surface((300, 400))
+    surf.fill((20, 160, 60))
+    pg.image.save(surf, str(good))
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: good.read_bytes())
+    path = steam_games.fetch_tall(g)
+    assert path and steam_games._is_picture(path) and not list(paths.COVERS.glob("*.part"))
+
+
+def test_the_tall_art_is_fetched_once_per_add_not_once_per_steam_user(steam, tmp_path, monkeypatch):
+    from itch_deck import net
+    user2 = tmp_path / ".local/share/Steam/userdata/9999/config"
+    user2.mkdir(parents=True)
+    (user2 / "shortcuts.vdf").write_bytes(_raw())
+    roots = steam_art.steam_roots(tmp_path)
+    calls = []
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: (calls.append(url), b"not a picture")[1])
+    g = {"id": "epic-Two", "title": "Two", "cover_file": str(steam.cover), "tall_url": "https://x/t.jpg"}
+    assert steam_games.add(g, LAUNCHER, roots, pg)
+    assert len(calls) == 1                                                 # even though the download failed
+
+
+def test_a_slow_download_gives_up_and_fills_never_come_out_a_pixel_short(tmp_path, monkeypatch):
+    import time
+    from itch_deck import net
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: time.sleep(2) or b"x")
+    paths.use_root(tmp_path / "home")
+    t0 = time.time()
+    assert steam_games.fetch_tall({"id": "epic-Slow", "title": "S", "tall_url": "https://x"}, limit=0.3) is None
+    assert time.time() - t0 < 1.5                                          # the screen is not held for the 2 s
+    for src in ((800, 600), (1500, 2000), (720, 1080), (300, 300), (1200, 1600)):
+        c = _solid(tmp_path, src, f"{src[0]}.png")
+        for size in ((920, 430), (600, 900), (1920, 620)):
+            pic = steam_games.compose(pg, c, "T", size)
+            assert pic.get_size() == size
+            if steam_games.fills(src, size):                               # no dark line at any edge
+                for xy in ((0, 0), (size[0] - 1, size[1] - 1), (size[0] - 1, 0), (0, size[1] - 1)):
+                    assert pic.get_at(xy)[0] > 150, (src, size, xy)        # red (a black edge would be ~0)
+
+
+def test_a_transparent_cover_shows_the_dark_tile_not_black(tmp_path):
+    f = tmp_path / "clear.png"
+    surf = pg.Surface((300, 300), pg.SRCALPHA)
+    surf.fill((200, 40, 40, 0))
+    pg.image.save(surf, str(f))
+    pic = steam_games.compose(pg, f, "T", (600, 900))
+    assert tuple(pic.get_at((5, 5)))[:3] == (8, 8, 20)

@@ -485,6 +485,9 @@ class Installer:
         g = self.lib.by_id(gid)
         if g is not None:
             g.update(kw)
+            refresh = getattr(self.lib, "refresh_hidden", None)
+            if refresh:                                    # installing a hidden game brings it back at once
+                refresh(g)
 
     # --- worker ---
     def _run(self):
