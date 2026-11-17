@@ -122,7 +122,14 @@ def launch(info, base_cmd):
             continue
         if a.lower() == "-conf":
             conf = next(it, "")
-            p = (cwd / conf.replace("\\", "/")).resolve()
+            from .stores.gog import _ci          # GOG's names come from Windows: any letter case
+            p = _ci(cwd, conf).resolve()
+            if not p.is_file():                  # v0.9.11 Deck log: "Can't open custom config file"
+                try:
+                    names = sorted(c.name for c in p.parent.iterdir())[:60]
+                except OSError:
+                    names = []
+                log.info("dosbox: settings file %s not found; folder has: %s", p, names)
             if p.is_file():
                 try:
                     p, more = _split_conf(p)
