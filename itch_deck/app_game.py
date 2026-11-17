@@ -73,6 +73,12 @@ class GameMixin:
         elif label == "Uninstall":
             self.confirm(f"Uninstall {g['title']}?", "The game's files are deleted. You can "
                          "install it again any time.", "Uninstall", lambda: self._uninstall(g))
+        elif label == "Remove from library":
+            self.confirm(f"Remove {g['title']} from your library?",
+                         ["Your game files stay in the folder.", "Copy the folder again to add it back."],
+                         "Remove", lambda: self._uninstall(g), main=True)
+        elif label == "Program to run":
+            self._program_picker(gid)
         elif label == "Play":
             self.play(g)
         elif label == "Update":
@@ -262,7 +268,8 @@ class GameMixin:
             self.say("SD card missing.", error=True)
             return
         self.scene.focus = 0
-        self.say(f"{g['title']} was uninstalled.")
+        self.say(f"{g['title']} was removed." if g.get("store") == "dos"
+                 else f"{g['title']} was uninstalled.")
 
     def controls_of(self, g):
         """(setting, effective): setting auto|gamepad|mouse|keys; auto follows itch's Inputs."""

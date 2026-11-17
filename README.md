@@ -97,6 +97,27 @@ Heroic uses), so nothing extra is downloaded.
   mode?".
 - Updates show on the tile. Not yet: DLC and cloud saves.
 
+### Your own DOS games (optional)
+Settings → Storage → **DOS games** shows the folder, `scritch/dos` next to your other games (SD card
+or internal, following *Install location*), and how many games it holds. A opens a short box: copy
+game folders or `.zip` files into that folder (Dolphin, Warpinator, a USB stick), then choose
+**Refresh**. SCRiTCH also looks there at start and when you press Y in the library.
+- Each folder with a `.exe`, `.com` or `.bat` becomes a tile in the **DOS** tab. The title is the folder
+  name. Put `cover.jpg` or `cover.png` in the folder for a picture. A `.zip` is unpacked next to
+  itself and the zip is kept in `dos/_zips`.
+- It runs in DOSBox Staging with the folder as drive C (a `.iso` or `.cue` in the folder becomes
+  drive D). SCRiTCH installs DOSBox Staging from Flathub the first time. Saves stay in the game's
+  own folder, and SCRiTCH never changes or deletes your files.
+- If a folder has several programs, SCRiTCH picks the one named like the folder, or the only `.bat`;
+  Options → **Program to run** changes it. Options → **Remove from library** only forgets the entry
+  (the folder stays hidden until it changes; copying the game's `.zip` again brings it back as
+  `<name> (2)`, your old folder is never touched).
+- Folders with a double quote in their name are skipped. If you switch *Install location*, the dos
+  folder switches with it (the old one stays on its drive, untouched).
+- Plain DOS games only: Windows 3.x / 95 games need other tools. Games with long folder names inside
+  the game folder may need renaming to 8.3 names. SCRiTCH doesn't download games: use games you own
+  or that are free.
+
 ### 4. GE-Proton (for Windows games)
 Nothing to do: the first time you install a Windows game, scritch downloads the newest
 **GE-Proton** (about 0.5 GB, once) into Steam's compatibility tools folder, where Steam and

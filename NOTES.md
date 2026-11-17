@@ -365,3 +365,34 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
 - Reviewer-agent findings on v0.9.18, both fixed: App.go_library now copies the scene's tab back to self.filt
   (a stale "dos" left the game page at "1 of 0"); Library.next_tab falls back to All if its tab is gone
   (ValueError). Test added.
+
+## v0.9.19 (17 Nov, branch v0920-dos-sketch; waits for "push v0.9.19") = DOS tab step 2: your own DOS games (roadmap 4)
+- Omri's decisions: a dos FOLDER (no picker), row A "DOS games | SD card · 3 games | Folder: scritch/dos" in
+  Settings -> Storage, box "Add DOS games" (path shown, OK button is "Refresh", main/purple), zip files unpacked.
+- itch_deck/dosgames.py (pure files): dos_dir(root)=<games folder>/dos; scan() unpacks zips (zip-slip refused, zip
+  moved to dos/_zips, kept), lists folders with .exe/.com/.bat (helpers like setup/sound config skipped, depth<=2),
+  pick_program (saved choice > name like the folder > the one .bat > first), cd_image (.cue/.iso -> drive D),
+  cover.jpg/png; removed() hides a folder until its mtime is newer than the removal. State: DATA/dos.json.
+- Installer.sync_dos(create) -> index entries store "dos" (dir = the game folder itself; exe relative; NO "files"
+  level, NO install.json written into the player's folder) + lib.set_dos_games (covers copied+shrunk into COVERS).
+  Start-up/Y scan never creates the folder; Refresh in the box does. remove_dos(): forget only, files untouched
+  (uninstall() routes there). exe_path/programs/set_exe/move_target know store dos.
+- Play: dosbox.launch_own = DOSBox Staging, -c mount c "<folder>", imgmount d, c:, cd <sub>, <exe>, exit
+  (flatpak --filesystem/--cwd like the GOG path); no backups (saves live in the folder). Game page Options:
+  "Remove from library", Controls (Auto = Keys: inputs Keyboard+Mouse), "Program to run" when >1 program.
+- UNVERIFIED on the Deck: everything (no DOS game folders here). Check: Settings -> Storage -> DOS games -> A ->
+  Refresh (folder is made); copy a DOS game folder + a .zip in with Dolphin; Refresh -> DOS tab with tiles; Play ->
+  DOSBox opens with the game; quit with View+Menu 2 s; Options -> Remove from library keeps the folder.
+  Known limits: long (non 8.3) sub folder names for cd; Windows 3.x/95 games; no pad config per game.
+- Tests: tests/test_dosgames.py (7, run on Windows too). Mockups 21m, 21o, 15u/v/w rendered and looked at.
+- Reviewer-agent findings on v0.9.19, all fixed: (1) an itch game titled "DOS" got <root>/dos as its folder and
+  uninstall/move could wipe the player's DOS games: _game_dir reserves dos/_prefixes/_moving, safe_to_delete never
+  deletes those names; (2) ids collided (non-ASCII names all slugged to "game"): id = dos-<slug>-<6 hex of the
+  folder name>, stable; (3) an odd zip (old PKZIP compression, password) stopped the whole scan: per-zip
+  `except Exception`, skipped with a log line; free-space check before unpacking; (4) the scan changed the shared
+  index from a thread: scan_dos() (thread, touches nothing shared) + apply_dos() (main thread, in App._dos_tick);
+  a choice made meanwhile survives; (5) Refresh pressed during a scan was lost: it is queued (dos_queued);
+  (6) a removed game's .zip copied again comes back as "<name> (2)" (old folder untouched); (7) one os.walk
+  per game (depth 2 for programs/images), folder names with a double quote skipped, own games are not sent to
+  HowLongToBeat. Not changed: no scan without an itch key (the app needs one to reach the library).
+  Tests: tests/test_dosgames.py now 15 (run on Windows).

@@ -320,6 +320,8 @@ def safe_to_delete(path, roots):
             rr = Path(r).resolve()
         except (OSError, RuntimeError, ValueError):
             continue
+        if p.parent == rr and p.name in ("dos", "_prefixes", "_moving", "_downloads"):
+            return False                               # the player's DOS games, saves, and our own work folders
         if p != rr and rr in p.parents:
             return True
     return False
@@ -1035,6 +1037,8 @@ class Installer:
     def _game_dir(self, root, g):
         d = root / slug_of(g)
         other = _read_json(d / "install.json", {}).get("game_id")
+        if d.name in ("dos", "_prefixes", "_moving") and not other:   # folders SCRiTCH uses itself
+            other = "reserved"
         if other and other != g["id"]:                 # two games with the same slug
             d = root / f"{slug_of(g)}-{g['id']}"
         return d
@@ -1062,6 +1066,8 @@ class Installer:
         info = self.index.get(gid)
         if not info:
             return None
+        if info.get("store") == "dos":
+            return Path(info["dir"]) / info["exe"]
         return Path(info["dir"]) / "files" / info["exe"]
 
     def programs(self, gid):
@@ -1069,7 +1075,7 @@ class Installer:
         info = self.index.get(gid)
         if not info:
             return []
-        files = Path(info["dir"]) / "files"
+        files = Path(info["dir"]) if info.get("store") == "dos" else Path(info["dir"]) / "files"
         out = [info["exe"]] + [a for a in info.get("alternatives", []) if a != info["exe"]]
         return [p for p in out if (files / p).is_file()]
 
@@ -1081,7 +1087,8 @@ class Installer:
             return False
         alts = [info["exe"]] + [a for a in info.get("alternatives", []) if a not in (rel, info["exe"])]
         info["exe"], info["alternatives"], info["exe_chosen"] = rel, alts, True
-        _write_json(Path(info["dir"]) / "install.json", info)
+        if info.get("store") != "dos":             # never write into the player's own game folder
+            _write_json(Path(info["dir"]) / "install.json", info)
         _write_json(paths.INSTALLS, self.index)
         log.info("install %s: program set to %s", gid, rel)
         return True
@@ -1090,7 +1097,8 @@ class Installer:
     def move_target(self, gid, choices):
         """(label, games folder) of the other drive, or None. choices = config.install_choices()."""
         info = self.index.get(gid)
-        if not info or len(choices) < 2 or self.moving or gid == self.current or gid in self.queue:
+        if not info or info.get("store") == "dos" or len(choices) < 2 or self.moving \
+                or gid == self.current or gid in self.queue:
             return None
         here = Path(info["dir"]).parent
         mine = [c for c in choices if Path(c[1]) == here]
@@ -1225,10 +1233,89 @@ class Installer:
                 roots.append(par)
         return roots
 
+    # --- your own DOS games (v0.9.19) --------------------------------------------------------------
+    def dos_root(self):
+        from . import dosgames
+        return dosgames.dos_dir(self.root_fn())
+
+    def scan_dos(self, create=False):
+        """Step 1 of a DOS scan, safe in a thread: read (and unpack zips in) <games folder>/dos and
+        return what was found, or None when the SD card is out or the folder can't be made. Touches no
+        shared state (apply_dos does that on the main thread). create: make the folder when it isn't
+        there (the player asked); without it a missing folder simply means no games."""
+        from . import dosgames
+        root = self.dos_root()
+        if config.card_missing(root):
+            return None
+        if not root.is_dir():
+            if not create:
+                return {"entries": []}
+            try:
+                root.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                log.info("dos: can't make %s: %s", root, e)
+                return None
+        picked = {gid: i["exe"] for gid, i in dict(self.index).items()
+                  if i.get("store") == "dos" and i.get("exe_chosen")}
+        return {"entries": dosgames.scan(root, picked)}
+
+    def apply_dos(self, result):
+        """Step 2, on the main thread: bring the install index and the library in line with a scan.
+        Returns the number of DOS games listed. Files are never deleted."""
+        if result is None:
+            return None
+        entries = result["entries"]
+        seen = set()
+        for e in entries:
+            gid = e["id"]
+            seen.add(gid)
+            old = self.index.get(gid) or {}
+            keep = old.get("exe_chosen") and old.get("exe") in e["programs"]   # a choice made meanwhile
+            exe = old["exe"] if keep else e["exe"]
+            self.index[gid] = {"game_id": gid, "title": e["title"], "store": "dos", "platform": "dos",
+                               "dir": e["dir"], "exe": exe, "args": [], "cwd": "", "image": e["image"],
+                               "alternatives": [p for p in e["programs"] if p != exe],
+                               "exe_chosen": bool(keep), "size": e["size"],
+                               "date": old.get("date") or dt.datetime.now().astimezone().isoformat(timespec="seconds")}
+        for gid, i in list(self.index.items()):
+            # a game whose folder vanished stays (shown as missing, Remove works); one whose folder is
+            # still there but isn't listed any more (removed earlier, or no program left) goes
+            if i.get("store") == "dos" and gid not in seen and Path(i["dir"]).exists():
+                self.index.pop(gid, None)
+        _write_json(paths.INSTALLS, self.index)
+        covers = {e["id"]: e["cover"] for e in entries}
+        self.lib.set_dos_games([{"id": gid, "title": i["title"], "cover": covers.get(gid)}
+                                for gid, i in self.index.items() if i.get("store") == "dos"])
+        n = len(entries)
+        log.info("dos: %d games listed", n)
+        return n
+
+    def sync_dos(self, create=False):
+        """scan_dos + apply_dos in one go (tests, and anything already on the main thread)."""
+        return self.apply_dos(self.scan_dos(create))
+
+    def remove_dos(self, gid):
+        """Remove from library: forget the entry, keep every file (the folder stays hidden until it is
+        copied again)."""
+        from . import dosgames
+        info = self.index.pop(gid, None)
+        _write_json(paths.INSTALLS, self.index)
+        if self.choices.pop(gid, None) is not None:
+            _write_json(paths.BUILDS, self.choices)
+        if info:
+            dosgames.remember_removed(Path(info["dir"]).name, time.time())
+            log.info("dos: removed %s from the library (files kept in %s)", gid, info["dir"])
+        self._upd(gid, state=None, phase=None)
+        self.lib.set_dos_games([{"id": g, "title": i["title"], "cover": None}
+                                for g, i in self.index.items() if i.get("store") == "dos"])
+        return True
+
     def uninstall(self, gid):
         """Forget the install now; delete the files in the background (big games take a while).
         Proton prefixes live in <root>/_prefixes and are kept, so saves survive."""
         cur = self.index.get(gid)
+        if cur and cur.get("store") == "dos":
+            return self.remove_dos(gid)
         if cur and config.card_missing(cur["dir"]):    # can't delete it, so don't forget it
             log.info("uninstall %s: refused, SD card missing (%s)", gid, cur["dir"])
             return False

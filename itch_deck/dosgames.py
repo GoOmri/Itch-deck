@@ -1,0 +1,277 @@
+"""Your own DOS games (v0.9.19, Omri 17 Nov): copy a game folder (or a .zip) into the "dos" folder next
+to your other games; SCRiTCH lists each one in the DOS tab and runs it in DOSBox Staging.
+
+Nothing is ever downloaded and no file of yours is ever deleted or changed: "Remove from library" only
+forgets the entry (the folder stays hidden until it changes, see removed()). A .zip is unpacked into a
+folder next to it and then moved to dos/_zips (kept, never deleted).
+
+Pure file logic, no pygame, no shared state: installer.scan_dos() runs it in a thread, installer.apply_dos()
+turns the result into library entries on the main thread."""
+import hashlib
+import json
+import logging
+import os
+import re
+import shutil
+import zipfile
+from pathlib import Path
+
+from . import paths
+
+log = logging.getLogger("scritch")
+
+PROGRAM_EXTS = (".exe", ".com", ".bat")
+IMAGE_EXTS = (".iso", ".cue")
+COVER_NAMES = ("cover.jpg", "cover.jpeg", "cover.png", "cover.webp")
+# helpers that are not the game (DOS games ship setup / sound-card / uninstall tools next to it)
+SKIP_WORDS = ("setup", "install", "uninst", "unwise", "config", "setsound", "sndsetup", "soundset",
+              "readme", "dosbox", "vesa", "univbe", "mouse", "emm386", "himem", "pkunzip", "unzip",
+              "pkzip", "arj", "lha", "update", "patch", "mscdex", "fixit")
+MAX_DEPTH = 2                # programs and disc images: at most this many folders down
+UNPACKED = "_zips"           # unpacked .zip files are moved here (kept)
+SPACE_MARGIN = 1.2           # free space needed to unpack = the zip's contents * this
+
+
+def dos_dir(root):
+    """The folder players copy games into: <games folder>/dos (follows Install location)."""
+    return Path(root) / "dos"
+
+
+def state_file():
+    return paths.DATA / "dos.json"
+
+
+def _state():
+    try:
+        d = json.loads(state_file().read_text())
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_state(d):
+    try:
+        state_file().parent.mkdir(parents=True, exist_ok=True)
+        state_file().write_text(json.dumps(d, indent=1))
+    except OSError as e:
+        log.info("dosgames: can't save %s: %s", state_file(), e)
+
+
+def slug(name):
+    s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return s or "game"
+
+
+def game_id(name):
+    """dos-<readable part>-<6 hex of the folder name>: stable, and two folders never share an id
+    (Cyrillic or Japanese names all slug to "game"; "A B" and "a-b" slug alike)."""
+    return f"dos-{slug(name)[:40]}-{hashlib.sha1(name.encode('utf-8', 'replace')).hexdigest()[:6]}"
+
+
+def title_of(name):
+    """Folder name -> title: underscores to spaces, nothing else ("EOB_1" stays recognisable)."""
+    t = re.sub(r"[_]+", " ", name).strip()
+    return t or name
+
+
+def is_helper(path):
+    low = Path(path).stem.lower()
+    return any(w in low for w in SKIP_WORDS)
+
+
+def survey(folder):
+    """One walk of the game folder: (programs, disc image, size in bytes). Programs (.exe .com .bat, helpers
+    left out) are relative with '/' separators, shallow first; the image is the first .cue (else .iso);
+    only MAX_DEPTH folders down are looked at for both. Symlinks are not followed and not counted."""
+    folder = Path(folder)
+    progs, images, size = [], [], 0
+    try:
+        for dirpath, dirs, files in os.walk(folder, followlinks=False):
+            rel_dir = Path(dirpath).relative_to(folder)
+            depth = len(rel_dir.parts)
+            for f in files:
+                p = Path(dirpath) / f
+                try:
+                    if p.is_symlink():
+                        continue
+                    size += p.stat().st_size
+                except OSError:
+                    continue
+                if depth > MAX_DEPTH:
+                    continue
+                rel = (rel_dir / f).as_posix() if depth else f
+                ext = Path(f).suffix.lower()
+                if ext in PROGRAM_EXTS and not is_helper(f):
+                    progs.append(rel)
+                elif ext in IMAGE_EXTS:
+                    images.append(rel)
+    except OSError:
+        pass
+    progs.sort(key=lambda r: (r.count("/"), r.lower()))
+    images.sort(key=lambda r: (not r.lower().endswith(".cue"), r.count("/"), r.lower()))
+    return progs, (images[0] if images else None), size
+
+
+def programs(folder):
+    return survey(folder)[0]
+
+
+def cd_image(folder):
+    return survey(folder)[1]
+
+
+def tree_size(folder):
+    return survey(folder)[2]
+
+
+def pick_program(folder_name, progs, saved=None):
+    """The program to run: the saved choice if it is still there, else the one that looks like the game
+    (a name equal to the folder's, a single .bat, or the only file); else the first (shallowest)."""
+    if saved and saved in progs:
+        return saved
+    if not progs:
+        return None
+    stem = slug(folder_name)
+    for p in progs:
+        if slug(Path(p).stem) == stem:
+            return p
+    bats = [p for p in progs if p.lower().endswith(".bat") and "/" not in p]
+    if len(bats) == 1:
+        return bats[0]
+    return progs[0]
+
+
+def cover_of(folder):
+    folder = Path(folder)
+    try:                                   # any letter case: Cover.JPG
+        for p in sorted(folder.iterdir()):
+            if p.is_file() and p.name.lower() in COVER_NAMES:
+                return p
+    except OSError:
+        pass
+    return None
+
+
+# --- hidden ("removed") games ----------------------------------------------------------------------
+def removed():
+    """folder name -> unix time it was removed from the library. Such a folder stays hidden until it
+    is changed after that (copied again), so a removed game does not come straight back."""
+    d = _state().get("removed")
+    return d if isinstance(d, dict) else {}
+
+
+def remember_removed(name, when):
+    st = _state()
+    st.setdefault("removed", {})[name] = when
+    _save_state(st)
+
+
+def forget_removed(name):
+    st = _state()
+    if st.get("removed", {}).pop(name, None) is not None:
+        _save_state(st)
+
+
+def _hidden(folder, hide):
+    ts = hide.get(folder.name)
+    try:
+        return ts is not None and folder.stat().st_mtime <= ts
+    except OSError:
+        return True
+
+
+# --- .zip files ------------------------------------------------------------------------------------
+def _unique(root, stem):
+    n = 2
+    while (root / f"{stem} ({n})").exists():
+        n += 1
+    return root / f"{stem} ({n})"
+
+
+def unpack_zips(root, hide=None):
+    """Unpack every .zip in root into a folder named like the zip, then move the zip to root/_zips
+    (kept). A zip with one top folder inside is unpacked without that extra level. Refused: unsafe paths
+    (../ or absolute), too little free space, anything the zip module can't read (old PKZIP methods,
+    passwords): those zips are left where they are, with a line in the log. A zip whose folder already
+    exists is skipped, unless that folder was removed from the library: then it comes back as a new
+    folder "<name> (2)" (the old folder is never touched). Returns the folder names made."""
+    root, made = Path(root), []
+    hide = removed() if hide is None else hide
+    try:
+        zips = sorted(p for p in root.iterdir() if p.is_file() and p.suffix.lower() == ".zip")
+    except OSError:
+        return made
+    for z in zips:
+        dest = root / z.stem
+        if dest.exists():
+            if z.stem not in hide:
+                log.info("dosgames: %s skipped, the folder %s is already there", z.name, z.stem)
+                continue
+            dest = _unique(root, z.stem)                     # a removed game copied again
+        tmp = root / (dest.name + ".unpacking")
+        shutil.rmtree(tmp, ignore_errors=True)
+        try:
+            with zipfile.ZipFile(z) as zf:
+                infos = zf.infolist()
+                names = [i.filename for i in infos if i.filename and not i.is_dir()]
+                bad = [i.filename for i in infos if i.filename.startswith(("/", "\\"))
+                       or ".." in Path(i.filename).parts or (len(i.filename) > 1 and i.filename[1] == ":")]
+                if bad or not names:
+                    log.info("dosgames: %s skipped (%s)", z.name, "unsafe paths" if bad else "empty")
+                    continue
+                need = sum(i.file_size for i in infos)
+                free = shutil.disk_usage(root).free
+                if need * SPACE_MARGIN > free:
+                    log.info("dosgames: %s skipped (needs %d MB, %d MB free)", z.name, need // 10**6,
+                             free // 10**6)
+                    continue
+                zf.extractall(tmp)
+            tops = {n.split("/")[0] for n in names}
+            if len(tops) == 1 and all("/" in n for n in names):      # one top folder: skip that level
+                (tmp / next(iter(tops))).rename(dest)
+            else:
+                tmp.rename(dest)
+            shutil.rmtree(tmp, ignore_errors=True)
+            (root / UNPACKED).mkdir(exist_ok=True)
+            target = root / UNPACKED / z.name
+            if not target.exists():
+                z.rename(target)
+            made.append(dest.name)
+            log.info("dosgames: unpacked %s", z.name)
+        except Exception as e:  # noqa: BLE001  - old PKZIP methods (NotImplementedError), passwords
+            log.info("dosgames: can't unpack %s: %s: %s", z.name, type(e).__name__, e)   # (RuntimeError)
+            shutil.rmtree(tmp, ignore_errors=True)
+    return made
+
+
+# --- the scan ----------------------------------------------------------------------------------------
+def scan(root, choices=None, hide=None):
+    """Every game folder in root (after unpacking zips): [{"name", "id", "title", "dir", "exe",
+    "programs", "cover", "image", "size"}]. choices = {game id: chosen program}; hide = removed().
+    Reads and unpacks files only; touches no shared state, so it may run in a thread."""
+    root, out = Path(root), []
+    choices = choices or {}
+    hide = removed() if hide is None else hide
+    if not root.is_dir():
+        return out
+    unpack_zips(root, hide)
+    try:
+        folders = sorted((p for p in root.iterdir() if p.is_dir() and not p.name.startswith((".", "_"))
+                          and not p.name.endswith(".unpacking")), key=lambda p: p.name.lower())
+    except OSError:
+        return out
+    for f in folders:
+        if _hidden(f, hide):
+            continue
+        if '"' in f.name:                       # DOSBox's mount command can't quote such a name
+            log.info("dosgames: %s skipped, the folder name has a double quote", f.name)
+            continue
+        progs, image, size = survey(f)
+        if not progs:
+            log.info("dosgames: %s has no .exe/.com/.bat, skipped", f.name)
+            continue
+        gid = game_id(f.name)
+        out.append({"name": f.name, "id": gid, "title": title_of(f.name), "dir": str(f),
+                    "exe": pick_program(f.name, progs, choices.get(gid)), "programs": progs,
+                    "cover": cover_of(f), "image": image, "size": size})
+    return out

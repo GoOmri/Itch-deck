@@ -286,6 +286,27 @@ def _shots(t, version):
         ("21k_settings_help", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=10)),
         ("28_send_logs", LogsShare(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("28b_send_logs_no_wifi", LogsShare(t, "nonet")),
+        # --- DOS games folder (v0.9.19): the Settings row, the "Add DOS games" box, a DOS game's page ---
+        ("21m_dos_row", Settings(t, dict(settings_vals, dos_row=("DOS games", "SD card \u00b7 3 games",
+                                 "Folder: scritch/dos")), version, "~/.local/state/scritch/logs/app.log", focus=6)),
+        ("21o_dos_howto", with_overlay(Settings(t, dict(settings_vals, dos_row=("DOS games", "SD card \u00b7 3 games",
+                                 "Folder: scritch/dos")), version, "~/.local/state/scritch/logs/app.log", focus=6), (
+            "confirm", "Add DOS games",
+            ["Copy game folders or .zip files into scritch/dos", "on your SD card, then press Refresh."],
+            [("A", "Refresh"), ("B", "Cancel")], "main"))),
+        ("15u_game_dos_own", Game(t, dict(gog_games[0], store="dos", state="installed", dos=True, programs=2,
+                                          author="", platforms={"linux"}, controls_value="Auto \u00b7 Keys"),
+                                  pos=(1, 3))),
+        ("15v_game_dos_options", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
+                                              programs=2, author="", platforms={"linux"},
+                                              controls_value="Auto \u00b7 Keys"), pos=(1, 3)), (
+            "menu", "Options", "", [("Remove from library", "", ""), ("Controls", "Auto \u00b7 Keys", ""),
+                                    ("Program to run", "", "")], 0))),
+        ("15w_game_dos_remove", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
+                                             author="", platforms={"linux"}), pos=(1, 3)), (
+            "confirm", "Remove Amber Atlas from your library?",
+            ["Your game files stay in the folder.", "Copy the folder again to add it back."],
+            [("A", "Remove"), ("B", "Cancel")], "main"))),
         ("27_gog_connect", GogConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("27b_gog_rejected", GogConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("06g_library_gog_tab", Library(t, three, filt="gog", focus=0, stores=("itch", "epic", "gog"))),

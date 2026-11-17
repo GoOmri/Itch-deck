@@ -23,9 +23,10 @@ from .app_setup import SetupMixin
 from .app_epic import EpicMixin
 from .app_gog import GogMixin
 from .app_logs import LogsMixin
+from .app_dos import DosMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.18"
+VERSION = "0.9.19"
 
 
 def setup_logging():
@@ -36,7 +37,7 @@ def setup_logging():
     logging.basicConfig(level=logging.INFO, handlers=[h, logging.StreamHandler()], force=True)
 
 
-class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, LogsMixin):
+class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, LogsMixin, DosMixin):
     def __init__(self, windowed=False):
         import pygame
         self.pg = pygame
@@ -86,6 +87,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
             self.go_library()
             self.lib.queue_covers()
             self.lib.start_sync()
+            self._start_dos_scan()                 # your own DOS games (the dos folder)
             self.inst.resume()
             if self.lib.epic and self.lib.epic.ready():
                 self.lib.start_epic_sync()         # background; failures stay in the log
@@ -245,6 +247,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
             started = self.lib.start_sync()
             self.lib.start_epic_sync()
             self.lib.start_gog_sync()
+            self._start_dos_scan()
             if started:
                 self.say("Refreshing library…")
         elif act == START:
@@ -372,6 +375,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         self._epic_tick(now)
         self._gog_tick(now)
         self._logs_tick(now)
+        self._dos_tick(now)
         if self.lib.auth_failed:
             self.lib.auth_failed = False
             self.go_setup("rejected")
