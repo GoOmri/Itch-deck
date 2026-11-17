@@ -484,7 +484,13 @@ games folder, 0.9.20 Settings "Sources", 0.9.21-0.9.22 Add to Steam per game (0.
 2 Hide extra controllers for player-1-only games (Bleed 2). Research first.
 3 Maintenance (no new features): merge the duplicated Epic/GOG code (app_epic/app_gog, library sync, installer start/end),
   split the longest functions, check helper stderr (legendary/gogdl) can never put a token into app.log.
-4 New features and ideas: to discuss with Omri.
+4 Hide from SCRiTCH (Omri's idea 17 Nov): hide a game's tile on this Deck only (store accounts unchanged); Settings ->
+  Hidden games brings it back. Own DOS games already have Remove from library. Small.
+5 Storage manager (Omri chose it 17 Nov): installed games by size, pick several with the pad, uninstall at once, clear
+  old save backups. Medium.
+IDEAS CONSIDERED AND DROPPED (Omri 17 Nov): collections (filters already cover it), per-game control modes (already
+  exist), "what should I play?", phone-to-Deck link sharing (niche). Maybe later: play time + last played, per-game
+  DOSBox settings (only if a game needs them).
 PARKED: DLC for Epic and GOG; cloud saves for Epic and GOG; browser games.
 DECIDED AGAINST: console emulators / a ROM library (Omri 17 Nov: not planned), a Steam tile for every game, IGDB,
   fetching DOS games for the player.
