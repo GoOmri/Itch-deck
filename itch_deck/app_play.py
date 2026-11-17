@@ -28,6 +28,16 @@ class PlayMixin:
         sub = None
         dos = None
         if dosbox.is_dosbox_game(info):          # GOG DOS game: native DOSBox Staging (v0.9.7)
+            if info.get("setup_steps") and self._gog_needs_setup(info):
+                # GOG's setup tool (ISI) writes the game's DOSBox settings files (Heroic runs it
+                # for these games too), so it runs BEFORE DOSBox reads them (v0.9.12)
+                u, pd = proton.umu_path(), proton.proton_dir(self.cfg)
+                if u and pd:
+                    pre = info.get("prefix") or proton.prefix_dir(Path(info["dir"]).parent,
+                                                                  Path(info["dir"]).name)
+                    self._gog_first_run(g, info, u, proton.env(pd, pre))
+                else:
+                    log.info("play: %s DOS setup skipped (no GE-Proton / umu)", g["id"])
             base = dosbox.native() or self._get_dosbox(g)
             dos = dosbox.launch(info, base) if base else None
             log.info("play: %s dosbox %s", g["id"], "native" if dos else "missing: via Proton")

@@ -1354,3 +1354,30 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
   can't make the setup rerun on every Play. tests/test_gog.py expects ISI first now.
 - UNVERIFIED: where gogdl puts support/<id>/ files, msiexec through umu, ScummVM path, ISI fetched
   only at first Play when the manifest says scriptInterpreter but no goggame-*.script exist (needs internet).
+
+## v0.9.12 (17 Nov, branch v0912-dosbox-conf-lookup, NOT pushed - waits for Omri) = EOB: DOSBox couldn't open GOG's settings files
+- v0.9.11 Deck logs (deck-logs/, never commit): EOB Windows build + native DOSBox Staging: game log says
+  "CONFIG: Can't open custom config file .../files/dosbox_eob1.conf" (+ _single.conf) and app.log
+  "dosbox: commands []" -> our copy step never found the files (is_file False), DOSBox ran with its
+  default settings, ran only GOG's "-c exit", closed after 1 s = P03. Same for Eye of the Beholder II.
+  So the earlier autoexec theories were wrong: the files weren't found at all.
+- Fix (a GUESS at the cause): dosbox.launch finds the -conf file with gog._ci (any letter case, like
+  GOG's other paths). If it is STILL missing, app.log gets "dosbox: settings file ... not found;
+  folder has: [names]" so the next log shows what GOG really installed (maybe the files are named
+  differently, or ISI creates them -> then we need to run ISI before DOSBox).
+- Also seen: v0.9.11 first-run setup works for Windows games without DOSBox (ISI exit 0 in setup log).
+  Epic cover downloads fail for 6 games: URLs contain spaces (net.get must quote the path) - not fixed yet.
+- UNVERIFIED: whether case is the cause. Check app.log for the "folder has:" line.
+- v0.9.12 ADDED (after reading Heroic + vendored gogdl, Omri asked "can't we see how they do it?"): gogdl's
+  `--support <dir>` (Heroic games.ts passes join(gogSupportPath, id) on install/update/repair). Without it
+  gogdl puts GOG's "support" files in <game>/gog-support, while we told ISI /supportDir=DATA/gog/
+  heroic_gogdl/support/<id> (empty) -> ISI had nothing to build the game's DOSBox settings files from.
+  Now: gog.install passes --support support_dir(id); run_setup uses <game>/gog-support for ISI on older
+  installs; app_play runs the first-run setup (ISI) BEFORE launching DOSBox for GOG DOS games (it used to
+  skip setup for them; Heroic runs it for every Windows game). This is the likely real cause of EOB's missing
+  dosbox_eob*.conf. UNVERIFIED on the Deck. Check logs: eye-of-the-beholder-setup.log (ISI exit code),
+  then app.log "dosbox: commands [...]" should be non-empty; if the .conf is still missing, the
+  "folder has:" line lists the files.
+- v0.9.12 also: net.get percent-encodes spaces in URLs (net._safe_url): 6 Epic covers failed with
+  InvalidURL "control characters" (names like "Store Primary Promo (Landscape)-...jpg"). Checked the helper
+  on sample URLs; UNVERIFIED on the Deck (covers should show after a sync).
