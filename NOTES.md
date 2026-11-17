@@ -1368,3 +1368,13 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
 - Also seen: v0.9.11 first-run setup works for Windows games without DOSBox (ISI exit 0 in setup log).
   Epic cover downloads fail for 6 games: URLs contain spaces (net.get must quote the path) - not fixed yet.
 - UNVERIFIED: whether case is the cause. Check app.log for the "folder has:" line.
+- v0.9.12 ADDED (after reading Heroic + vendored gogdl, Omri asked "can't we see how they do it?"): gogdl's
+  `--support <dir>` (Heroic games.ts passes join(gogSupportPath, id) on install/update/repair). Without it
+  gogdl puts GOG's "support" files in <game>/gog-support, while we told ISI /supportDir=DATA/gog/
+  heroic_gogdl/support/<id> (empty) -> ISI had nothing to build the game's DOSBox settings files from.
+  Now: gog.install passes --support support_dir(id); run_setup uses <game>/gog-support for ISI on older
+  installs; app_play runs the first-run setup (ISI) BEFORE launching DOSBox for GOG DOS games (it used to
+  skip setup for them; Heroic runs it for every Windows game). This is the likely real cause of EOB's missing
+  dosbox_eob*.conf. UNVERIFIED on the Deck. Check logs: eye-of-the-beholder-setup.log (ISI exit code),
+  then app.log "dosbox: commands [...]" should be non-empty; if the .conf is still missing, the
+  "folder has:" line lists the files.

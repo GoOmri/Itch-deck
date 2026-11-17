@@ -411,8 +411,10 @@ class GogStore:
             open(log_file, "w").close()               # one install = one log
         if fresh and not (Path(folder) / ".gogdl-resume").exists():
             manifest_file(app_name).unlink(missing_ok=True)
+        sup = support_dir(app_name)               # Heroic passes --support too (games.ts)
+        sup.mkdir(parents=True, exist_ok=True)
         cmd = self._cmd("update", str(app_name), "--platform", platform, "--path", str(folder),
-                        "--lang", "en-US", "--skip-dlcs")
+                        "--support", str(sup), "--lang", "en-US", "--skip-dlcs")
         self._stream(cmd, cancel, log_file, on_progress, f"install {app_name} ({platform})")
         return launch_info(folder, app_name, platform)
 
@@ -675,6 +677,10 @@ def run_setup(steps, folder, umu, env, log_file, timeout=900):
                 failed.append(st["name"])
                 continue
             linux = st.get("linux_dir")
+            old_sup = Path(folder) / "gog-support"      # installs from before v0.9.12
+            if st["name"] == "ISI" and old_sup.is_dir():
+                st = dict(st, args=[("/supportDir=" + (str(old_sup) if linux else windows_path(old_sup)))
+                                    if a.startswith("/supportDir=") else a for a in st["args"]])
             args = [a.replace("{dir}", str(folder) if linux else windows_path(folder)) for a in st["args"]]
             if st.get("msi"):
                 cmd = [str(umu), "msiexec", "/i", str(exe), *args]
