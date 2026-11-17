@@ -348,3 +348,20 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   codes only when there is nothing to act on (checked, no change).
 - CLAUDE.md (E:\Projects\GIT) now says: touch ONLY E:\Projects\GIT (no temp/system folders). Scratch files go in
   E:\Projects\GIT\scratch\ (outside the repo).
+
+## v0.9.18 (17 Nov, branch v0919-dos-tab; waits for "push v0.9.18") = DOS tab, step 1 (roadmap item 4)
+- Omri's answers (17 Nov): add-your-own = a DOS games FOLDER (no folder picker), tab only when a DOS game exists,
+  folder next to the other games (Install location: <root>/dos), cover = cover.jpg/png in the game folder else a
+  title card, .zip files in the folder get unpacked, two releases, quit = the existing View+Menu combo.
+  Step 2 (the folder, scan, tiles, which-file picker, CD images, Remove entry that never deletes files, zip
+  unpack) is the NEXT release; designer agent sketches the Settings row/empty state first.
+- Step 1 (this release): Library._apply_install sets g["dos"] for installed games whose install.json is a
+  DOSBox game (dosbox.is_dosbox_game); scenes/library.tabs(stores, dos) adds ("dos","DOS") LAST and only when
+  Library.dos (any game has the flag, so it appears/disappears live); visible(filt="dos"); empty message
+  "No DOS games yet. DOS games you install from GOG show up here."; a stale "dos" tab falls back to All.
+  Only INSTALLED GOG DOS games show (an uninstalled GOG game isn't known to be DOS yet).
+- Tests tests/test_dos_tab.py (4). Mockup 06h_library_dos_tab rendered and looked at. UNVERIFIED on the Deck.
+  Deck: install Eye of the Beholder -> a DOS tab appears (L1/R1) with it; uninstall -> the tab goes.
+- Reviewer-agent findings on v0.9.18, both fixed: App.go_library now copies the scene's tab back to self.filt
+  (a stale "dos" left the game page at "1 of 0"); Library.next_tab falls back to All if its tab is gone
+  (ValueError). Test added.
