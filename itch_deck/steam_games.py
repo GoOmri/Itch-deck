@@ -12,8 +12,10 @@ is backed up before every write (steam_shortcuts.py); art is never written over 
 there (any extension), and only art SCRiTCH made is removed again."""
 import json
 import logging
+import math
 import os
 import re
+import threading
 import zlib
 from pathlib import Path
 
@@ -99,7 +101,8 @@ def _fit(pg, img, box, fill=False):
     """img scaled to fit inside (or, fill=True, to cover) the box, keeping its shape."""
     w, h = img.get_size()
     k = (max if fill else min)(box[0] / w, box[1] / h)
-    return pg.transform.smoothscale(img, (max(1, int(w * k)), max(1, int(h * k))))
+    rnd = (lambda v: math.ceil(v - 1e-9)) if fill else (lambda v: int(v + 1e-9))   # filling must never be a pixel short
+    return pg.transform.smoothscale(img, (max(1, rnd(w * k)), max(1, rnd(h * k))))
 
 
 FILL_MAX_CUT = 0.45          # fill the tile (cropping) when that cuts off at most this share of the picture
@@ -124,6 +127,7 @@ def compose(pg, cover, title, size):
         except (pg.error, OSError, FileNotFoundError, ValueError):
             img = None                                   # an unreadable cover: the title card instead
     if img is not None and fills(img.get_size(), size):
+        surf.fill((8, 8, 20))                                # (a transparent cover shows the dark tile)
         big = _fit(pg, img, (W, H), fill=True)
         surf.blit(big, ((W - big.get_width()) // 2, (H - big.get_height()) // 2))
         return surf
@@ -168,23 +172,56 @@ def compose(pg, cover, title, size):
     return surf
 
 
-def fetch_tall(g):
+def _is_picture(path):
+    """True when the file loads as a picture (an HTML error page or a cut-off file does not)."""
+    try:
+        import pygame
+        pygame.image.load(str(path))
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def fetch_tall(g, limit=8):
     """Download the game's portrait art (Epic's tall box) once into the covers folder; the path, or None (no such
-    art, offline, any error: the normal cover is used then). Called when Add to Steam is pressed."""
+    art, offline, a download that is not a picture: the normal cover is used then). Called ONCE when Add to Steam is
+    pressed; it never keeps a file that doesn't load as a picture, and gives up after `limit` seconds in total
+    (the screen waits for it; reviewer v0.9.23)."""
     url = g.get("tall_url")
     if not url:
         return None
     from . import net
     dest = paths.COVERS / f"{g['id']}-tall.jpg"
-    if dest.is_file() and dest.stat().st_size > 0:
-        return dest
+    if dest.is_file():
+        if dest.stat().st_size > 0 and _is_picture(dest):
+            return dest
+        dest.unlink(missing_ok=True)                     # a damaged earlier download: fetch it again
+    box = {}
+
+    def work():
+        try:
+            box["data"] = net.get(url, timeout=limit)
+        except Exception as e:  # noqa: BLE001  - art is a bonus
+            box["error"] = e
+    th = threading.Thread(target=work, daemon=True, name="tall-art")
+    th.start()
+    th.join(limit)
+    if "data" not in box:
+        log.info("steam games: tall art for %s not downloaded: %s", g["id"], box.get("error", "too slow"))
+        return None
+    tmp = dest.with_name(dest.name + ".part")
     try:
-        data = net.get(url, timeout=8)
         paths.COVERS.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(data)
+        tmp.write_bytes(box["data"])
+        if not _is_picture(tmp):
+            log.info("steam games: tall art for %s is not a picture, using the cover", g["id"])
+            tmp.unlink(missing_ok=True)
+            return None
+        os.replace(tmp, dest)
         return dest
-    except Exception as e:  # noqa: BLE001  - art is a bonus
-        log.info("steam games: tall art for %s not downloaded: %s", g["id"], e)
+    except OSError as e:
+        log.info("steam games: tall art for %s not saved: %s", g["id"], e)
+        tmp.unlink(missing_ok=True)
         return None
 
 
@@ -222,6 +259,7 @@ def add(g, launcher, roots=None, pg=None):
     if not fs or not launcher:
         return False
     rec, did = _record(), False
+    tall = fetch_tall(g) if pg is not None else None      # once, not per Steam user
     for f in fs:
         tree = SS.read_file(f)
         have = next((e for _k, e in SS.shortcuts_of(tree) if _mine(e, gid)), None)
@@ -241,7 +279,7 @@ def add(g, launcher, roots=None, pg=None):
         if pg is not None:
             try:
                 write_art(pg, user / "config" / "grid", appid, g.get("cover_file"), g.get("title") or gid, art,
-                          tall=fetch_tall(g))
+                          tall=tall)
             except Exception:  # noqa: BLE001  - the shortcut is in; the art is a bonus
                 log.exception("steam games: art for %s failed", gid)
         _save_record(rec)                           # after each user: a later failure must not lose this

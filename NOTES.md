@@ -525,3 +525,8 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   covers on the wide tile), else fitted over a darkened blurred copy ("more squared", his words). itch has one cover only;
   GOG might have a vertical image format (UNVERIFIED, not done); own DOS games: a tall cover.png in the folder is used.
   Existing tiles keep their art (never overwritten): Remove + Add again to get the new look.
+- Reviewer-agent findings on the tall art (v0.9.23), fixed: (1) a download that is not a picture (an HTML error page, cut-off file)
+  was cached forever and gave a title card: fetch_tall writes <id>-tall.jpg.part, checks it loads as a picture, then renames;
+  a damaged cached file is deleted and fetched again; (2) the screen waited on the download once per Steam user: it is fetched
+  ONCE before the user loop, in a thread, and gives up after 8 s in total; (3) a fill could come out 1 px short (a black line
+  at one edge): sizes round up when filling; a transparent cover shows the dark tile, not black. Tests 22 in test_steam_games.py.

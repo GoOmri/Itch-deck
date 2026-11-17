@@ -306,3 +306,66 @@ def test_epic_games_keep_their_tall_image_url():
     assert g["cover_url"] == "https://x/wide.jpg" and g["tall_url"] == "https://x/tall.jpg"
     data["metadata"]["keyImages"] = [{"type": "DieselGameBox", "url": "https://x/wide.jpg"}]
     assert epic.game_from_json(data)["tall_url"] is None
+
+
+def test_a_bad_tall_download_is_never_kept_and_the_cover_is_used(steam, tmp_path, monkeypatch):
+    """Reviewer v0.9.23: an HTML error page was cached as the tall art forever and gave a title card."""
+    from itch_deck import net
+    g = {"id": "epic-Bad", "title": "Bad", "cover_file": str(steam.cover), "tall_url": "https://x/t.jpg"}
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: b"<html>502 Bad Gateway</html>")
+    assert steam_games.fetch_tall(g) is None
+    assert not list(paths.COVERS.glob("epic-Bad-tall*")) if paths.COVERS.exists() else True       # nothing kept
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)                  # the normal (red) cover is used
+    appid = S.shortcut_appid(f'"{LAUNCHER}"', "Bad")
+    assert tuple(pg.image.load(str(steam.grid / f"{appid}p.png")).get_at((300, 450)))[:3] == (200, 40, 40)
+    steam_games.remove("epic-Bad", steam.roots)
+    # a damaged file left by an earlier run is replaced
+    paths.COVERS.mkdir(parents=True, exist_ok=True)
+    (paths.COVERS / "epic-Bad-tall.jpg").write_bytes(b"cut off")
+    good = tmp_path / "good.png"
+    surf = pg.Surface((300, 400))
+    surf.fill((20, 160, 60))
+    pg.image.save(surf, str(good))
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: good.read_bytes())
+    path = steam_games.fetch_tall(g)
+    assert path and steam_games._is_picture(path) and not list(paths.COVERS.glob("*.part"))
+
+
+def test_the_tall_art_is_fetched_once_per_add_not_once_per_steam_user(steam, tmp_path, monkeypatch):
+    from itch_deck import net
+    user2 = tmp_path / ".local/share/Steam/userdata/9999/config"
+    user2.mkdir(parents=True)
+    (user2 / "shortcuts.vdf").write_bytes(_raw())
+    roots = steam_art.steam_roots(tmp_path)
+    calls = []
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: (calls.append(url), b"not a picture")[1])
+    g = {"id": "epic-Two", "title": "Two", "cover_file": str(steam.cover), "tall_url": "https://x/t.jpg"}
+    assert steam_games.add(g, LAUNCHER, roots, pg)
+    assert len(calls) == 1                                                 # even though the download failed
+
+
+def test_a_slow_download_gives_up_and_fills_never_come_out_a_pixel_short(tmp_path, monkeypatch):
+    import time
+    from itch_deck import net
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: time.sleep(2) or b"x")
+    paths.use_root(tmp_path / "home")
+    t0 = time.time()
+    assert steam_games.fetch_tall({"id": "epic-Slow", "title": "S", "tall_url": "https://x"}, limit=0.3) is None
+    assert time.time() - t0 < 1.5                                          # the screen is not held for the 2 s
+    for src in ((800, 600), (1500, 2000), (720, 1080), (300, 300), (1200, 1600)):
+        c = _solid(tmp_path, src, f"{src[0]}.png")
+        for size in ((920, 430), (600, 900), (1920, 620)):
+            pic = steam_games.compose(pg, c, "T", size)
+            assert pic.get_size() == size
+            if steam_games.fills(src, size):                               # no dark line at any edge
+                for xy in ((0, 0), (size[0] - 1, size[1] - 1), (size[0] - 1, 0), (0, size[1] - 1)):
+                    assert pic.get_at(xy)[0] > 150, (src, size, xy)        # red (a black edge would be ~0)
+
+
+def test_a_transparent_cover_shows_the_dark_tile_not_black(tmp_path):
+    f = tmp_path / "clear.png"
+    surf = pg.Surface((300, 300), pg.SRCALPHA)
+    surf.fill((200, 40, 40, 0))
+    pg.image.save(surf, str(f))
+    pic = steam_games.compose(pg, f, "T", (600, 900))
+    assert tuple(pic.get_at((5, 5)))[:3] == (8, 8, 20)
