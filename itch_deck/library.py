@@ -205,11 +205,15 @@ class Library:
     def _apply_install(self, g):
         inst = self.installs.get(g["id"])
         g["update"] = (inst or {}).get("update")      # newer build on itch (Installer.check_updates)
-        if inst:                       # DOS tab: it runs in DOSBox (GOG's dosbox.exe play task)
+        if inst:                       # DOS tab: it runs in DOSBox (GOG's dosbox.exe play task, or your own)
             from . import dosbox
-            g["dos"] = dosbox.is_dosbox_game(inst)
+            g["dos"] = dosbox.is_dosbox_game(inst) or dosbox.is_own_dos(inst)
+            if dosbox.is_own_dos(inst):
+                g.setdefault("inputs", ["Keyboard", "Mouse"])        # Controls: Auto = Keys
+                g["programs"] = 1 + len(inst.get("alternatives") or [])
         else:
             g.pop("dos", None)
+            g.pop("programs", None)
         if inst and Path(inst["dir"]).exists():
             g["state"], g["size_mb"] = "installed", inst.get("size", 0) // 1_000_000
             g.pop("missing", None)
@@ -385,6 +389,29 @@ class Library:
             except Exception:  # noqa: BLE001
                 log.exception("gog update check failed")
         return True
+
+    def set_dos_games(self, entries):
+        """Your own DOS games (store "dos"): entries = [{"id", "title", "cover": Path|None}]. Replaces the
+        DOS games in the list; covers are copied (shrunk) into the covers folder."""
+        fresh = []
+        for e in entries:
+            g = {"id": e["id"], "title": e["title"], "author": "", "platforms": ["linux"], "store": "dos",
+                 "short_text": "A DOS game from your own folder.", "source": "dos"}
+            c = e.get("cover")
+            if c and Path(c).is_file():
+                try:
+                    paths.COVERS.mkdir(parents=True, exist_ok=True)
+                    dest = paths.COVERS / f"{e['id']}{Path(c).suffix.lower()}"
+                    if not dest.exists() or dest.stat().st_mtime < Path(c).stat().st_mtime:
+                        import shutil
+                        shutil.copyfile(c, dest)
+                        shrink_cover(dest)
+                except OSError as err:
+                    log.info("dos cover %s: %s", c, err)
+            fresh.append(self._prep(g))
+        self.games = sorted([g for g in self.games if g.get("store", "itch") != "dos"] + fresh,
+                            key=lambda g: g["title"].lower())
+        self.save_cache()
 
     def drop_gog(self):
         self.gog = None

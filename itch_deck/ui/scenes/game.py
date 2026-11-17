@@ -78,6 +78,11 @@ class Game(Scene):
         g, st = self.g, self.g.get("state")
         if not self.playable:
             return []
+        if g.get("store") == "dos":                    # your own DOS game: files are never deleted
+            if st == "installed":
+                return ["Remove from library", "Controls"] + (
+                    ["Program to run"] if g.get("programs", 1) > 1 else [])
+            return ["Remove from library"] if st == "missing" else []
         epic = g.get("store") == "epic" or (       # one build: no Change build. GOG: only when it
             g.get("store") == "gog" and not {"linux", "windows"} <= set(g["platforms"]))  # has both
         if st == "installed":

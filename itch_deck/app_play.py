@@ -41,6 +41,12 @@ class PlayMixin:
             base = dosbox.native() or self._get_dosbox(g)
             dos = dosbox.launch(info, base) if base else None
             log.info("play: %s dosbox %s", g["id"], "native" if dos else "missing: via Proton")
+        elif dosbox.is_own_dos(info):            # your own DOS game: DOSBox Staging (v0.9.19)
+            base = dosbox.native() or self._get_dosbox(g)
+            if not base:
+                self.say("DOSBox isn't available. Check Wi-Fi and try again.", error=True)
+                return
+            dos = dosbox.launch_own(info, base)
         if info.get("platform") == "windows" and not dos:
             umu, pdir = proton.umu_path(), proton.proton_dir(self.cfg)
             if not pdir:
@@ -212,6 +218,9 @@ class PlayMixin:
     def _backup_after_play(self, g, info, since):
         """Saves backup (16 Nov): automatic after every play, only when the saves changed. In a
         thread (zipping can take a few seconds); the toast comes via self.backup_note."""
+        if info.get("store") == "dos":           # the game's saves sit in its own folder
+            return
+
         def work():
             try:
                 if info.get("platform") != "windows":

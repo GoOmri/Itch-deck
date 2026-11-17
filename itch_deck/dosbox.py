@@ -147,3 +147,33 @@ def launch(info, base_cmd):
     if pre[:1] == ["run"]:                         # flatpak: let it see the game, start there
         pre = ["run", f"--filesystem={files}", f"--cwd={cwd}"] + pre[1:]
     return exe, pre + args, str(cwd)
+
+
+# --- your own DOS games (v0.9.19): <games folder>/dos/<game> ---------------------------------------
+def is_own_dos(info):
+    """An install record made by itch_deck/dosgames.py (store "dos")."""
+    return info.get("store") == "dos"
+
+
+def launch_own(info, base_cmd):
+    """(exe, args, cwd) for runner.run: DOSBox Staging with the game's folder as drive C, a disc image as
+    drive D when the folder has one, then the chosen program. The game's saves stay in its folder.
+    Sub folders are entered with cd (DOS games use short 8.3 names)."""
+    folder = Path(info["dir"])
+    rel = (info.get("exe") or "").replace("\\", "/")
+    parts = [p for p in rel.split("/") if p]
+    cmds = [f'mount c "{folder}"']
+    image = info.get("image")
+    if image:
+        cmds.append(f'imgmount d "{folder / image}" -t iso')
+    cmds.append("c:")
+    cmds += [f"cd {p}" for p in parts[:-1]]
+    if parts:
+        cmds.append(parts[-1])
+    cmds.append("exit")
+    args = [x for c in cmds for x in ("-c", c)]
+    log.info("dosbox: own game %s: %s", folder.name, cmds)
+    exe, pre = Path(base_cmd[0]), list(base_cmd[1:])
+    if pre[:1] == ["run"]:                         # flatpak: let it see the game, start there
+        pre = ["run", f"--filesystem={folder}", f"--cwd={folder}"] + pre[1:]
+    return exe, pre + args, str(folder)

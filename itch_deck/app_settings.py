@@ -40,6 +40,7 @@ class SettingsMixin:
             "symbols": self._symbols_label(),
             "epic": self._epic_label(),
             "gog": self._gog_label(),
+            "dos_row": self._dos_row(),
         }
 
     def _symbols_label(self):
@@ -154,6 +155,7 @@ class SettingsMixin:
                 started = self.lib.start_sync()
                 self.lib.start_epic_sync()             # every store (DESIGN §6)
                 self.lib.start_gog_sync()
+                self._start_dos_scan()
                 self.say("Refreshing library…" if started else "Already refreshing…")
             elif label == "Update app":
                 u = self.updater
@@ -225,6 +227,8 @@ class SettingsMixin:
                     self.go_gog()
             elif label == "Send logs":
                 self.go_logs()
+            elif label == "DOS games":
+                self._dos_howto()
             elif label == "Disconnect itch":
                 self.confirm("Sign out of itch?",
                              ["SCRiTCH forgets the key. Installed games still play.",
