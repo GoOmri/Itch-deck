@@ -174,16 +174,25 @@ class PlayMixin:
         gid, self.autoplay = self.autoplay, None
         g = self.lib.by_id(gid)
         info = self.inst.index.get(gid)
-        if not g or not info or g.get("state") != "installed":
-            log.info("autoplay: %s isn't installed here", gid)
+        if g and info and g.get("state") == "missing" and g.get("missing") == "card":
+            msg = ("SD card missing.", "Put the card back, then start it again.")
+        elif not g or not info or g.get("state") != "installed":
+            msg = ("That game isn't installed.", "Open SCRiTCH to install it again.")
+        else:
+            msg = None
+        if msg:
+            log.info("autoplay: %s can't start: %s", gid, msg[0])
             for _ in range(60):                       # about 4 seconds, keeping the window alive
                 self.pg.event.pump()
-                self._splash("That game isn't installed.", "Open SCRiTCH to install it again.")
+                self._splash(*msg)
                 time.sleep(0.07)
         else:
             log.info("autoplay: %s", gid)
             self.play(g)
-            end = time.time() + (5 if getattr(self.scene, "toast", None) else 0)
+            th = getattr(self, "_backup_thread", None)
+            if th is not None:                        # the saves backup runs in a thread: let it finish
+                th.join(8)
+            end = time.time() + (5 if getattr(self.scene, "toast_error", False) else 0)
             while time.time() < end:                  # "couldn't start" stays on screen a moment
                 self.pg.event.pump()
                 self.scene.draw(self.screen)
@@ -254,7 +263,8 @@ class PlayMixin:
                 log.exception("backup %s failed", g["id"])
                 words.log_code("S01", f"{g['id']} ({g['title']}): {e}")
                 self.backup_note = (words.with_code("Couldn't back up the saves.", "S01"), True)
-        threading.Thread(target=work, daemon=True, name="backup").start()
+        self._backup_thread = threading.Thread(target=work, daemon=True, name="backup")
+        self._backup_thread.start()
 
     def _hide_window(self):
         """Hide our window while a game runs instead of closing the display: showing it again is

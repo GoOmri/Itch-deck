@@ -110,3 +110,28 @@ def test_runs_by_hand_on_its_own(tmp_path):
     assert S.dumps(S.loads((user / "shortcuts.vdf").read_bytes())) == (user / "shortcuts.vdf").read_bytes()
     assert [S._field(e, "AppName") for k, e in S.shortcuts_of(S.read_file(user / "shortcuts.vdf"))] == \
         ["Mine", "Also mine"]                                       # back to exactly the player's own two
+
+
+def test_a_cut_off_file_is_a_value_error_not_a_crash():
+    raw = _raw()
+    for cut in (len(raw) - 12, 60, 45):                   # in the middle of an int, a string, a key
+        try:
+            S.loads(raw[:cut])
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"cut at {cut} was accepted")
+
+
+def test_old_non_utf8_titles_survive_a_rewrite_byte_for_byte():
+    raw = _raw().replace(b"Also mine", b"Caf\xe9 mine")           # an old tool wrote Latin-1
+    assert S.dumps(S.loads(raw)) == raw
+
+
+def test_only_the_newest_backups_are_kept(tmp_path):
+    f = tmp_path / "shortcuts.vdf"
+    f.write_bytes(_raw())
+    for _ in range(9):
+        S.write_file(f, S.loads(f.read_bytes()))
+    names = sorted(p.name for p in tmp_path.glob("shortcuts.vdf.scritch-backup-*"))
+    assert len(names) == S.KEEP_BACKUPS == len(set(names))           # also: no two share a name

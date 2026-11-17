@@ -137,3 +137,66 @@ def test_autoplay_plays_the_game_or_says_it_is_gone(monkeypatch):
     app_play.PlayMixin._autoplay(me)
     assert ("play", "gone") not in calls and calls[0] == ("splash", "That game isn't installed.")
     assert me.running is False
+
+
+def test_a_damaged_file_is_a_clean_error_for_is_added_and_add(steam):
+    steam.vdf.write_bytes(_raw()[:-12])
+    assert steam_games.is_added("g-1", steam.roots) is False          # the Options menu must not crash
+    with pytest.raises(ValueError):
+        steam_games.add({"id": "g-1", "title": "T"}, LAUNCHER, steam.roots)
+    assert steam.vdf.read_bytes() == _raw()[:-12]                       # and the file is untouched
+
+
+def test_art_is_recorded_even_when_a_later_picture_fails_and_on_a_re_add(steam, monkeypatch):
+    g = {"id": "g-1", "title": "Game", "cover_file": None}
+    real = steam_games.compose
+    calls = []
+
+    def flaky(pg_, cover, title, size):
+        calls.append(size)
+        if len(calls) == 2:
+            raise RuntimeError("disk full")
+        return real(pg_, cover, title, size)
+    monkeypatch.setattr(steam_games, "compose", flaky)
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)                  # the shortcut is in
+    rec = steam_games._record()["g-1"]["users"]["4242"]
+    assert len(rec["art"]) == 1 and (steam.grid / rec["art"][0]).exists()   # the picture that was made is recorded
+    monkeypatch.setattr(steam_games, "compose", real)
+    steam_games.remove("g-1", steam.roots)
+    steam_games.add(g, LAUNCHER, steam.roots, pg)
+    steam.vdf.write_bytes(_raw())                                           # the player removed it by hand in Steam
+    steam_games.add(g, LAUNCHER, steam.roots, pg)                           # our old art is still there: still ours
+    assert len(steam_games._record()["g-1"]["users"]["4242"]["art"]) == 3
+    steam_games.remove("g-1", steam.roots)
+    assert not any(steam.grid.iterdir())                                    # nothing of ours is left behind
+
+
+def _autoplay_stub(game, calls, toast_error=False, backup=None):
+    pgstub = types.SimpleNamespace(event=types.SimpleNamespace(pump=lambda: None),
+                                   display=types.SimpleNamespace(flip=lambda: None))
+    return types.SimpleNamespace(
+        autoplay="g-1", pg=pgstub, running=True, screen=None, _backup_thread=backup,
+        scene=types.SimpleNamespace(toast="x", toast_error=toast_error, draw=lambda s: calls.append("draw")),
+        lib=types.SimpleNamespace(by_id=lambda gid: game),
+        inst=types.SimpleNamespace(index={"g-1": {"dir": "x"}}),
+        play=lambda g: calls.append("play"), _splash=lambda *a: calls.append(a))
+
+
+def test_autoplay_says_the_right_thing_waits_for_the_backup_and_ends_quietly(monkeypatch):
+    monkeypatch.setattr(app_play.time, "sleep", lambda s: None)
+    calls = []
+    app_play.PlayMixin._autoplay(_autoplay_stub({"id": "g-1", "state": "missing", "missing": "card"}, calls))
+    assert calls[0] == ("SD card missing.", "Put the card back, then start it again.")      # not "reinstall it"
+    calls.clear()
+    joined = []
+    th = types.SimpleNamespace(join=lambda t: joined.append(t))
+    app_play.PlayMixin._autoplay(_autoplay_stub({"id": "g-1", "state": "installed"}, calls, False, th))
+    assert calls == ["play"] and joined == [8]                         # the saves backup gets time to finish
+    calls.clear()                                                       # "closed" (not an error) does not hold the screen
+    app_play.PlayMixin._autoplay(_autoplay_stub({"id": "g-1", "state": "installed"}, calls, False))
+    assert "draw" not in calls
+    calls.clear()                                                       # a real "couldn't start" does stay a moment
+    ticks = iter(range(0, 100))
+    monkeypatch.setattr(app_play.time, "time", lambda: next(ticks))     # a fake clock: no real 5 seconds
+    app_play.PlayMixin._autoplay(_autoplay_stub({"id": "g-1", "state": "installed"}, calls, True))
+    assert calls.count("draw") >= 1

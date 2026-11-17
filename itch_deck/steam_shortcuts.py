@@ -23,6 +23,7 @@ from pathlib import Path
 
 TAG = "SCRiTCH"
 TEST_NAME = "SCRiTCH test game (safe to delete)"
+KEEP_BACKUPS = 5                 # shortcuts.vdf.scritch-backup-<time> files kept next to the file
 
 
 # --- binary VDF: a list of (type, key, value), nested maps as lists ---------------------------------
@@ -32,7 +33,7 @@ def loads(data):
     def cstr():
         nonlocal pos
         end = data.index(b"\x00", pos)
-        s = data[pos:end].decode("utf-8", "replace")
+        s = data[pos:end].decode("utf-8", "surrogateescape")       # byte-exact, even for an old tool's Latin-1
         pos = end + 1
         return s
 
@@ -58,7 +59,10 @@ def loads(data):
             else:
                 raise ValueError(f"unknown VDF type {t} at {pos - 1}")
         return out
-    return node()
+    try:
+        return node()
+    except (struct.error, IndexError) as e:                      # a file cut off in the middle of a value
+        raise ValueError(f"damaged shortcuts file: {e}") from None
 
 
 def dumps(tree):
@@ -67,12 +71,12 @@ def dumps(tree):
     def put(nodes):
         for t, key, val in nodes:
             out.append(t)
-            out.extend(key.encode("utf-8") + b"\x00")
+            out.extend(key.encode("utf-8", "surrogateescape") + b"\x00")
             if t == 0:
                 put(val)
                 out.append(8)
             elif t == 1:
-                out.extend(val.encode("utf-8") + b"\x00")
+                out.extend(val.encode("utf-8", "surrogateescape") + b"\x00")
             elif t == 2:
                 out.extend(struct.pack("<i", val))
             elif t == 7:
@@ -191,7 +195,14 @@ def write_file(path, tree, backup=True):
     """Atomic write; the old file is kept as shortcuts.vdf.scritch-backup-<time> first."""
     path = Path(path)
     if backup and path.exists():
-        shutil.copy2(path, path.with_name(f"{path.name}.scritch-backup-{time.strftime('%Y%m%d-%H%M%S')}"))
+        stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{time.time_ns() // 1_000_000 % 1000:03d}"
+        shutil.copy2(path, path.with_name(f"{path.name}.scritch-backup-{stamp}"))
+        old = sorted(path.parent.glob(path.name + ".scritch-backup-*"))      # keep the newest few only
+        for b in old[:-KEEP_BACKUPS]:
+            try:
+                b.unlink()
+            except OSError:
+                pass
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".scritch-tmp")
     tmp.write_bytes(dumps(tree))

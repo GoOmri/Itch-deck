@@ -785,6 +785,11 @@ def main(argv=None):
         print("selftest ok")
         return 0
     other = paths.lock_instance()
+    for _ in range(12 if a.play else 0):       # a Steam tile pressed while the old copy is still closing
+        if other is None:
+            break
+        time.sleep(0.5)
+        other = paths.lock_instance()
     if other is not None:
         log.warning("another copy is already running (pid %s), quitting", other)
         logging.shutdown()

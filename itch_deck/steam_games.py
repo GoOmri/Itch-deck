@@ -69,7 +69,7 @@ def is_added(gid, roots=None):
         try:
             if any(_mine(e, gid) for _k, e in SS.shortcuts_of(SS.read_file(f))):
                 return True
-        except (OSError, ValueError, IndexError):
+        except (OSError, ValueError):
             continue
     return False
 
@@ -141,9 +141,10 @@ def compose(pg, cover, title, size):
     return surf
 
 
-def write_art(pg, grid, appid, cover, title):
-    """Cover art as Steam names it, never over a picture that exists. Returns the file names written."""
-    written = []
+def write_art(pg, grid, appid, cover, title, written=None):
+    """Cover art as Steam names it, never over a picture that exists. Returns the file names written
+    (appended to `written` as each is made, so a failure half way still shows what was made)."""
+    written = [] if written is None else written
     grid.mkdir(parents=True, exist_ok=True)
     for suffix, size in ART:
         stem = f"{appid}{suffix}"
@@ -180,15 +181,16 @@ def add(g, launcher, roots=None, pg=None):
         appid = SS._field(entry, "appid") & 0xFFFFFFFF
         did = True
         user = f.parent.parent
-        art = []
+        users = rec.setdefault(gid, {}).setdefault("users", {})
+        art = list((users.get(user.name) or {}).get("art") or [])      # made by an earlier add: still ours
+        users[user.name] = {"appid": appid, "art": art}
         if pg is not None:
             try:
-                art = write_art(pg, user / "config" / "grid", appid, g.get("cover_file"), g.get("title") or gid)
+                write_art(pg, user / "config" / "grid", appid, g.get("cover_file"), g.get("title") or gid, art)
             except Exception:  # noqa: BLE001  - the shortcut is in; the art is a bonus
                 log.exception("steam games: art for %s failed", gid)
-        rec.setdefault(gid, {}).setdefault("users", {})[user.name] = {"appid": appid, "art": art}
+        _save_record(rec)                           # after each user: a later failure must not lose this
         log.info("steam games: added %s to %s (appid %d, art %s)", gid, user.name, appid, art)
-    _save_record(rec)
     return did
 
 

@@ -443,3 +443,15 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   game runs -> quit -> back in Steam; Remove -> restart -> gone. Also adding while IN Game Mode (same file, same
   expected behaviour). Single-instance lock: if SCRiTCH is already running, --play quits (log "another copy").
 - Tests: tests/test_steam_shortcuts.py (7), tests/test_steam_games.py (8). Mockups 15x/15y rendered and looked at.
+- Reviewer-agent findings on v0.9.21, all fixed: (1) a Steam tile quit before the saves backup thread finished
+  (os._exit killed it): _autoplay joins the backup thread for up to 8 s; (2) a cut-off shortcuts.vdf raised
+  struct.error and crashed the Options menu: loads() now raises ValueError, is_added/add handle it, file untouched;
+  (3) art made before a later failure / on a re-add was not recorded and could be orphaned: the record is saved per
+  user and keeps earlier art, Remove deletes all of it; (4) a missing SD card showed "isn't installed": now "SD card
+  missing. Put the card back..."; (5) "X closed." no longer holds the screen 5 s (only errors do); (6) a Steam tile
+  pressed while the old copy is closing waits up to 6 s for the single-instance lock; (7) backups: newest 5 kept,
+  names include milliseconds, non-UTF-8 titles round-trip byte for byte (surrogateescape).
+- STILL UNVERIFIED (said by the reviewer too): Steam may rewrite shortcuts.vdf from memory when a non-Steam shortcut is
+  changed or played. SCRiTCH itself runs as a non-Steam shortcut, so adding while IN Game Mode could be undone when
+  SCRiTCH exits, and a removed tile could come back. The experiment only covered Steam exiting. First Deck test must
+  add in Game Mode, restart Steam, and check `python3 steam_shortcuts.py list` afterwards.
