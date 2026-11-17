@@ -538,3 +538,12 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   free space refresh), Settings row + "manage" value, App wiring. Whole-suite failures unchanged (44, Windows-only baseline).
 - STILL TO DO: mockups (scratch/storage_mock_patch.py was written but NOT applied; focus numbers shift: Games & controls 9, Help 12),
   tests (pure helpers, scene handle/hints, app handlers with a stub), README line, VERSION bump (0.9.24), reviewer pass, Deck checklist.
+
+## v0.9.23 CI fix (18 Nov): the build failed in the SMOKE TEST (`scritch --selftest`), not in pytest
+- Cause: itch_deck/app.py _selftest_gog asserted a not-installed GOG game page has actions == ["Install"]; v0.9.23 added the
+  Options button (Hide from SCRiTCH) so it is ["Install", "Options"]. I had updated test_epic/test_gog but not this assertion.
+- How it was found: the build file now lists failing test names as annotations; pytest passed and the job's steps showed
+  "Smoke test" as the failing step (api.github.com/repos/GoOmri/Itch-deck/actions/runs/<id>/jobs). The selftest can be run
+  locally up to the Epic part with PYTHONUTF8=1, a fcntl stand-in on PYTHONPATH and SDL_VIDEODRIVER=dummy.
+- LESSON: when a UI change alters what a screen offers, grep app.py's selftest for assertions about it, and run
+  `python run.py --selftest` as far as it goes before pushing.

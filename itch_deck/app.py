@@ -568,7 +568,7 @@ def _selftest_gog(app):
         assert "gog" in dict(app.scene.tabs())
         g = app.lib.by_id("gog-1207658924")
         app.go_game(g)
-        assert [a[0] for a in app.scene.actions()] == ["Install"]
+        assert [a[0] for a in app.scene.actions()] == ["Install", "Options"]
         app.game_action(g, "Install")
         for _ in range(200):
             app.update()
