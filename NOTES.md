@@ -530,3 +530,12 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   a damaged cached file is deleted and fetched again; (2) the screen waited on the download once per Steam user: it is fetched
   ONCE before the user loop, in a thread, and gives up after 8 s in total; (3) a fill could come out 1 px short (a black line
   at one edge): sizes round up when filling; a transparent cover shows the dark tile, not black. Tests 22 in test_steam_games.py.
+
+## v0.9.23 CI fix (18 Nov): the build failed in the SMOKE TEST (`scritch --selftest`), not in pytest
+- Cause: itch_deck/app.py _selftest_gog asserted a not-installed GOG game page has actions == ["Install"]; v0.9.23 added the
+  Options button (Hide from SCRiTCH) so it is ["Install", "Options"]. I had updated test_epic/test_gog but not this assertion.
+- How it was found: the build file now lists failing test names as annotations; pytest passed and the job's steps showed
+  "Smoke test" as the failing step (api.github.com/repos/GoOmri/Itch-deck/actions/runs/<id>/jobs). The selftest can be run
+  locally up to the Epic part with PYTHONUTF8=1, a fcntl stand-in on PYTHONPATH and SDL_VIDEODRIVER=dummy.
+- LESSON: when a UI change alters what a screen offers, grep app.py's selftest for assertions about it, and run
+  `python run.py --selftest` as far as it goes before pushing.
