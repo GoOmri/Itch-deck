@@ -22,7 +22,6 @@ def tabs(stores=("itch",)):
     return tuple(out)
 
 
-TABS = tabs()            # default set (itch only); a Library uses self.tabs()
 SHOWS = (("all", "Everything"), ("playable", "Playable here"))
 LENGTHS = (("any", "Any"), ("short", "Under 2 h"), ("mid", "2–10 h"), ("long", "10 h+"))
 

@@ -31,12 +31,6 @@ class _Parser(HTMLParser):
     def _in(self, role):
         return any(role in r for _, r in self.stack)
 
-    def _depth_of(self, role):
-        for i in range(len(self.stack) - 1, -1, -1):
-            if role in self.stack[i][1]:
-                return i
-        return -1
-
     def handle_starttag(self, tag, attrs):
         a, c, roles = dict(attrs), _cls(attrs), set()
         if tag in VOID:

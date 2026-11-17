@@ -12,7 +12,6 @@ GOG's settings are written for Windows: mount lines like  mount C "..\\cloud_sav
 Each -conf file is copied next to the original as scritch-<name> without its [autoexec]; those
 commands go to DOSBox as -c (mount paths with "/"), then GOG's own -c ("exit"). See _split_conf."""
 import logging
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -77,9 +76,6 @@ def ensure(log_file=None):
     cmd = native()
     log.info("dosbox: %s", "ready" if cmd else "couldn't install")
     return cmd
-
-
-SKIP_CMDS = ("cls", "pause", "exit", "echo", "@echo", "rem", "#", "::", "@")
 
 
 def _split_conf(src):
