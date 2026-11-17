@@ -159,7 +159,7 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 - **Updates:** SCRiTCH checks itch for newer builds of installed games. The tile shows *Update*,
   and Options → Update installs it; if that fails, the old build stays.
 - **Add to Steam:** Options -> **Add to Steam** makes a Steam shortcut for just this game, with its cover as the
-  tile. Starting that tile opens SCRiTCH straight into the game (`scritch --play <game id>`), and when the game
+  tile (Epic games use Epic's tall box art; a square or tall cover fills the tile, a wide one is fitted over a blurred copy of itself). Starting that tile opens SCRiTCH straight into the game (`scritch --play <game id>`), and when the game
   ends you are back in Steam. Steam only reads its shortcut list at start-up, so the tile shows after Steam
   restarts (Power -> Switch to Desktop, then Return to Gaming Mode). Options -> **Remove from Steam** takes it out
   again, with the art SCRiTCH made. Your own shortcuts and art are never touched, and a backup of Steam's

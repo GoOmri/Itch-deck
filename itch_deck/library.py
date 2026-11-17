@@ -252,7 +252,8 @@ class Library:
 
     def save_cache(self):
         keep = ("id", "title", "author", "cover_url", "url", "short_text", "platforms",
-                "download_key_id", "classification", "source", "store", "app_name", "long_text", "category")
+                "download_key_id", "classification", "source", "store", "app_name", "long_text", "category",
+                "tall_url")
         games = [{k: (sorted(g[k]) if k == "platforms" else g.get(k)) for k in keep} for g in self.games]
         _write_json(paths.LIBRARY, {"synced_at": self.synced_at, "games": games})
 

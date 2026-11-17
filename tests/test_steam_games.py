@@ -251,3 +251,58 @@ def test_adding_again_draws_missing_art_without_a_second_shortcut(steam, monkeyp
     assert _names(steam).count("KIDS") == 1 and len(list(steam.grid.iterdir())) == 3
     assert len(steam_games._record()["kids-1"]["users"]["4242"]["art"]) == 3
     assert len(list(steam.vdf.parent.glob("shortcuts.vdf.scritch-backup-*"))) == 1     # the file was written once
+
+
+def _solid(tmp_path, size, name):
+    surf = pg.Surface(size)
+    surf.fill((200, 40, 40))
+    f = tmp_path / name
+    pg.image.save(surf, str(f))
+    return f
+
+
+def test_square_and_tall_covers_fill_the_tall_tile_wide_ones_are_fitted(tmp_path):
+    """Omri 17 Nov ("more squared"): a cover close to the tile's shape fills it; a wide one on a tall tile would lose
+    most of its picture, so it is fitted over a blurred copy instead."""
+    assert steam_games.fills((300, 300), (600, 900)) and steam_games.fills((600, 800), (600, 900))
+    assert not steam_games.fills((460, 215), (600, 900))                    # a wide cover on the tall tile
+    assert steam_games.fills((460, 215), (920, 430))                         # ... fills the wide tile
+    red = (200, 40, 40)
+    sq = steam_games.compose(pg, _solid(tmp_path, (300, 300), "sq.png"), "T", (600, 900))
+    assert tuple(sq.get_at((2, 2)))[:3] == red and tuple(sq.get_at((597, 897)))[:3] == red       # filled to the corners
+    wide = steam_games.compose(pg, _solid(tmp_path, (460, 215), "w.png"), "T", (600, 900))
+    assert tuple(wide.get_at((2, 2)))[:3] != red                              # the blurred, darkened background
+
+
+def test_epic_tall_art_becomes_the_portrait_tile_and_failures_fall_back(steam, tmp_path, monkeypatch):
+    from itch_deck import net
+    tall = tmp_path / "tallsrc.png"
+    surf = pg.Surface((300, 400))
+    surf.fill((20, 160, 60))
+    pg.image.save(surf, str(tall))
+    monkeypatch.setattr(net, "get", lambda url, timeout=0, **k: tall.read_bytes())
+    g = {"id": "epic-Fern", "title": "Fern", "cover_file": str(steam.cover), "tall_url": "https://x/tall.jpg"}
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)
+    appid = S.shortcut_appid(f'"{LAUNCHER}"', "Fern")
+    portrait = pg.image.load(str(steam.grid / f"{appid}p.png"))
+    assert tuple(portrait.get_at((5, 5)))[:3] == (20, 160, 60)             # the tall art, not the red wide cover
+    assert tuple(pg.image.load(str(steam.grid / f"{appid}.png")).get_at((5, 5)))[:3] != (20, 160, 60)   # wide tile: the cover
+    steam_games.remove("epic-Fern", steam.roots)
+    (paths.COVERS / "epic-Fern-tall.jpg").unlink()
+    def offline(*a, **k):
+        raise OSError("offline")
+    monkeypatch.setattr(net, "get", offline)
+    assert steam_games.fetch_tall(g) is None                                # offline: the normal cover is used
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)
+    assert len(steam_games._record()["epic-Fern"]["users"]["4242"]["art"]) == 3
+
+
+def test_epic_games_keep_their_tall_image_url():
+    from itch_deck.stores import epic
+    data = {"app_name": "Fern", "app_title": "Fern", "metadata": {"keyImages": [
+        {"type": "DieselGameBox", "url": "https://x/wide.jpg"},
+        {"type": "DieselGameBoxTall", "url": "https://x/tall.jpg"}]}, "asset_infos": {"Windows": {}}}
+    g = epic.game_from_json(data)
+    assert g["cover_url"] == "https://x/wide.jpg" and g["tall_url"] == "https://x/tall.jpg"
+    data["metadata"]["keyImages"] = [{"type": "DieselGameBox", "url": "https://x/wide.jpg"}]
+    assert epic.game_from_json(data)["tall_url"] is None

@@ -517,3 +517,11 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   runs on every install-state change (Installer._upd) and forgets the id (on_unhide -> App drops it from config "hidden");
   (2) the top bar said "2 of 50 games" inside the Hidden filter: now just "2 games"; (3) the Genre filter offered genres of
   hidden games: it uses the games of the current Show. Tests 7 in tests/test_hidden.py.
+- Steam tile art (Omri 17 Nov, after seeing v0.9.22 on his Deck: "an image on a blurred copy of itself because the tile is high"):
+  in the same release as Hide from SCRiTCH. (1) Epic keeps its portrait box image (stores/epic.py `tall_url`, types
+  DieselGameBoxTall/DieselStoreFrontTall/OfferImageTall; library cache keeps it); Add to Steam downloads it once (steam_games.
+  fetch_tall, 8 s timeout, offline = the normal cover) and uses it for the <appid>p portrait tile only. (2) compose(): a cover
+  FILLS the tile (cropped) when that cuts at most 45 % of it (steam_games.fills: square/tall covers on the tall tile, wide
+  covers on the wide tile), else fitted over a darkened blurred copy ("more squared", his words). itch has one cover only;
+  GOG might have a vertical image format (UNVERIFIED, not done); own DOS games: a tall cover.png in the folder is used.
+  Existing tiles keep their art (never overwritten): Remove + Add again to get the new look.

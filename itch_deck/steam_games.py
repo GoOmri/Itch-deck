@@ -102,9 +102,19 @@ def _fit(pg, img, box, fill=False):
     return pg.transform.smoothscale(img, (max(1, int(w * k)), max(1, int(h * k))))
 
 
+FILL_MAX_CUT = 0.45          # fill the tile (cropping) when that cuts off at most this share of the picture
+
+
+def fills(img_size, tile_size):
+    """True when the cover can fill the tile by cropping without losing too much: a square or tall cover on a
+    tall tile (Omri 17 Nov: "more squared"), a wide cover on a wide tile. Else the cover is fitted over a blurred copy."""
+    a, ta = img_size[0] / img_size[1], tile_size[0] / tile_size[1]
+    return 1 - min(a / ta, ta / a) <= FILL_MAX_CUT
+
+
 def compose(pg, cover, title, size):
-    """One art picture: the cover (when there is one) over a darkened, blurred copy of itself, or a plain
-    title card when the game has no cover."""
+    """One art picture: the cover (when there is one) filling the tile if it is close to its shape, else fitted over a
+    darkened, blurred copy of itself, or a plain title card when the game has no cover."""
     W, H = size
     surf = pg.Surface((W, H))
     img = None
@@ -113,6 +123,10 @@ def compose(pg, cover, title, size):
             img = _to32(pg, pg.image.load(str(cover)))
         except (pg.error, OSError, FileNotFoundError, ValueError):
             img = None                                   # an unreadable cover: the title card instead
+    if img is not None and fills(img.get_size(), size):
+        big = _fit(pg, img, (W, H), fill=True)
+        surf.blit(big, ((W - big.get_width()) // 2, (H - big.get_height()) // 2))
+        return surf
     if img is not None:
         bg = _fit(pg, img, (W, H), fill=True)
         small = pg.transform.smoothscale(bg, (max(1, bg.get_width() // 16), max(1, bg.get_height() // 16)))
@@ -154,7 +168,27 @@ def compose(pg, cover, title, size):
     return surf
 
 
-def write_art(pg, grid, appid, cover, title, written=None):
+def fetch_tall(g):
+    """Download the game's portrait art (Epic's tall box) once into the covers folder; the path, or None (no such
+    art, offline, any error: the normal cover is used then). Called when Add to Steam is pressed."""
+    url = g.get("tall_url")
+    if not url:
+        return None
+    from . import net
+    dest = paths.COVERS / f"{g['id']}-tall.jpg"
+    if dest.is_file() and dest.stat().st_size > 0:
+        return dest
+    try:
+        data = net.get(url, timeout=8)
+        paths.COVERS.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        return dest
+    except Exception as e:  # noqa: BLE001  - art is a bonus
+        log.info("steam games: tall art for %s not downloaded: %s", g["id"], e)
+        return None
+
+
+def write_art(pg, grid, appid, cover, title, written=None, tall=None):
     """Cover art as Steam names it, never over a picture that exists. Returns the file names written
     (appended to `written` as each is made, so a failure half way still shows what was made)."""
     written = [] if written is None else written
@@ -164,10 +198,11 @@ def write_art(pg, grid, appid, cover, title, written=None):
         if steam_art._exists(grid, stem):
             continue
         tmp = grid / (stem + ".png.scritch-tmp.png")
+        src = tall if (suffix == "p" and tall) else cover      # the portrait tile takes the tall art
         try:
-            pic = compose(pg, cover, title, size)
+            pic = compose(pg, src, title, size)
         except Exception:  # noqa: BLE001  - a cover that can't be drawn must not leave the tile bare
-            log.exception("steam games: cover %s can't be drawn, using a title card", cover)
+            log.exception("steam games: cover %s can't be drawn, using a title card", src)
             pic = compose(pg, None, title, size)
         pg.image.save(pic, str(tmp))
         os.replace(tmp, grid / (stem + ".png"))
@@ -205,7 +240,8 @@ def add(g, launcher, roots=None, pg=None):
         users[user.name] = {"appid": appid, "art": art}
         if pg is not None:
             try:
-                write_art(pg, user / "config" / "grid", appid, g.get("cover_file"), g.get("title") or gid, art)
+                write_art(pg, user / "config" / "grid", appid, g.get("cover_file"), g.get("title") or gid, art,
+                          tall=fetch_tall(g))
             except Exception:  # noqa: BLE001  - the shortcut is in; the art is a bonus
                 log.exception("steam games: art for %s failed", gid)
         _save_record(rec)                           # after each user: a later failure must not lose this

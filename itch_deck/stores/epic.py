@@ -32,6 +32,7 @@ LOGIN_URL = "https://legendary.gl/epiclogin"
 # landscape art first: tiles are wider than tall (DieselGameBoxTall is the portrait box)
 COVER_TYPES = ("DieselGameBox", "OfferImageWide", "DieselStoreFrontWide", "Thumbnail",
                "DieselGameBoxTall")
+TALL_TYPES = ("DieselGameBoxTall", "DieselStoreFrontTall", "OfferImageTall")      # portrait art (Steam tiles)
 PREFIX = "epic-"                         # game ids: never clash with itch's numeric ids
 
 
@@ -63,6 +64,12 @@ def _cover(meta):
     return next((imgs[k] for k in COVER_TYPES if imgs.get(k)), None)
 
 
+def _tall(meta):
+    """Epic's portrait box art, when the game has one (used for the Steam tile, v0.9.23)."""
+    imgs = {i.get("type"): i.get("url") for i in meta.get("keyImages") or [] if isinstance(i, dict)}
+    return next((imgs[k] for k in TALL_TYPES if imgs.get(k)), None)
+
+
 def game_from_json(data):
     """One legendary game (list --json entry or metadata/<app>.json) -> a library game dict;
     None for DLC and broken entries."""
@@ -85,6 +92,7 @@ def game_from_json(data):
         "title": (data.get("app_title") or meta.get("title") or data["app_name"]).strip(),
         "author": meta.get("developer") or "",
         "cover_url": _cover(meta),
+        "tall_url": _tall(meta),                     # portrait art for the Steam tile
         "url": None,                                 # no itch page to read
         "short_text": (meta.get("description") or "").strip(),
         "long_text": (meta.get("longDescription") or "").strip(),   # game page "About"
