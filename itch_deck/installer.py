@@ -305,6 +305,26 @@ class MoveCancelled(Exception):
     pass
 
 
+def safe_to_delete(path, roots):
+    """True only for a folder strictly INSIDE one of the games folders (roots). Never a root itself,
+    the home folder, or something outside them: uninstall and move delete folders named in
+    install.json, and a damaged record must not be able to wipe the wrong place (audit 17 Nov)."""
+    try:
+        p = Path(path).resolve()
+    except (OSError, RuntimeError, ValueError):
+        return False
+    if len(p.parts) < 3 or p == paths.HOME.resolve():
+        return False
+    for r in roots:
+        try:
+            rr = Path(r).resolve()
+        except (OSError, RuntimeError, ValueError):
+            continue
+        if p != rr and rr in p.parents:
+            return True
+    return False
+
+
 def _tree_size(p):
     total = 0
     for dirpath, _, files in os.walk(p):
@@ -1138,7 +1158,17 @@ class Installer:
                 if any(Path(i.get("dir", "")) == taken or Path(i.get("prefix") or "/") == taken
                        for i in self.index.values()):
                     raise InstallError("A game with the same folder is already there.", "M02")
-                shutil.rmtree(taken, ignore_errors=True)
+                if taken == dst_pfx and taken.is_dir() and any(taken.iterdir()):   # saves of an
+                    n, aside = 0, taken.with_name(f"{taken.name}.kept-{int(time.time())}")  # uninstalled game:
+                    while aside.exists():                                          # keep them
+                        n += 1
+                        aside = taken.with_name(f"{taken.name}.kept-{int(time.time())}-{n}")
+                    os.rename(taken, aside)
+                    log.info("move %s: kept the old prefix as %s", gid, aside)
+                elif safe_to_delete(taken, [dest_root]):
+                    shutil.rmtree(taken, ignore_errors=True)
+                else:
+                    raise InstallError("A game with the same folder is already there.", "M02")
         shutil.rmtree(stage, ignore_errors=True)
         done = [0]
 
@@ -1180,6 +1210,21 @@ class Installer:
                 log.info("move: removing leftover %s", p)
                 shutil.rmtree(p, ignore_errors=True)
 
+    def delete_roots(self):
+        """Folders games may be deleted under: where installs go now, both drive choices, and the
+        scritch/itch games folder of every game already installed (older installs, moved games)."""
+        roots = []
+        try:
+            roots.append(self.root_fn())
+        except Exception:  # noqa: BLE001 - a missing card must not stop an uninstall's bookkeeping
+            pass
+        roots += [r for _name, r in config.install_choices()]
+        for i in self.index.values():
+            par = Path(i.get("dir") or "/").parent
+            if par.name in ("itch", "scritch"):
+                roots.append(par)
+        return roots
+
     def uninstall(self, gid):
         """Forget the install now; delete the files in the background (big games take a while).
         Proton prefixes live in <root>/_prefixes and are kept, so saves survive."""
@@ -1187,6 +1232,7 @@ class Installer:
         if cur and config.card_missing(cur["dir"]):    # can't delete it, so don't forget it
             log.info("uninstall %s: refused, SD card missing (%s)", gid, cur["dir"])
             return False
+        roots = self.delete_roots()                    # before the pop: its own games folder counts
         info = self.index.pop(gid, None)
         _write_json(paths.INSTALLS, self.index)
         if self.choices.pop(gid, None) is not None:   # a fresh install starts from the default
@@ -1197,7 +1243,9 @@ class Installer:
         if info and info.get("store") == "epic" and self.lib.epic:   # legendary forgets it too
             threading.Thread(target=self.lib.epic.uninstall, args=(info.get("app_name"),),
                              daemon=True, name="epic-uninstall").start()
-        if info:
+        if info and not safe_to_delete(info["dir"], roots):
+            log.warning("uninstall %s: NOT deleting %s (not inside a games folder)", gid, info["dir"])
+        elif info:
             log.info("uninstall %s: %s", gid, info["dir"])
             threading.Thread(target=shutil.rmtree, args=(info["dir"],), kwargs={"ignore_errors": True},
                              daemon=True, name="uninstall").start()

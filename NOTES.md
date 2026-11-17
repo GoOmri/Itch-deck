@@ -1397,3 +1397,16 @@ One item per update, plan + size first, wait for "go" and "push":
 6 Opt-in "Add to Steam" for one game (own tile + layout; needs a Steam restart).
 PARKED (Omri 17 Nov): DLC for Epic and GOG; cloud saves for Epic and GOG; browser games.
 Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Agents in E:\Projects\GIT\.claude\agents.
+
+## v0.9.13 (17 Nov, branch v0913-safe-deletes) = safer deleting (from the read-only audit of 17 Nov)
+- installer.safe_to_delete(path, roots): a folder is deleted only when it is strictly inside a games root
+  (never the root itself, home, or somewhere else). Uninstall computes the roots BEFORE popping the game
+  from the index (install location now, both drive choices, the itch/scritch folder of every installed game
+  incl. this one); a damaged install.json can no longer make uninstall rmtree the wrong place (it logs
+  "NOT deleting ..." and still forgets the entry).
+- Move: a leftover Proton prefix at the destination (can hold saves) is renamed `<name>.kept-<time>` instead
+  of deleted (Settings -> Saves of uninstalled games lists it). Other leftovers: deleted only when safe.
+- Reviewer-agent found 3 gaps, all fixed (roots after pop, file where a prefix should be, name clash).
+- Tests: tests/test_safe_delete.py (4 of 5 need Linux: they reuse test_move._setup with symlinks). UNVERIFIED
+  on the Deck. Audit leftovers not done: merge duplicated Epic/GOG code, dead code list, .gitignore gaps,
+  split NOTES.md, `requests` possibly unused, check that helper output (legendary/gogdl stderr) never holds tokens.
