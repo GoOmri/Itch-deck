@@ -157,7 +157,7 @@ class PlayMixin:
         run it (again)."""
         from .stores import gog
         files = Path(info["dir"]) / "files"
-        return not info.get("setup_done") or any(not gog.step_exe(st, files)
+        return not info.get("setup_done") or any(gog.required(st) and not gog.step_exe(st, files)
                                                  for st in info["setup_steps"])
 
     def _gog_first_run(self, g, info, umu, env):
@@ -191,7 +191,8 @@ class PlayMixin:
             self.pg.event.pump()
             self._splash(f"Preparing {g['title']}…", "First run only, can take a few minutes")
             th.join(0.25)
-        missing = [st["name"] for st in info["setup_steps"] if not gog.step_exe(st, files)]
+        missing = [st["name"] for st in info["setup_steps"]
+                   if gog.required(st) and not gog.step_exe(st, files)]
         info["setup_done"] = not missing         # a part we couldn't get: try again next Play
         if res.get("failed"):
             info["setup"] = True                 # a crash right after -> P03
