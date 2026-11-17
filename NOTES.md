@@ -385,3 +385,14 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   DOSBox opens with the game; quit with View+Menu 2 s; Options -> Remove from library keeps the folder.
   Known limits: long (non 8.3) sub folder names for cd; Windows 3.x/95 games; no pad config per game.
 - Tests: tests/test_dosgames.py (7, run on Windows too). Mockups 21m, 21o, 15u/v/w rendered and looked at.
+- Reviewer-agent findings on v0.9.19, all fixed: (1) an itch game titled "DOS" got <root>/dos as its folder and
+  uninstall/move could wipe the player's DOS games: _game_dir reserves dos/_prefixes/_moving, safe_to_delete never
+  deletes those names; (2) ids collided (non-ASCII names all slugged to "game"): id = dos-<slug>-<6 hex of the
+  folder name>, stable; (3) an odd zip (old PKZIP compression, password) stopped the whole scan: per-zip
+  `except Exception`, skipped with a log line; free-space check before unpacking; (4) the scan changed the shared
+  index from a thread: scan_dos() (thread, touches nothing shared) + apply_dos() (main thread, in App._dos_tick);
+  a choice made meanwhile survives; (5) Refresh pressed during a scan was lost: it is queued (dos_queued);
+  (6) a removed game's .zip copied again comes back as "<name> (2)" (old folder untouched); (7) one os.walk
+  per game (depth 2 for programs/images), folder names with a double quote skipped, own games are not sent to
+  HowLongToBeat. Not changed: no scan without an itch key (the app needs one to reach the library).
+  Tests: tests/test_dosgames.py now 15 (run on Windows).

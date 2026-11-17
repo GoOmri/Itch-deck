@@ -533,7 +533,8 @@ class Library:
         if self._hltb_down:
             return
         for g in self.games:
-            if g.get("title") and g["platforms"] & {"linux", "windows"} and not self._hltb_fresh(g["id"]):
+            if g.get("title") and g["platforms"] & {"linux", "windows"} and g.get("store") != "dos" \
+                    and not self._hltb_fresh(g["id"]):
                 self._put(7, "hltb", g["id"])
 
     def _fetch_hltb(self, g):

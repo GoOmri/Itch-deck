@@ -9,6 +9,9 @@ from itch_deck import dosbox, dosgames, paths
 from itch_deck import installer as I
 
 
+ALLEY = dosgames.game_id("Alley")
+
+
 def _game(root, name, files=("GAME.EXE",), extra=None):
     d = root / name
     d.mkdir(parents=True)
@@ -31,7 +34,7 @@ def test_scan_lists_games_and_skips_helpers_and_empty_folders(tmp_path):
     got = dosgames.scan(root)
     assert [g["name"] for g in got] == ["Eye_of_the_Beholder"]
     g = got[0]
-    assert g["id"] == "dos-eye-of-the-beholder" and g["title"] == "Eye of the Beholder"
+    assert g["id"] == dosgames.game_id("Eye_of_the_Beholder") and g["title"] == "Eye of the Beholder"
     assert g["exe"] == "EOB.EXE" and g["programs"] == ["EOB.EXE"]        # setup + sound config left out
     assert g["cover"].name == "cover.png" and g["image"] == "GAME.CUE"
 
@@ -109,25 +112,25 @@ def test_sync_adds_games_and_remove_keeps_every_file(tmp_path):
     inst, lib, dos = _inst(tmp_path)
     game = _game(dos, "Alley", ["ALLEY.EXE", "OLD.EXE"], {"save1.dat": b"my save"})
     assert inst.sync_dos() == 1
-    info = inst.index["dos-alley"]
+    info = inst.index[ALLEY]
     assert info["store"] == "dos" and info["dir"] == str(game) and info["exe"] == "ALLEY.EXE"
-    assert inst.exe_path("dos-alley") == game / "ALLEY.EXE"
-    assert [e["id"] for e in lib.dos] == ["dos-alley"]
-    assert inst.set_exe("dos-alley", "OLD.EXE") and inst.index["dos-alley"]["exe_chosen"]
+    assert inst.exe_path(ALLEY) == game / "ALLEY.EXE"
+    assert [e["id"] for e in lib.dos] == [ALLEY]
+    assert inst.set_exe(ALLEY, "OLD.EXE") and inst.index[ALLEY]["exe_chosen"]
     assert not (game / "install.json").exists()                   # nothing written into the player's folder
     inst.sync_dos()                                               # the chosen program survives a rescan
-    assert inst.index["dos-alley"]["exe"] == "OLD.EXE"
-    assert inst.move_target("dos-alley", [("SD card", dos.parent), ("Internal storage", tmp_path)]) is None
+    assert inst.index[ALLEY]["exe"] == "OLD.EXE"
+    assert inst.move_target(ALLEY, [("SD card", dos.parent), ("Internal storage", tmp_path)]) is None
     # remove from library: the entry goes, the files stay
-    assert inst.uninstall("dos-alley") is True
+    assert inst.uninstall(ALLEY) is True
     time.sleep(0.2)
-    assert "dos-alley" not in inst.index and (game / "save1.dat").read_bytes() == b"my save"
+    assert ALLEY not in inst.index and (game / "save1.dat").read_bytes() == b"my save"
     assert (game / "ALLEY.EXE").is_file()
     assert inst.sync_dos() == 0                                   # hidden: it does not come straight back
     later = time.time() + 5                                       # copied again (folder changed): back
     (game / "new.exe").write_bytes(b"MZ")
     os.utime(game, (later, later))
-    assert inst.sync_dos() == 1 and "dos-alley" in inst.index
+    assert inst.sync_dos() == 1 and ALLEY in inst.index
 
 
 def test_scan_without_a_folder_does_nothing_until_asked(tmp_path):
@@ -137,3 +140,90 @@ def test_scan_without_a_folder_does_nothing_until_asked(tmp_path):
     inst = I.Installer(lib, lambda: root)
     assert inst.sync_dos() == 0 and not (root / "dos").exists()    # start-up scan never makes folders
     assert inst.sync_dos(create=True) == 0 and (root / "dos").is_dir()   # Refresh does
+
+
+def test_ids_never_collide(tmp_path):
+    root = tmp_path / "dos"
+    names = ["A B", "a-b", "Doom", "\u0418\u0433\u0440\u0430", "\u30b2\u30fc\u30e0", "Doom 2", "doom_2"]
+    if os.name != "nt":
+        names.append("doom")                                      # (Windows folders ignore letter case)
+    for n in names:
+        _game(root, n)
+    got = dosgames.scan(root)
+    ids = [g["id"] for g in got]
+    assert len(got) == len(names) and len(set(ids)) == len(names)     # every folder is its own game
+    assert dosgames.game_id("Alley") == dosgames.game_id("Alley")        # and the id is stable
+
+
+def test_a_zip_the_module_cannot_read_does_not_stop_the_scan(tmp_path, monkeypatch):
+    root = tmp_path / "dos"
+    root.mkdir()
+    with zipfile.ZipFile(root / "Old.zip", "w") as z:
+        z.writestr("OLD.EXE", "MZ")
+    _game(root, "Fine")
+    real = zipfile.ZipFile.extractall
+
+    def boom(self, *a, **k):
+        raise NotImplementedError("compression type 6 (implode)")
+    monkeypatch.setattr(zipfile.ZipFile, "extractall", boom)
+    got = dosgames.scan(root)                                    # must not raise
+    assert [g["name"] for g in got] == ["Fine"]
+    assert (root / "Old.zip").is_file() and not (root / "Old.unpacking").exists()
+    monkeypatch.setattr(zipfile.ZipFile, "extractall", real)
+    assert sorted(g["name"] for g in dosgames.scan(root)) == ["Fine", "Old"]    # fine again later
+
+
+def test_a_zip_that_does_not_fit_is_left_alone(tmp_path, monkeypatch):
+    import shutil
+    root = tmp_path / "dos"
+    root.mkdir()
+    with zipfile.ZipFile(root / "Big.zip", "w") as z:
+        z.writestr("BIG.EXE", "MZ" + "x" * 5000)
+    monkeypatch.setattr(shutil, "disk_usage", lambda p: shutil._ntuple_diskusage(10_000, 9_000, 100))
+    assert dosgames.unpack_zips(root) == [] and (root / "Big.zip").is_file()
+
+
+def test_a_removed_game_copied_again_as_a_zip_comes_back_as_a_new_folder(tmp_path):
+    root = tmp_path / "dos"
+    old = _game(root, "Doom", ["DOOM.EXE"], {"save.dat": b"mine"})
+    with zipfile.ZipFile(root / "Doom.zip", "w") as z:
+        z.writestr("DOOM.EXE", "MZ")
+    # visible folder with the same name: the zip is skipped (already there)
+    assert dosgames.unpack_zips(root, hide={}) == [] and (root / "Doom.zip").is_file()
+    # that folder was removed from the library: the zip becomes "Doom (2)"; the old folder is untouched
+    assert dosgames.unpack_zips(root, hide={"Doom": time.time()}) == ["Doom (2)"]
+    assert (root / "Doom (2)" / "DOOM.EXE").is_file() and (old / "save.dat").read_bytes() == b"mine"
+
+
+def test_folder_names_with_a_double_quote_are_skipped(tmp_path):
+    root = tmp_path / "dos"
+    if os.name != "nt":                                           # (Windows can't make such a folder)
+        _game(root, 'Say "hi"')
+    _game(root, "Fine")
+    assert [g["name"] for g in dosgames.scan(root)] == ["Fine"]
+
+
+def test_survey_does_not_look_deeper_than_two_folders(tmp_path):
+    d = _game(tmp_path / "dos", "Deep", ["A.EXE", "B/C/D/E/TOO_DEEP.EXE"])
+    progs, image, size = dosgames.survey(d)
+    assert progs == ["A.EXE"] and image is None and size > 0
+
+
+def test_the_dos_folder_name_is_reserved_and_never_deleted(tmp_path):
+    inst, lib, dos = _inst(tmp_path)
+    root = dos.parent
+    _game(dos, "Alley", ["ALLEY.EXE"])
+    g = {"id": "5", "title": "DOS"}                               # an itch game whose folder name would be "dos"
+    assert inst._game_dir(root, g) != root / "dos"
+    for reserved in ("dos", "_prefixes", "_moving", "_downloads"):
+        assert not I.safe_to_delete(root / reserved, [root])
+    assert I.safe_to_delete(root / "some-game", [root])
+
+
+def test_a_scan_runs_in_a_thread_and_is_applied_afterwards(tmp_path):
+    inst, lib, dos = _inst(tmp_path)
+    _game(dos, "Alley", ["ALLEY.EXE"])
+    result = inst.scan_dos()                                      # what the thread does: no shared state touched
+    assert ALLEY not in inst.index and lib.dos is None
+    assert inst.apply_dos(result) == 1 and ALLEY in inst.index and [e["id"] for e in lib.dos] == [ALLEY]
+    assert inst.apply_dos(None) is None                           # SD card out: nothing changes

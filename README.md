@@ -110,7 +110,10 @@ game folders or `.zip` files into that folder (Dolphin, Warpinator, a USB stick)
   own folder, and SCRiTCH never changes or deletes your files.
 - If a folder has several programs, SCRiTCH picks the one named like the folder, or the only `.bat`;
   Options → **Program to run** changes it. Options → **Remove from library** only forgets the entry
-  (the folder stays hidden until you copy it again).
+  (the folder stays hidden until it changes; copying the game's `.zip` again brings it back as
+  `<name> (2)`, your old folder is never touched).
+- Folders with a double quote in their name are skipped. If you switch *Install location*, the dos
+  folder switches with it (the old one stays on its drive, untouched).
 - Plain DOS games only: Windows 3.x / 95 games need other tools. Games with long folder names inside
   the game folder may need renaming to 8.3 names. SCRiTCH doesn't download games: use games you own
   or that are free.
