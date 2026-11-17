@@ -304,32 +304,28 @@ u=()=>b.disabled=!x.value.trim();x.addEventListener('input',u);u()}}</script>
 
 def logs_page(token, report, issue_url):
     """Send your logs: ONE tap opens the GitHub issue with version, system and a short cleaned log
-    filled in (no copying needed: Copy did not work in a phone browser on plain HTTP, Deck test
-    17 Nov). Below: the longer cleaned text to copy by hand and the full zip."""
+    filled in. "More" holds the longer text with a Copy button, and the full zip.
+    ids are prefixed: the inline logo SVG has ids like "c", and getElementById('c') found the logo
+    instead of the button (Deck test 17 Nov: Copy did nothing, not even a message)."""
     t = html.escape(token)
-    return _page("Send your logs to the developer", f"""
-<p>Tap the purple button. GitHub opens a form with your SCRiTCH version and the end of your log
-already filled in. Read it and change anything before you post.</p>
+    return _page("Send your logs", f"""
 <a class="btn pri wide" href="{html.escape(issue_url)}" target="_blank" rel="noopener">Open a GitHub issue</a>
-<p class="note">A free GitHub account is needed, and the issue is <b>public</b>. Keys, sign-in codes,
-e-mail addresses, your user name, folders and network addresses are hidden from the log.</p>
-<h2 style="font-size:1.1rem;margin:1.6rem 0 .4rem">Want to share more?</h2>
-<p class="note">The longer text. If Copy doesn't work in your browser, touch and hold the text, choose
-Select all, then Copy.</p>
-<textarea id="r" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" readonly>{html.escape(report)}</textarea>
-<button id="c" type="button">Copy the text</button>
-<p id="m" style="min-height:1.5em;font-weight:600">&nbsp;</p>
-<p><a class="btn wide" href="/zip?t={t}">Download all logs (zip)</a></p>
-<p class="note">The zip is cleaned the same way, but it holds more. Send it to the developer
-privately; don't post it in a public issue.</p>
-<script>{{const r=document.getElementById('r'),m=document.getElementById('m'),b=document.getElementById('c'),
-done=ok=>{{m.textContent=ok?'Copied. Now paste it where you want it.':'Copy did not work here. Touch and hold the text, choose Select all, then Copy.';
+<p class="note">Your version and the end of your log are filled in. Keys, names and folders are hidden.
+Issues are public: read it before you post.</p>
+<details style="margin-top:1.6rem"><summary style="cursor:pointer;color:#9a9ab0">More</summary>
+<textarea id="lg-text" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" readonly>{html.escape(report)}</textarea>
+<button id="lg-copy" type="button">Copy the text</button>
+<p id="lg-msg" style="min-height:1.5em;font-weight:600">&nbsp;</p>
+<a class="btn wide" href="/zip?t={t}">Download all logs (zip)</a>
+<p class="note">The zip holds more. Send it to the developer privately, not in a public issue.</p>
+</details>
+<script>{{const r=document.getElementById('lg-text'),m=document.getElementById('lg-msg'),b=document.getElementById('lg-copy'),
+done=ok=>{{m.textContent=ok?'Copied. Now paste it where you want it.':'Copy did not work. Touch and hold the text, choose Select all, then Copy.';
 b.textContent=ok?'Copied':'Copy the text';}};
 b.addEventListener('click',()=>{{r.focus();r.select();r.setSelectionRange(0,r.value.length);
 let ok=false;try{{ok=document.execCommand('copy')}}catch(e){{}}
 if(!ok&&navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(r.value).then(()=>done(true),()=>done(false));
-else done(ok)}})}}</script>
-<p class="note">Only use this on your home Wi-Fi.</p>""")
+else done(ok)}})}}</script>""")
 
 
 def split_status(s):

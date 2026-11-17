@@ -21,6 +21,7 @@ class EpicConnect(Setup):
              ("Copy and send", "Copy the page Epic shows, paste it, tap Send.")]
     STATUS = STATUS
     SUB = "One time only. Your sign-in stays on this Deck."
+    QR_SIZE = 0.30            # QR side, as a share of the screen height / page width
 
     def __init__(self, t, status="prep", qr=None, url=None, progress=None, **kw):
         Scene.__init__(self, t, **kw)
@@ -45,7 +46,7 @@ class EpicConnect(Setup):
         y = W.text(t, s, self.SUB, x, y, t.f_body, color=t.dim).bottom + t.md
         if self.qr:
             steps = self.STEPS
-            side = min(int(t.h * 0.30), int(w * 0.30))
+            side = min(int(t.h * self.QR_SIZE), int(w * self.QR_SIZE))
             top = y
             y = self._steps(s, steps, x, y, w - side - t.lg)
             y = max(y, self._qr(s, x + w - side, top, side).bottom) + t.sm
@@ -70,6 +71,7 @@ class LogsShare(EpicConnect):
     log (to copy into a GitHub issue); A also saves the full cleaned zip into Documents."""
     TITLE = "Send your logs"
     SUB = "Scan the code, or press A to save the logs as a zip in Documents."
+    QR_SIZE = 0.42            # bigger: easier to scan from the couch (Omri, Deck test 17 Nov)
     STEPS = [("Scan the QR code", "Use your phone's camera."),
              ("Read the text", "Secrets and names are hidden."),
              ("Open the issue", "Tap the purple button. Your log is filled in.")]

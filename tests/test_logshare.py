@@ -214,3 +214,15 @@ def test_the_phone_page_leads_with_the_prefilled_issue_link(link):
     page = _get(link.url)[1].decode()
     assert page.index("Open a GitHub issue") < page.index("Copy the text")   # no copying needed first
     assert "readonly" in page
+
+
+def test_page_ids_are_unique_and_the_script_finds_its_elements():
+    """v0.9.15/16: the inline logo SVG owns ids like "c", so getElementById('c') found the logo instead
+    of the Copy button and the click did nothing (Deck test 17 Nov). The script must use ids only the
+    page's own elements have."""
+    import re
+    page = phonelink.logs_page("TOKEN", "x", "https://example.com/")
+    ids = re.findall(r'\bid="([^"]+)"', page)
+    assert len(ids) == len(set(ids)), [i for i in ids if ids.count(i) > 1]
+    for used in re.findall(r"getElementById\('([^']+)'\)", page):
+        assert ids.count(used) == 1, used
