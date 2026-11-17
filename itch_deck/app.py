@@ -24,9 +24,10 @@ from .app_epic import EpicMixin
 from .app_gog import GogMixin
 from .app_logs import LogsMixin
 from .app_dos import DosMixin
+from .app_storage import StorageMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.23"
+VERSION = "0.9.24"
 
 
 def setup_logging():
@@ -37,7 +38,7 @@ def setup_logging():
     logging.basicConfig(level=logging.INFO, handlers=[h, logging.StreamHandler()], force=True)
 
 
-class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, LogsMixin, DosMixin):
+class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, LogsMixin, DosMixin, StorageMixin):
     def __init__(self, windowed=False, autoplay=None):
         import pygame
         self.pg = pygame
@@ -140,7 +141,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
     def _set(self, kind, scene):
         from .ui import widgets as W
         if self.scene is not None and W.LIVE:
-            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3, "epic": 4, "gog": 4, "logs": 4}
+            depth = {"setup": 0, "library": 1, "game": 2, "settings": 3, "epic": 4, "gog": 4, "logs": 4, "storage": 4}
             self.fade_dir = 1 if depth.get(kind, 0) >= depth.get(self.kind, 0) else -1  # in / back
             try:
                 self.fade_from, self.fade_t0 = self.screen.copy(), time.monotonic()  # slide + fade
@@ -388,6 +389,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         self._gog_tick(now)
         self._logs_tick(now)
         self._dos_tick(now)
+        self._storage_tick(now)
         if self.lib.auth_failed:
             self.lib.auth_failed = False
             self.go_setup("rejected")

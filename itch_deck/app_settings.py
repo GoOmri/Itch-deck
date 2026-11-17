@@ -41,7 +41,14 @@ class SettingsMixin:
             "epic": self._epic_label(),
             "gog": self._gog_label(),
             "dos_row": self._dos_row(),
+            "manage": self._manage_value(),
         }
+
+    def _manage_value(self):
+        """Settings -> Storage -> Manage games: '12 games · 38.4 GB' (the installed games you can uninstall here)."""
+        from . import storagemgr
+        items = storagemgr.entries(self.lib.games, self.inst.index)
+        return f"{len(items)} game{'' if len(items) == 1 else 's'} · {storagemgr.mb_text(storagemgr.total_mb(items))}"
 
     def _symbols_label(self):
         want = self.cfg.get("button_symbols", "auto")
@@ -229,6 +236,8 @@ class SettingsMixin:
                 self.go_logs()
             elif label == "DOS games":
                 self._dos_howto()
+            elif label == "Manage games":
+                self.go_storage()
             elif label == "Disconnect itch":
                 self.confirm("Sign out of itch?",
                              ["SCRiTCH forgets the key. Installed games still play.",

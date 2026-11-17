@@ -539,3 +539,25 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   locally up to the Epic part with PYTHONUTF8=1, a fcntl stand-in on PYTHONPATH and SDL_VIDEODRIVER=dummy.
 - LESSON: when a UI change alters what a screen offers, grep app.py's selftest for assertions about it, and run
   `python run.py --selftest` as far as it goes before pushing.
+
+## v0.9.24 (18 Nov, branch v0926-storage-manager; waits for "push v0.9.24") = Storage manager (Settings > Storage > Manage games)
+- Omri's choices: opens from Settings > Storage; games only (save backups later); sort switchable Size / A-Z / Last played (Y, remembered in
+  config "storage_sort"). Replaces the WIP note above.
+- itch_deck/storagemgr.py (entries: installed, not "missing", not store "dos"; size from the game or the install record; drive
+  SD card/Internal; ordered; total_mb; mb_text; drives() = free/total of SD card + internal), ui/scenes/storage.py (StorageManager:
+  drive lines, count + "N selected · frees X", scrolling rows with a checkbox; A tick, Y sort, X uninstall, B back),
+  app_storage.py (go_storage, _h_storage, red confirm "Uninstall N games? Frees about X. Windows saves are kept.", one
+  Installer.uninstall per game with its v0.9.13 delete guards; a failure (SD card out) = error toast, the rest still goes;
+  free space refreshed every 2 s while the folders are deleted in the background). Settings row value "12 games · 38.4 GB".
+  The Storage group is now Install location, Saves of uninstalled games, Manage games (Games & controls rows are one index
+  later in mockups: 9, Help 12).
+- Tests: tests/test_storage.py (8, run on Windows). Mockups 22_storage_manager, 22b_selected, 22c_confirm, 22d_empty, 22e_az
+  rendered and looked at. UNVERIFIED on the Deck. Not done: moving ticked games to the other drive (Options -> Move exists per
+  game), clearing save backups.
+- Deck check: Settings > Storage > Manage games: drives show free space; games by size; A ticks, count + "frees X" update;
+  Y changes the order; X > Uninstall removes them (free space grows a few seconds later); an SD card out = "Couldn't uninstall...".
+- Reviewer-agent findings on v0.9.24, fixed: (1) ticking several Epic games started several `legendary uninstall` runs that each
+  rewrite installed.json: EpicStore.uninstall now takes a lock (one at a time); (2) B from Manage games sent Settings' own B to the
+  Library instead of the game page it came from: settings_back is restored; (3) after a partial failure only the games that
+  really went lose their tick; (4) removed the old WIP note. Not changed (minor): drives() runs on the main thread every 2 s (same
+  cost as _check_mounts), the list is only refreshed after an uninstall, after Y the highlight stays on the same position.

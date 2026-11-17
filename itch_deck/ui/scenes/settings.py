@@ -44,7 +44,8 @@ class Settings(Scene):
               ("GOG", v.get("gog", ""), "")] + ([v["dos_row"]] if v.get("dos_row") else [])),
             ("Storage", "Where games go and what they leave behind.",
              [("Install location", v["install_label"], ""),          # SD card / Internal storage
-              ("Saves of uninstalled games", v["prefix_size"], "")]),
+              ("Saves of uninstalled games", v["prefix_size"], ""),
+              ("Manage games", v.get("manage", ""), "")]),                # installed games by size (v0.9.24)
             ("Games & controls", "How games run and how you control them.",
              [("Proton version", v["proton"], ""),
               ("Button symbols", v.get("symbols", "Auto"), ""),
@@ -91,7 +92,7 @@ class Settings(Scene):
     ACTION = {"Refresh library": "Refresh", "Install location": "Change",
               "Saves of uninstalled games": "Delete", "Proton version": "Change",
               "Pointer speed": "Change", "Update app": "Check", "Disconnect itch": "Sign out",
-              "Button symbols": "Change", "Send logs": "Open", "DOS games": "Open",
+              "Button symbols": "Change", "Send logs": "Open", "DOS games": "Open", "Manage games": "Open",
               "DOS games folder": "Open"}
 
     def hints(self):
