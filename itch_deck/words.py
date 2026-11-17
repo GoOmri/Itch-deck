@@ -37,7 +37,7 @@ CODES = {
     # P = play
     "P01": "game: closed straight away, no known hint",
     "P02": "Mouse or Keys mode didn't start",
-    "P03": "GOG game closed straight away and ships first-run setup scripts SCRiTCH doesn't run yet",
+    "P03": "GOG game closed straight away (it ships first-run setup scripts; check logs/games/<game>-setup.log)",
     # L = library
     "L01": "library: refresh failed (not offline, not the key)",
     # U = app update
