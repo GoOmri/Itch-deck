@@ -455,3 +455,11 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   changed or played. SCRiTCH itself runs as a non-Steam shortcut, so adding while IN Game Mode could be undone when
   SCRiTCH exits, and a removed tile could come back. The experiment only covered Steam exiting. First Deck test must
   add in Game Mode, restart Steam, and check `python3 steam_shortcuts.py list` afterwards.
+
+## v0.9.21 CI fix (17 Nov): the first build of v0.9.21 FAILED on GitHub (pytest), so no release was made and the Deck stayed on .20
+- Cause: tests/test_codes.py only knew code letters [IWPLEUSM]; the new Add to Steam codes T01/T02 made it report
+  "listed but never used". Fixed: letter T added to both patterns. Nothing else differed from v0.9.20 (compared the whole
+  suite old vs new).
+- LESSON: on this Windows PC run the suite with PYTHONUTF8=1 and a fcntl stand-in on PYTHONPATH (python -m pytest -q
+  tests): without UTF-8 mode some Linux-only checks (test_codes) fail for the wrong reason here, which hid this one.
+  And ALWAYS look at the build's result after a push (api.github.com/repos/GoOmri/Itch-deck/actions/runs).
