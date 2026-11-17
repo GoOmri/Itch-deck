@@ -407,3 +407,16 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   cloned the repo; GitHub Support was NOT asked to purge the old objects (they stay reachable by direct SHA for an
   unknown time). Any chat still holding old branches must `git fetch` + reset to origin. Use that noreply email from
   now on (also in CLAUDE.md).
+
+## Add to Steam per game: plan + Deck experiment (17 Nov, branch v0922-steam-shortcuts; no VERSION bump, nothing uses it yet)
+- Omri's answers: per-game opt-in in Options ("Add to Steam" / "Remove from Steam"), tile art = the game's cover fitted to
+  Steam's sizes, controller layout left to Steam (a message says so), and he agreed to a Deck experiment first.
+- Plan: (1) `--play <game id>` start mode (play one game, then exit; allowed next to the single-instance lock);
+  (2) itch_deck/steam_shortcuts.py = binary VDF reader/WRITER (stdlib only, standalone, tests/test_steam_shortcuts.py:
+  byte-for-byte round trip, add, remove only our own "SCRiTCH"-tagged entries, backup + atomic write);
+  (3) art: cover -> <appid>p / <appid> / <appid>_hero via steam_art's never-overwrite rules; (4) Options entries + toast
+  "Restart Steam to see it"; (5) maybe later: per-game controller layout (poorly documented, own research).
+- MAIN RISK: Steam rewrites shortcuts.vdf from memory when it exits, so an edit made while Steam runs can be lost. The
+  experiment (E:\Projects\GIT\deck-experiments\steam_shortcuts.py, run with python3 in Desktop Mode: where / verify /
+  list / add / check / remove) tells us what survives: Steam running vs closed, Game Mode switch, Steam restart.
+- UNVERIFIED: that our writer's bytes match what real Steam files look like (verify checks his real file read-only).
