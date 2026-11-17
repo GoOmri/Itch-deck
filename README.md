@@ -21,6 +21,7 @@ automatically, and GOG's DOS games run in DOSBox Staging.
 - **Updates** for installed games on all three stores: the tile shows *Update*
 - **Save backups** after every play, **Move** games between the SD card and internal storage
 - **Button symbols** follow your controller (Steam Deck, DualSense, Xbox)
+- **Add to Steam** for one game: its own Steam tile (the cover as art) that starts straight into the game
 - **Send logs** to the developer from your phone, with secrets hidden (see below)
 - Installs to the SD card by default, and updates itself from Settings
 
@@ -152,6 +153,13 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
   Menu = Enter, L1 = R, R1 = Shift, and the right stick + R2 / L2 still work as a mouse.
 - **Updates:** SCRiTCH checks itch for newer builds of installed games. The tile shows *Update*,
   and Options → Update installs it; if that fails, the old build stays.
+- **Add to Steam:** Options -> **Add to Steam** makes a Steam shortcut for just this game, with its cover as the
+  tile. Starting that tile opens SCRiTCH straight into the game (`scritch --play <game id>`), and when the game
+  ends you are back in Steam. Steam only reads its shortcut list at start-up, so the tile shows after Steam
+  restarts (Power -> Switch to Desktop, then Return to Gaming Mode). Options -> **Remove from Steam** takes it out
+  again, with the art SCRiTCH made. Your own shortcuts and art are never touched, and a backup of Steam's
+  shortcut file (`shortcuts.vdf.scritch-backup-<time>`) is kept next to it. Pick a controller layout for the
+  tile in Steam yourself, as with the main tile.
 - **Saves:** after each play SCRiTCH backs up the game's saves (the last 5) to
   `~/Documents/SCRiTCH saves/<game>/`. Options → **Saves** puts an old one back. Windows games also
   keep their saves when uninstalled (see Settings).
@@ -221,6 +229,7 @@ line `ERROR CODE XNN: …` with the reason.
 | U01 | Downloading an app update failed |
 | M01 · M02 · M03 | Moving a game: unexpected error · a folder with that name is already there · the copy didn't match (old copy kept) |
 | S01 · S02 | Saves backup or restore failed |
+| T01 · T02 | Add to Steam / Remove from Steam: Steam's shortcut file couldn't be changed |
 
 **Logs** (open them in Dolphin; turn on *Show hidden files*):
 - `~/.local/state/scritch/logs/app.log`: what scritch did

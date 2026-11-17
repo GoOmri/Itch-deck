@@ -168,6 +168,29 @@ class PlayMixin:
             th.join(0.25)
         return res.get("cmd")
 
+    def _autoplay(self):
+        """Started by an Add to Steam shortcut (scritch --play ID): play that game, show a crash message for
+        a few seconds if there is one, then leave, so Steam shows its own screen again."""
+        gid, self.autoplay = self.autoplay, None
+        g = self.lib.by_id(gid)
+        info = self.inst.index.get(gid)
+        if not g or not info or g.get("state") != "installed":
+            log.info("autoplay: %s isn't installed here", gid)
+            for _ in range(60):                       # about 4 seconds, keeping the window alive
+                self.pg.event.pump()
+                self._splash("That game isn't installed.", "Open SCRiTCH to install it again.")
+                time.sleep(0.07)
+        else:
+            log.info("autoplay: %s", gid)
+            self.play(g)
+            end = time.time() + (5 if getattr(self.scene, "toast", None) else 0)
+            while time.time() < end:                  # "couldn't start" stays on screen a moment
+                self.pg.event.pump()
+                self.scene.draw(self.screen)
+                self.pg.display.flip()
+                time.sleep(0.05)
+        self.running = False
+
     def _gog_needs_setup(self, info):
         """Not run yet, or a part was missing last time (v0.9.5 never fetched GOG's setup tool):
         run it (again)."""

@@ -420,3 +420,26 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   experiment (E:\Projects\GIT\deck-experiments\steam_shortcuts.py, run with python3 in Desktop Mode: where / verify /
   list / add / check / remove) tells us what survives: Steam running vs closed, Game Mode switch, Steam restart.
 - UNVERIFIED: that our writer's bytes match what real Steam files look like (verify checks his real file read-only).
+
+## v0.9.21 (17 Nov, branch v0922-steam-shortcuts; waits for "push v0.9.21") = Add to Steam per game (roadmap 6)
+- Deck experiment results (Omri, 17 Nov): a shortcut written into shortcuts.vdf while Steam RUNS is not seen until
+  Steam restarts (Desktop -> Game Mode switch did it); it survived Steam's exit; removing it from the file while
+  Steam runs sticks and Steam did NOT write its copy back. Our reader/writer round-trips his real file byte for byte
+  (20 shortcuts from other tools). => adding/removing needs no closed Steam, only a restart to show.
+- Omri's choices: per-game opt-in in Options for EVERY installed game, cover as the tile, controller layout left to
+  Steam, short message "Added to Steam. Restart Steam to see it.", ONE release.
+- itch_deck/steam_shortcuts.py (standalone; list/where/verify/add/check/remove CLI used in the experiment),
+  itch_deck/steam_games.py (add/remove/is_added/available + art), `scritch --play <id>` (App(autoplay=...): no update
+  check/sync/art; _autoplay in app_play plays the game, keeps a crash message up 5 s, then quits). Shortcut = the
+  launcher (updater.launcher_path()) + LaunchOptions "--play <id>" + tag "SCRiTCH"; AppName = title ("(2)" if the
+  same title+file exists). Id must match [A-Za-z0-9._-]{1,80} (it goes into Steam's launch options).
+- Art: <appid>p.png 600x900, <appid>.png 920x430, <appid>_hero.png 1920x620 from the cover (fitted over a darkened
+  blurred copy) or a title card (type shrinks to fit); never over a picture that exists (any extension); the files
+  made are recorded in DATA/steam_games.json so Remove deletes only those. steam_art.find_shortcuts skips "--play"
+  entries (SCRiTCH's own tile art must not land on game tiles).
+- Options row "Add to Steam"/"Remove from Steam" (last row of an installed game's menu, only when a Steam user
+  folder exists and this is a real build). Codes T01/T02.
+- UNVERIFIED on the Deck: the whole flow with a real game: Add -> restart Steam -> tile with art -> start it ->
+  game runs -> quit -> back in Steam; Remove -> restart -> gone. Also adding while IN Game Mode (same file, same
+  expected behaviour). Single-instance lock: if SCRiTCH is already running, --play quits (log "another copy").
+- Tests: tests/test_steam_shortcuts.py (7), tests/test_steam_games.py (8). Mockups 15x/15y rendered and looked at.

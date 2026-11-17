@@ -26,7 +26,7 @@ from .app_logs import LogsMixin
 from .app_dos import DosMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.20"
+VERSION = "0.9.21"
 
 
 def setup_logging():
@@ -38,10 +38,11 @@ def setup_logging():
 
 
 class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, LogsMixin, DosMixin):
-    def __init__(self, windowed=False):
+    def __init__(self, windowed=False, autoplay=None):
         import pygame
         self.pg = pygame
         self.windowed = windowed
+        self.autoplay = autoplay        # a game id: started by an "Add to Steam" shortcut (scritch --play ID)
         pygame.display.init()           # not pygame.init(): no audio device (no sound in SCRiTCH)
         pygame.font.init()              # and it starts faster
         pygame.joystick.init()
@@ -79,11 +80,14 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         from .ui import widgets
         widgets.LIVE = True                # animate scrolling + spinners (mockups stay still)
         self.updater = Updater(VERSION)
-        self.updater.check(quiet=True)     # one GitHub call at launch; Settings shows the result
-        from . import steam_art
-        steam_art.apply_in_background()    # SCRiTCH's own Steam tile art, once (v0.9.4)
         self.update_told = False
-        if key:
+        if not autoplay:                   # a Steam shortcut plays one game and leaves: no update check, art or sync
+            self.updater.check(quiet=True)     # one GitHub call at launch; Settings shows the result
+            from . import steam_art
+            steam_art.apply_in_background()    # SCRiTCH's own Steam tile art, once (v0.9.4)
+        if autoplay:
+            self.go_library()
+        elif key:
             self.go_library()
             self.lib.queue_covers()
             self.lib.start_sync()
@@ -454,6 +458,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
     def run(self, max_frames=None, script=None):
         clock = self.pg.time.Clock()
         frame = 0
+        if self.autoplay:
+            self._autoplay()
         while self.running:
             for act in self.inp.poll():
                 if act == "QUIT_EVENT":
@@ -757,6 +763,7 @@ def selftest(screenshot=None):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="scritch")
     p.add_argument("--windowed", action="store_true", help="1280x800 window (Desktop Mode)")
+    p.add_argument("--play", metavar="GAME_ID", help="play one installed game, then quit (an Add to Steam shortcut)")
     p.add_argument("--selftest", action="store_true", help="headless smoke test")
     p.add_argument("--screenshot", help="with --selftest: save last frame as PNG")
     p.add_argument("--render-mockups", metavar="DIR", help="save every page/state as PNGs to DIR")
@@ -783,7 +790,7 @@ def main(argv=None):
         logging.shutdown()
         return 0
     exit_on_signals()
-    app = App(windowed=a.windowed)
+    app = App(windowed=a.windowed, autoplay=a.play)
     _APP[0] = app
     app.run()
     log.info("quit")

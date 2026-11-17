@@ -138,14 +138,16 @@ def add_shortcut(tree, entry):
     return "0"
 
 
-def remove_shortcuts(tree, only_tag=TAG, name=None):
-    """Drop shortcuts that carry only_tag (and, when given, have this AppName). Returns how many.
+def remove_shortcuts(tree, only_tag=TAG, name=None, match=None):
+    """Drop shortcuts that carry only_tag (and, when given, have this AppName and pass match(entry)).
+    Returns how many.
     The rest is renumbered 0,1,2,... as Steam does."""
     for t, k, v in tree:
         if t == 0 and k.lower() == "shortcuts":
             keep, gone = [], 0
             for et, ek, ev in v:
-                if et == 0 and only_tag in tags_of(ev) and (name is None or _field(ev, "AppName") == name):
+                if et == 0 and only_tag in tags_of(ev) and (name is None or _field(ev, "AppName") == name) \
+                        and (match is None or match(ev)):
                     gone += 1
                 else:
                     keep.append((et, ek, ev))
