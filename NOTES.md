@@ -312,3 +312,15 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   "for user N" ids, /media|/mnt/<user>, Z:\Users\<user> now hidden; a game called "2048" is no longer skipped as
   a rotated log; POST to a logs link = 400 (was a KeyError). 3 new tests + 15 new scrub cases.
 - tests/test_phone.py::test_big_or_empty_posts fails on Windows with or without this change (socket quirk).
+
+## v0.9.16 (17 Nov, branch v0916-logs-fixes; waits for "push v0.9.16") = fixes from Omri's Deck test of Send logs
+- v0.9.15 Deck test: QR, page, issue link (version/system filled), zip, A-save, expiry all fine. Problems:
+  (4) Copy did nothing in the phone browser (script is correct; checked with node; cause unknown: browser,
+  plain http). Text too long to read. (7) nothing on the Deck screen said A saves a zip.
+- Fix: the issue link now carries a SHORT cleaned log (logshare.compact(), <= 2,200 chars, end of app.log +
+  newest game log) as the issue form's `log` field, so nothing has to be copied; the page's main button is
+  that link. The longer text + Copy stay below ("Want to share more?"): textarea is readonly (no keyboard
+  popping up), clearer message and button label when copy works or not. Report 150 -> 60 app lines, 40 -> 30
+  game lines. Deck screen: "Scan the code, or press A to save the logs as a zip in Documents."
+- Tests: compact fits a link (< 7,500 chars), is scrubbed; no log field when none. UNVERIFIED: GitHub's form
+  prefill of `log` on a phone, and whether Copy works now.

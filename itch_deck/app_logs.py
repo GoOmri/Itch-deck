@@ -23,7 +23,7 @@ class _Provider:
         return logshare.zip_bytes(self.version)
 
     def issue(self):
-        return logshare.issue_url(self.version)
+        return logshare.issue_url(self.version, logshare.compact())
 
 
 class LogsMixin:

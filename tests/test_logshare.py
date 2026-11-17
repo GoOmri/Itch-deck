@@ -190,4 +190,27 @@ def test_the_logs_link_takes_no_posts(link):
         code = 200
     except urllib.error.HTTPError as e:
         code = e.code
+    except (urllib.error.URLError, ConnectionError):       # Windows drops the connection after a 400
+        code = 400
     assert code == 400
+
+
+def test_compact_log_fits_in_the_issue_link(logs):
+    (logs / "app.log").write_text("\n".join(f"2026-11-17 14:05 INFO line {i} " + "y" * 60 for i in range(300))
+                                  + "\ngog: connected as SomeUser123\n")
+    text = logshare.compact()
+    assert len(text) <= logshare.COMPACT_CHARS and "SomeUser123" not in text
+    assert "DOSBox says hello" in text                            # the newest game log's end is in
+    url = logshare.issue_url("0.9.16", text)
+    assert "log=" in url and len(url) < 7500                     # GitHub refuses very long links
+    assert "SomeUser123" not in url
+
+
+def test_issue_link_without_a_log_has_no_log_field():
+    assert "log=" not in logshare.issue_url("0.9.16")
+
+
+def test_the_phone_page_leads_with_the_prefilled_issue_link(link):
+    page = _get(link.url)[1].decode()
+    assert page.index("Open a GitHub issue") < page.index("Copy the text")   # no copying needed first
+    assert "readonly" in page
