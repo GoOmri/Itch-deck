@@ -223,6 +223,8 @@ class SettingsMixin:
                                  "Sign out", self._disconnect_gog)
                 else:
                     self.go_gog()
+            elif label == "Send logs":
+                self.go_logs()
             elif label == "Disconnect itch":
                 self.confirm("Sign out of itch?",
                              ["SCRiTCH forgets the key. Installed games still play.",

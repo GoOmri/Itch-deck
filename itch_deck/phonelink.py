@@ -87,6 +87,7 @@ class PhoneLink:
 
     def __init__(self, purpose, on_text, status=lambda: ""):
         self.purpose, self.on_text, self.status = purpose, on_text, status
+        self.logs = None          # purpose "logs": object with .report(), .zip(), .issue(), .zip_name
         self.httpd = self.thread = None
         self.ip = None
         self._new_token()
@@ -136,6 +137,21 @@ class PhoneLink:
                 if u.path == "/status":
                     return self._send(200, json.dumps({"status": link.status()}),
                                       "application/json")
+                if link.purpose == "logs" and link.logs:
+                    if u.path == "/zip":
+                        data = link.logs.zip()
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/zip")
+                        self.send_header("Content-Disposition",
+                                         f'attachment; filename="{link.logs.zip_name}"')
+                        self.send_header("Content-Length", str(len(data)))
+                        self.send_header("Cache-Control", "no-store")
+                        self.end_headers()
+                        self.wfile.write(data)
+                        return
+                    if u.path == "/":
+                        return self._send(200, logs_page(link.token, link.logs.report(),
+                                                         link.logs.issue()))
                 if u.path != "/":
                     return self._send(404, "")
                 return self._send(200, form_page(link.purpose, link.token))
@@ -143,7 +159,7 @@ class PhoneLink:
             def do_POST(self):
                 u = urlparse(self.path)
                 n = int(self.headers.get("Content-Length") or 0)
-                if u.path != "/send" or n <= 0 or n > MAX_BODY:
+                if u.path != "/send" or n <= 0 or n > MAX_BODY or link.purpose == "logs":
                     return self._send(400, "")
                 form = parse_qs(self.rfile.read(n).decode(errors="replace"))
                 t = (form.get("t") or [None])[0]
@@ -284,6 +300,32 @@ autocapitalize="off" spellcheck="false">{html.escape(text)}</textarea><button>Se
 <script>{{const x=document.querySelector('textarea'),b=document.querySelector('form button'),
 u=()=>b.disabled=!x.value.trim();x.addEventListener('input',u);u()}}</script>
 <p class="note">Only use this on your home Wi-Fi. {html.escape(p["note"])}</p>""")
+
+
+def logs_page(token, report, issue_url):
+    """Send your logs (v0.9.15): the cleaned report in a box the person can read and edit, a Copy
+    button, the GitHub issue link and the full zip. Copy works on plain HTTP too (the modern
+    clipboard API needs https): the old select-and-copy call is the fallback."""
+    t = html.escape(token)
+    return _page("Send your logs to the developer", f"""
+<p>This is the end of your Deck's log. Keys, sign-in codes, e-mail addresses, user name, folders and
+network addresses are hidden. <b>Read it before you paste it</b>: an issue on GitHub is public, and you
+can delete any line you don't want to share.</p>
+<textarea id="r" rows="14" spellcheck="false" autocomplete="off" autocapitalize="off">{html.escape(report)}</textarea>
+<button id="c" type="button">Copy the text</button>
+<p class="note" id="m">&nbsp;</p>
+<a class="btn pri wide" href="{html.escape(issue_url)}" target="_blank" rel="noopener">Open a GitHub issue</a>
+<p class="note">Paste the text into the issue. You need a free GitHub account to post one.</p>
+<p><a class="btn wide" href="/zip?t={t}">Download all logs (zip)</a></p>
+<p class="note">The zip is cleaned the same way, but it holds more. Send it to the developer
+privately; don't post it in a public issue.</p>
+<script>{{const r=document.getElementById('r'),m=document.getElementById('m'),
+done=ok=>m.textContent=ok?'Copied. Now paste it into the issue.':'Press and hold the text, choose Select all, then Copy.';
+document.getElementById('c').addEventListener('click',()=>{{r.focus();r.select();r.setSelectionRange(0,r.value.length);
+let ok=false;try{{ok=document.execCommand('copy')}}catch(e){{}}
+if(!ok&&navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(r.value).then(()=>done(true),()=>done(false));
+else done(ok)}})}}</script>
+<p class="note">Only use this on your home Wi-Fi.</p>""")
 
 
 def split_status(s):
