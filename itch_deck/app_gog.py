@@ -1,4 +1,4 @@
-"""Sign in to GOG (Settings → Accounts → GOG): phone QR sign-in (the player pastes the address
+"""Sign in to GOG (Settings → Sources → GOG): phone QR sign-in (the player pastes the address
 GOG ends on), then the GOG tab fills in the background. Same flow as app_epic.py, minus the
 helper download (signing in to GOG needs none since v0.9.1). Mixed into App (app.py)."""
 import logging
@@ -93,7 +93,7 @@ class GogMixin:
 
     # --- Settings row --------------------------------------------------------------
     def _gog_label(self):
-        """Settings → Accounts → GOG."""
+        """Settings → Sources → GOG."""
         if self.lib.gog and self.lib.gog.connected():
             return f"Connected as {self.lib.gog.user() or 'GOG'}"
         return "Signed out" if self.lib.gog else "Not connected"

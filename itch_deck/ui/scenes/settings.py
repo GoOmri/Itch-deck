@@ -38,14 +38,13 @@ class Settings(Scene):
             ("App", "Updates and your library.",
              [("Update app", v["update"], ""),
               ("Refresh library", "", f"Last synced {v['last_sync']}")]),
-            ("Accounts", "The stores your games come from.",       # one pair of rows per store
+            ("Sources", "Where your games come from.",             # the stores, then your own DOS folder
              [("Disconnect itch", v.get("itch_user", ""), ""),
               ("Epic", v.get("epic", ""), ""),
-              ("GOG", v.get("gog", ""), "")]),
+              ("GOG", v.get("gog", ""), "")] + ([v["dos_row"]] if v.get("dos_row") else [])),
             ("Storage", "Where games go and what they leave behind.",
-             [("Install location", v["install_label"], "")]          # SD card / Internal storage
-             + ([v["dos_row"]] if v.get("dos_row") else [])              # sketch: DOS games folder
-             + [("Saves of uninstalled games", v["prefix_size"], "")]),
+             [("Install location", v["install_label"], ""),          # SD card / Internal storage
+              ("Saves of uninstalled games", v["prefix_size"], "")]),
             ("Games & controls", "How games run and how you control them.",
              [("Proton version", v["proton"], ""),
               ("Button symbols", v.get("symbols", "Auto"), ""),
