@@ -75,9 +75,13 @@ class Game(Scene):
 
     def options(self):
         """Options + the Add to / Remove from Steam row (set by the app: steam_ok, on_steam)."""
+        if self.g.get("hidden"):
+            return ["Show in SCRiTCH"]                   # a hidden game: the way back
         rows = self._options()
         if rows and self.g.get("state") == "installed" and self.g.get("steam_ok"):
             rows = rows + ["Remove from Steam" if self.g.get("on_steam") else "Add to Steam"]
+        if self.g.get("state") in (None, "failed") and not self.phase:
+            rows = rows + ["Hide from SCRiTCH"]           # not installed: hiding it loses nothing
         return rows
 
     def _options(self):

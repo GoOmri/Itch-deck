@@ -26,7 +26,7 @@ def tabs(stores=("itch",), dos=False):
     return tuple(out)
 
 
-SHOWS = (("all", "Everything"), ("playable", "Playable here"))
+SHOWS = (("all", "Everything"), ("playable", "Playable here"), ("hidden", "Hidden games"))
 LENGTHS = (("any", "Any"), ("short", "Under 2 h"), ("mid", "2–10 h"), ("long", "10 h+"))
 
 
@@ -54,7 +54,12 @@ def letter(title):
 
 def visible(games, filt="all", sort="az", show="all", genre="any", length="any"):
     """The games a tab shows, in order (the app uses it too, for L1/R1 on the game page)."""
-    gs = [g for g in games if playable(g)] if show == "playable" else list(games)
+    if show == "hidden":                                    # games hidden from SCRiTCH (v0.9.23)
+        gs = [g for g in games if g.get("hidden")]
+    else:
+        gs = [g for g in games if not g.get("hidden")]
+        if show == "playable":
+            gs = [g for g in gs if playable(g)]
     if genre != "any":
         gs = [g for g in gs if g.get("genre") == genre]
     if length != "any":
@@ -272,6 +277,9 @@ class Library(Scene):
             return self._center_msg(s, y, f"Syncing library… page {self.sync_page}",
                                     "This is only slow the first time.", spinner=True)
         if not self.shown:
+            if self.show == "hidden":
+                return self._center_msg(s, y, "No hidden games.",
+                                        "Hide a game from its Options and it shows up here.")
             if self.filtered():                 # games exist, the filter hides them all
                 return self._center_msg(s, y, "No games match this filter.",
                                         "Press {X} to change it.")

@@ -135,6 +135,7 @@ class Library:
         self._queued = set()
         self._worker = None
         self.installs, self.live = {}, {}   # set by Installer: install index, in-progress fields
+        self.hidden = set()            # game ids the player hid from SCRiTCH (config "hidden")
         self.jobs = {"cover": [0, 0], "page": [0, 0], "hltb": [0, 0]}   # [done, total] (top bar)
         self._hltb, self._hltb_client, self._hltb_down = self._load_hltb(), None, False
         self.load_cache()
@@ -223,6 +224,14 @@ class Library:
         elif g.get("state") in ("installed", "missing"):
             g["state"] = None
         g.update(self.live.get(g["id"], {}))
+        # hidden games are not installed ones: installing (or having) a game brings it back
+        g["hidden"] = g["id"] in getattr(self, "hidden", ()) and g.get("state") not in ("installed", "missing", "downloading", "queued")
+
+    def set_hidden(self, ids):
+        """The ids of the games hidden from SCRiTCH; every game's flag is brought up to date."""
+        self.hidden = set(ids or [])
+        for g in self.games:
+            self._apply_install(g)
 
     def apply_installs(self):
         for g in self.games:

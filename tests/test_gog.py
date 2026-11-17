@@ -187,7 +187,8 @@ def test_game_page_installs_like_epic():
     game = {"id": "gog-3", "title": "Stardew Valley", "platforms": {"windows"}, "store": "gog",
             "size_mb": 0, "state": None, "screens": 0}
     sc = Game(Theme(pg, (1280, 800)), game)
-    assert [a[0] for a in sc.actions()] == ["Install"] and not sc.options()
+    assert [a[0] for a in sc.actions()] == ["Install", "Options"]
+    assert sc.options() == ["Hide from SCRiTCH"]                         # one build: no Change build (v0.9.23: Hide)
     assert sc.message() is None
     sc = Game(Theme(pg, (1280, 800)), dict(game, state="installed"))
     assert [a[0] for a in sc.actions()] == ["Play", "Options"]

@@ -497,3 +497,18 @@ DECIDED AGAINST: console emulators / a ROM library (Omri 17 Nov: not planned), a
 LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are 60 per hour PER INTERNET ADDRESS, and the
   Deck shares Omri's home address: my polling made the Deck's app say "can't reach GitHub" until the hour reset.
   After a push look ONCE, a little later (github.com/GoOmri/Itch-deck/releases is fine to read), never a loop.
+
+## v0.9.23 (17 Nov, branch v0925-hide-games; waits for "push v0.9.23") = Hide from SCRiTCH (roadmap 4)
+- Omri's choices: only games that are NOT installed can be hidden; purple "Hide" confirm; the way back is a library
+  FILTER (Sort & filter -> Show -> "Hidden games"), not a Settings row; this Deck only, store accounts untouched.
+- cfg "hidden" = list of game ids; Library.hidden / set_hidden(ids) (App passes cfg at start); Library._apply_install sets
+  g["hidden"] = id in hidden and state not installed/missing/downloading/queued (installing a hidden game brings it back).
+  visible(): show="hidden" lists only hidden, every other Show value excludes them (all tabs). Empty message
+  "No hidden games. Hide a game from its Options and it shows up here."
+- Game page Options: "Hide from SCRiTCH" for state None/failed and not busy (also non-playable games and Epic/GOG
+  pages, which had no Options before: their page now shows Install + Options); a hidden game's Options = "Show in
+  SCRiTCH" (no confirm). App._set_hidden saves config, hides -> back to the library + toast "X is hidden.".
+- tests/test_epic.py + test_gog.py: the not-installed Epic/GOG page now has Options ["Hide from SCRiTCH"]. New
+  tests/test_hidden.py (5). Mockups 15z/15za/15zb, 06k/06l/06m rendered and looked at. UNVERIFIED on the Deck.
+- Deck check: open a not-installed game -> Options -> Hide -> Hide: tile gone from All and its store tab; X -> Show ->
+  Hidden games: it is there; open it -> Options -> Show in SCRiTCH: back. Restart SCRiTCH: still hidden. Hide survives a sync.

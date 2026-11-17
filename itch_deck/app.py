@@ -26,7 +26,7 @@ from .app_logs import LogsMixin
 from .app_dos import DosMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.22"
+VERSION = "0.9.23"
 
 
 def setup_logging():
@@ -51,6 +51,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         self.open_display()
         key = self.cfg.get("api_key")
         self.lib = Library(ItchStore(key) if key else None)
+        self.lib.set_hidden(self.cfg.get("hidden"))      # games the player hid from SCRiTCH
         if self.cfg.get("epic"):                   # opt-in: Settings -> Account -> Epic Games
             from .stores.epic import EpicStore
             self.lib.epic = EpicStore()            # cached Epic games show at once

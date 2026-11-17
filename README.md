@@ -137,10 +137,15 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | L2 / R2 | Page up / down | — | — |
 | Start (☰) | Settings | Options | Back |
 
-- **Sort & filter (X in the library):** sort A–Z, by date added, or *Shortest first*; filter by
-  Genre or Length (Under 2 h / 2–10 h / 10 h+). Lengths come from
+- **Sort & filter (X in the library):** sort A–Z, by date added, or *Shortest first*; show everything, playable games
+  or hidden games; filter by Genre or Length (Under 2 h / 2–10 h / 10 h+). Lengths come from
   [HowLongToBeat](https://howlongtobeat.com), looked up in the background and refreshed monthly.
   Games HLTB doesn't know (many small itch games) show no time rather than a wrong one.
+- **Hide from SCRiTCH:** for a game that is not installed, Options -> **Hide from SCRiTCH** (after a purple
+  *Hide* confirm) takes its tile out of every tab on this Deck. Nothing changes in your store account, and nothing
+  is deleted. Sort & filter -> Show -> **Hidden games** lists them; open one and choose Options -> **Show in
+  SCRiTCH** to bring it back. Installing a hidden game also brings it back. (Games you added in the DOS folder
+  have **Remove from library** instead.)
 - **Installing:** press Install. The download runs in the background (one at a time) and resumes
   if you quit. Then the button turns into **Play**.
 - **Change build:** some games have several downloads (Linux, Windows, 32/64-bit, demos). Options

@@ -73,6 +73,12 @@ class GameMixin:
         elif label == "Uninstall":
             self.confirm(f"Uninstall {g['title']}?", "The game's files are deleted. You can "
                          "install it again any time.", "Uninstall", lambda: self._uninstall(g))
+        elif label == "Hide from SCRiTCH":
+            self.confirm(f"Hide {g['title']} from SCRiTCH?",
+                         ["It stays in your store account.", "Sort & filter > Show > Hidden games brings it back."],
+                         "Hide", lambda: self._set_hidden(g, True), main=True)
+        elif label == "Show in SCRiTCH":
+            self._set_hidden(g, False)
         elif label in ("Add to Steam", "Remove from Steam"):
             self._steam_toggle(g, label == "Add to Steam")
         elif label == "Remove from library":
@@ -268,6 +274,22 @@ class GameMixin:
                 words.log_code("S02", f"{g['id']} ({g['title']}) from {z.name}: {e}")
                 self.backup_note = (words.with_code("Couldn't put the saves back.", "S02"), True)
         threading.Thread(target=work, daemon=True, name="restore").start()
+
+    def _set_hidden(self, g, hide):
+        """Options -> Hide from SCRiTCH / Show in SCRiTCH: kept in config "hidden" (this Deck only; the store
+        account is not touched)."""
+        ids = [i for i in (self.cfg.get("hidden") or []) if i != g["id"]]
+        if hide:
+            ids.append(g["id"])
+        self.cfg["hidden"] = ids
+        config.save(self.cfg)
+        self.lib.set_hidden(ids)
+        log.info("hidden: %s %s", g["id"], "hidden" if hide else "shown again")
+        if hide:
+            self.go_library()
+            self.say(f"{g['title']} is hidden.")
+        else:
+            self.say(f"{g['title']} is shown again.")
 
     def _steam_toggle(self, g, add):
         """Options -> Add to Steam / Remove from Steam: one shortcut for this game (steam_games.py)."""
