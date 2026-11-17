@@ -512,3 +512,8 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   tests/test_hidden.py (5). Mockups 15z/15za/15zb, 06k/06l/06m rendered and looked at. UNVERIFIED on the Deck.
 - Deck check: open a not-installed game -> Options -> Hide -> Hide: tile gone from All and its store tab; X -> Show ->
   Hidden games: it is there; open it -> Options -> Show in SCRiTCH: back. Restart SCRiTCH: still hidden. Hide survives a sync.
+- Reviewer-agent findings on v0.9.23, fixed: (1) the hidden flag was only recalculated at start or on a sync, so a hidden game
+  that got installed stayed hidden (Options = only "Show in SCRiTCH") and a later uninstall hid it again: Library.refresh_hidden
+  runs on every install-state change (Installer._upd) and forgets the id (on_unhide -> App drops it from config "hidden");
+  (2) the top bar said "2 of 50 games" inside the Hidden filter: now just "2 games"; (3) the Genre filter offered genres of
+  hidden games: it uses the games of the current Show. Tests 7 in tests/test_hidden.py.

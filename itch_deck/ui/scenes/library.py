@@ -162,7 +162,8 @@ class Library(Scene):
         elif label == "Show":
             self.show = turn(self.show, [k for k, _ in SHOWS])
         elif label == "Genre":
-            self.genre = turn(self.genre, ["any"] + genres(self.games))
+            self.genre = turn(self.genre, ["any"] + genres(          # the genres of the games this Show lists
+                [g for g in self.games if bool(g.get("hidden")) == (self.show == "hidden")]))
         elif label == "Length":
             self.length = turn(self.length, [k for k, _ in LENGTHS])
         elif label == "Clear filters":
@@ -319,7 +320,7 @@ class Library(Scene):
         if self.offline_since:
             right = W.offline_mark(t, s, right, base, self.offline_since)
         count = f"{n} game{'s' if n != 1 else ''}"
-        if self.filtered():                     # say it's a filter, and that games are hidden
+        if self.filtered() and self.show != "hidden":      # say it's a filter, and that games are hidden
             count = f"{n} of {self._count(show='all', genre='any', length='any')} games"
         rr = W.text(t, s, count, right, base, t.f_small, color=t.dim, anchor="baseright")
         if self.filtered():

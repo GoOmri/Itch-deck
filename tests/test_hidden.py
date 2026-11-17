@@ -110,3 +110,42 @@ def test_app_hides_and_shows_a_game_and_keeps_it_in_the_config(tmp_path, monkeyp
     title, body, action = asked[0][0][:3]
     assert "Hide Eye from SCRiTCH?" == title and "Hidden games" in body[1] and action == "Hide"
     assert asked[0][1] == {"main": True}                          # the purple, non-destructive button
+
+
+def test_installing_a_hidden_game_brings_it_back_at_once_and_it_stays_back(tmp_path):
+    """Reviewer, v0.9.23: the flag was only recalculated at start or on a sync, so a hidden game that was installed
+    stayed hidden (and offered only 'Show in SCRiTCH'), and a later uninstall hid it again."""
+    from itch_deck import installer as I
+    lib = library.Library.__new__(library.Library)
+    lib.live, lib.installs = {}, {}
+    lib.games = [{"id": "a", "title": "A", "state": None}]
+    forgotten = []
+    lib.on_unhide = forgotten.append
+    lib.set_hidden(["a"])
+    assert lib.games[0]["hidden"] is True
+    inst = I.Installer.__new__(I.Installer)
+    inst.lib = lib
+    inst._upd("a", state="downloading", progress=0.3)             # it starts downloading: no longer hidden
+    assert lib.games[0]["hidden"] is False and forgotten == ["a"] and "a" not in lib.hidden
+    inst._upd("a", state="installed")
+    inst._upd("a", state=None)                                    # uninstalled later: it must NOT be hidden again
+    lib.set_hidden(lib.hidden)
+    assert lib.games[0]["hidden"] is False
+
+
+def test_hidden_filter_counts_and_genres(tmp_path):
+    pg.init()
+    from itch_deck.theme import Theme
+    t = Theme(pg, (1280, 800))
+    games = [{"id": "a", "title": "A", "platforms": {"linux"}, "store": "itch", "genre": "Puzzle"},
+             {"id": "b", "title": "B", "platforms": {"linux"}, "store": "itch", "genre": "Racing", "hidden": True}]
+    sc = Library(t, games, stores=("itch",))
+    sc.menu_open()
+    sc.menu_next("Genre")
+    assert sc.genre == "Puzzle"                                   # the hidden game's genre is not offered here
+    sc.menu_next("Genre")
+    assert sc.genre == "any"
+    sc.show = "hidden"
+    sc.menu_next("Genre")
+    assert sc.genre == "Racing" and [g["id"] for g in sc.shown] == ["b"]
+    sc.draw_page(pg.Surface((t.w, t.h)))                          # the top bar says "1 game", not "1 of 1 games"
