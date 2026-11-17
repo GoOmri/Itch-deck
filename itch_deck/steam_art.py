@@ -124,7 +124,8 @@ def find_shortcuts(roots, launcher):
                 log.info("steam art: can't read %s: %s", f, e)
                 continue
             for entry in (_get(tree, "shortcuts") or {}).values():
-                if isinstance(entry, dict) and _is_ours(_get(entry, "exe"), launcher):
+                if isinstance(entry, dict) and _is_ours(_get(entry, "exe"), launcher) \
+                        and not str(_get(entry, "LaunchOptions") or "").startswith("--play"):
                     appid = _get(entry, "appid")
                     if isinstance(appid, int) and appid:
                         found.append((user, appid & 0xFFFFFFFF))

@@ -73,6 +73,8 @@ class GameMixin:
         elif label == "Uninstall":
             self.confirm(f"Uninstall {g['title']}?", "The game's files are deleted. You can "
                          "install it again any time.", "Uninstall", lambda: self._uninstall(g))
+        elif label in ("Add to Steam", "Remove from Steam"):
+            self._steam_toggle(g, label == "Add to Steam")
         elif label == "Remove from library":
             self.confirm(f"Remove {g['title']} from your library?",
                          ["Your game files stay in the folder.", "Copy the folder again to add it back."],
@@ -218,6 +220,10 @@ class GameMixin:
         t = self.inst.move_target(sc.g["id"], config.install_choices())
         self._move_target = t
         sc.g["move_to"] = (t[0] if t[0] == "SD card" else t[0].lower()) if t else None
+        from . import steam_games, updater
+        self._launcher = updater.launcher_path()
+        sc.g["steam_ok"] = steam_games.available(self._launcher)          # a real build + a Steam user folder
+        sc.g["on_steam"] = sc.g["steam_ok"] and steam_games.is_added(sc.g["id"])
         sc.open_options()
 
     def _ask_move(self, g):
@@ -262,6 +268,26 @@ class GameMixin:
                 words.log_code("S02", f"{g['id']} ({g['title']}) from {z.name}: {e}")
                 self.backup_note = (words.with_code("Couldn't put the saves back.", "S02"), True)
         threading.Thread(target=work, daemon=True, name="restore").start()
+
+    def _steam_toggle(self, g, add):
+        """Options -> Add to Steam / Remove from Steam: one shortcut for this game (steam_games.py)."""
+        from . import steam_games
+        try:
+            if add:
+                ok = steam_games.add(g, self._launcher, pg=self.pg)
+                self.say("Added to Steam. Restart Steam to see it." if ok
+                         else words.with_code("Couldn't add it to Steam.", "T01"), error=not ok)
+                if not ok:
+                    words.log_code("T01", f"{g['id']}: no Steam user folder or launcher")
+            else:
+                n = steam_games.remove(g["id"])
+                self.say("Removed from Steam. Restart Steam to update it." if n
+                         else "It wasn't in Steam.")
+        except (OSError, ValueError, IndexError) as e:
+            code = "T01" if add else "T02"
+            words.log_code(code, f"{g['id']}: {type(e).__name__}: {e}")
+            self.say(words.with_code("Couldn't add it to Steam." if add else "Couldn't remove it from Steam.",
+                                     code), error=True)
 
     def _uninstall(self, g):
         if not self.inst.uninstall(g["id"]):

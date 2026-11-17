@@ -137,6 +137,10 @@ def _shots(t, version):
     quit_dlg = ("confirm", "Quit SCRiTCH?", "Downloads in progress pause and resume next time.",
                 [("A", "Quit"), ("B", "Cancel")])
 
+    def with_steam(scene, on=False):                 # Options shows Add to / Remove from Steam
+        scene.g.update(steam_ok=True, on_steam=on)
+        return scene
+
     def with_overlay(scene, ov):
         scene.overlay = ov
         return scene
@@ -228,6 +232,14 @@ def _shots(t, version):
         ("15b_game_options", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "Auto · Pad", ""), ("Saves", "", "")], 0))),
+        ("15x_game_options_add_steam", with_overlay(with_steam(game("Moss & Rivets")), (
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "Auto \u00b7 Pad", ""), ("Saves", "", ""),
+                                    ("Add to Steam", "", "")], 4))),
+        ("15y_game_options_remove_steam", with_overlay(with_steam(game("Moss & Rivets"), True), (
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "Auto \u00b7 Pad", ""), ("Saves", "", ""),
+                                    ("Remove from Steam", "", "")], 4))),
         ("15n_game_options_move", with_overlay(game("Moss & Rivets"), (
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "Auto · Pad", ""), ("Saves", "", ""),

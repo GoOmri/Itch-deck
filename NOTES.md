@@ -407,3 +407,51 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   cloned the repo; GitHub Support was NOT asked to purge the old objects (they stay reachable by direct SHA for an
   unknown time). Any chat still holding old branches must `git fetch` + reset to origin. Use that noreply email from
   now on (also in CLAUDE.md).
+
+## Add to Steam per game: plan + Deck experiment (17 Nov, branch v0922-steam-shortcuts; no VERSION bump, nothing uses it yet)
+- Omri's answers: per-game opt-in in Options ("Add to Steam" / "Remove from Steam"), tile art = the game's cover fitted to
+  Steam's sizes, controller layout left to Steam (a message says so), and he agreed to a Deck experiment first.
+- Plan: (1) `--play <game id>` start mode (play one game, then exit; allowed next to the single-instance lock);
+  (2) itch_deck/steam_shortcuts.py = binary VDF reader/WRITER (stdlib only, standalone, tests/test_steam_shortcuts.py:
+  byte-for-byte round trip, add, remove only our own "SCRiTCH"-tagged entries, backup + atomic write);
+  (3) art: cover -> <appid>p / <appid> / <appid>_hero via steam_art's never-overwrite rules; (4) Options entries + toast
+  "Restart Steam to see it"; (5) maybe later: per-game controller layout (poorly documented, own research).
+- MAIN RISK: Steam rewrites shortcuts.vdf from memory when it exits, so an edit made while Steam runs can be lost. The
+  experiment (E:\Projects\GIT\deck-experiments\steam_shortcuts.py, run with python3 in Desktop Mode: where / verify /
+  list / add / check / remove) tells us what survives: Steam running vs closed, Game Mode switch, Steam restart.
+- UNVERIFIED: that our writer's bytes match what real Steam files look like (verify checks his real file read-only).
+
+## v0.9.21 (17 Nov, branch v0922-steam-shortcuts; waits for "push v0.9.21") = Add to Steam per game (roadmap 6)
+- Deck experiment results (Omri, 17 Nov): a shortcut written into shortcuts.vdf while Steam RUNS is not seen until
+  Steam restarts (Desktop -> Game Mode switch did it); it survived Steam's exit; removing it from the file while
+  Steam runs sticks and Steam did NOT write its copy back. Our reader/writer round-trips his real file byte for byte
+  (20 shortcuts from other tools). => adding/removing needs no closed Steam, only a restart to show.
+- Omri's choices: per-game opt-in in Options for EVERY installed game, cover as the tile, controller layout left to
+  Steam, short message "Added to Steam. Restart Steam to see it.", ONE release.
+- itch_deck/steam_shortcuts.py (standalone; list/where/verify/add/check/remove CLI used in the experiment),
+  itch_deck/steam_games.py (add/remove/is_added/available + art), `scritch --play <id>` (App(autoplay=...): no update
+  check/sync/art; _autoplay in app_play plays the game, keeps a crash message up 5 s, then quits). Shortcut = the
+  launcher (updater.launcher_path()) + LaunchOptions "--play <id>" + tag "SCRiTCH"; AppName = title ("(2)" if the
+  same title+file exists). Id must match [A-Za-z0-9._-]{1,80} (it goes into Steam's launch options).
+- Art: <appid>p.png 600x900, <appid>.png 920x430, <appid>_hero.png 1920x620 from the cover (fitted over a darkened
+  blurred copy) or a title card (type shrinks to fit); never over a picture that exists (any extension); the files
+  made are recorded in DATA/steam_games.json so Remove deletes only those. steam_art.find_shortcuts skips "--play"
+  entries (SCRiTCH's own tile art must not land on game tiles).
+- Options row "Add to Steam"/"Remove from Steam" (last row of an installed game's menu, only when a Steam user
+  folder exists and this is a real build). Codes T01/T02.
+- UNVERIFIED on the Deck: the whole flow with a real game: Add -> restart Steam -> tile with art -> start it ->
+  game runs -> quit -> back in Steam; Remove -> restart -> gone. Also adding while IN Game Mode (same file, same
+  expected behaviour). Single-instance lock: if SCRiTCH is already running, --play quits (log "another copy").
+- Tests: tests/test_steam_shortcuts.py (7), tests/test_steam_games.py (8). Mockups 15x/15y rendered and looked at.
+- Reviewer-agent findings on v0.9.21, all fixed: (1) a Steam tile quit before the saves backup thread finished
+  (os._exit killed it): _autoplay joins the backup thread for up to 8 s; (2) a cut-off shortcuts.vdf raised
+  struct.error and crashed the Options menu: loads() now raises ValueError, is_added/add handle it, file untouched;
+  (3) art made before a later failure / on a re-add was not recorded and could be orphaned: the record is saved per
+  user and keeps earlier art, Remove deletes all of it; (4) a missing SD card showed "isn't installed": now "SD card
+  missing. Put the card back..."; (5) "X closed." no longer holds the screen 5 s (only errors do); (6) a Steam tile
+  pressed while the old copy is closing waits up to 6 s for the single-instance lock; (7) backups: newest 5 kept,
+  names include milliseconds, non-UTF-8 titles round-trip byte for byte (surrogateescape).
+- STILL UNVERIFIED (said by the reviewer too): Steam may rewrite shortcuts.vdf from memory when a non-Steam shortcut is
+  changed or played. SCRiTCH itself runs as a non-Steam shortcut, so adding while IN Game Mode could be undone when
+  SCRiTCH exits, and a removed tile could come back. The experiment only covered Steam exiting. First Deck test must
+  add in Game Mode, restart Steam, and check `python3 steam_shortcuts.py list` afterwards.

@@ -46,6 +46,9 @@ CODES = {
     "M01": "move: unexpected error (traceback in the log)",
     "M02": "move: a folder with the same name is already in use there",
     "M03": "move: the copy didn't match the original (old copy kept)",
+    # T = Add to Steam (a shortcut for one game)
+    "T01": "Add to Steam: couldn't write Steam's shortcut file or the game id can't be used",
+    "T02": "Remove from Steam: couldn't change Steam's shortcut file",
     # S = save backups
     "S01": "save backup: couldn't write the backup",
     "S02": "save backup: couldn't restore",

@@ -74,6 +74,13 @@ class Game(Scene):
         return main + ([("Options", "gear", True)] if self.options() else [])
 
     def options(self):
+        """Options + the Add to / Remove from Steam row (set by the app: steam_ok, on_steam)."""
+        rows = self._options()
+        if rows and self.g.get("state") == "installed" and self.g.get("steam_ok"):
+            rows = rows + ["Remove from Steam" if self.g.get("on_steam") else "Add to Steam"]
+        return rows
+
+    def _options(self):
         """⚙ / ☰ Options: everything that isn't the main action."""
         g, st = self.g, self.g.get("state")
         if not self.playable:
