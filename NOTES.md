@@ -324,3 +324,16 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   game lines. Deck screen: "Scan the code, or press A to save the logs as a zip in Documents."
 - Tests: compact fits a link (< 7,500 chars), is scrubbed; no log field when none. UNVERIFIED: GitHub's form
   prefill of `log` on a phone, and whether Copy works now.
+
+## v0.9.17 (17 Nov, branch v0917-logs-copy-fix; waits for "push v0.9.17") = the real cause of "Copy does nothing"
+- Omri (Galaxy S24, Chrome) on v0.9.16: Copy did nothing and showed no message. Cause (found by loading the real
+  page in headless Edge and clicking): the inline logo SVG on every phone page has ids like "c", so
+  getElementById('c') returned the LOGO, not the button; the click handler sat on the logo. v0.9.15 and
+  v0.9.16 both had it. My earlier checks (node syntax check, a fake DOM) could not see it.
+- Fix: unique ids (lg-text, lg-copy, lg-msg) + tests/test_logshare.py::test_page_ids_are_unique... (every id
+  unique, every getElementById target present once). Headless check after the fix: the click runs and sets a
+  message (headless has no real touch, so copy itself is refused there; UNVERIFIED on the phone).
+- Page is far less text: one purple button + 2 lines; "More" (closed) holds the longer text, Copy and the zip.
+  Deck screen: QR 30% -> 42% of the height on this screen only (LogsShare.QR_SIZE), step texts shorter.
+- LESSON: test phone pages in a real browser engine (Edge headless: --headless=new --dump-dom with a harness
+  script that clicks), not only by reading the JS. Check every page that inlines LOGO for id clashes.
