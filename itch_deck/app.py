@@ -25,7 +25,7 @@ from .app_gog import GogMixin
 from .app_logs import LogsMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.17"
+VERSION = "0.9.18"
 
 
 def setup_logging():

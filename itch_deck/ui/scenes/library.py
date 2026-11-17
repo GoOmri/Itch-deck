@@ -13,12 +13,16 @@ SORTS = (("az", "A–Z"), ("played", "Recently played"), ("added", "Recently add
          ("short", "Shortest first"))
 
 
-def tabs(stores=("itch",)):
+def tabs(stores=("itch",), dos=False):
     """All · Installed, then one tab per store (Omri 15 Nov: All · Installed · itch · Epic).
-    With one store its tab would equal All, so store tabs show only from two stores on."""
+    With one store its tab would equal All, so store tabs show only from two stores on.
+    DOS (Omri 17 Nov): the games that run in DOSBox, whatever store they came from; the tab shows
+    only once there is one."""
     out = [("all", "All"), ("installed", "Installed")]
     if len(stores) > 1:
         out += [(k, STORE_NAMES.get(k, k)) for k in stores]
+    if dos:
+        out.append(("dos", "DOS"))
     return tuple(out)
 
 
@@ -57,6 +61,8 @@ def visible(games, filt="all", sort="az", show="all", genre="any", length="any")
         gs = [g for g in gs if length_kind(g) == length]
     if filt == "installed":
         gs = [g for g in gs if g.get("state") in ("installed", "missing")]
+    elif filt == "dos":                                     # games that run in DOSBox
+        gs = [g for g in gs if g.get("dos")]
     elif filt in STORE_NAMES:                               # a store tab
         gs = [g for g in gs if g.get("store", "itch") == filt]
     if sort == "played":                                    # last played first, then the rest A–Z
@@ -86,9 +92,10 @@ class Library(Scene):
                  length="any", stores=("itch",), views=None, **kw):
         super().__init__(t, **kw)
         self.stores = tuple(stores)
+        self.games = games
         if filt not in dict(self.tabs()):     # e.g. an old "recent" tab, or Epic disconnected
             filt = "all"
-        self.games, self.filt, self.focus = games, filt, focus
+        self.filt, self.focus = filt, focus
         # X menu per tab: {tab: {sort, show, genre, length}} (saved in config by the app);
         # without views, the sort/show/genre/length arguments are the current tab's
         self.views = views if views is not None else \
@@ -158,8 +165,12 @@ class Library(Scene):
         self.focus, self._first, self._sy = 0, 0, None
         self.menu_open(self.overlay[4] if label != "Clear filters" else 1)
 
+    @property
+    def dos(self):
+        return any(g.get("dos") for g in self.games)
+
     def tabs(self):
-        return tabs(self.stores)
+        return tabs(self.stores, self.dos)
 
     def next_tab(self, step):
         keys = [k for k, _ in self.tabs()]
@@ -265,6 +276,9 @@ class Library(Scene):
             if self.filt == "installed":
                 return self._center_msg(s, y, "Nothing installed yet.",
                                         "Install a game from All and it shows up here.")
+            if self.filt == "dos":
+                return self._center_msg(s, y, "No DOS games yet.",
+                                        "DOS games you install from GOG show up here.")
             if self.filt in STORE_NAMES and not self.filtered():
                 name = STORE_NAMES[self.filt]
                 return self._center_msg(s, y, f"No {name} games yet.",

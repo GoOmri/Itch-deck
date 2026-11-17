@@ -9,7 +9,8 @@ own, install them, play and uninstall, all with the pad. Windows games run throu
 automatically, and GOG's DOS games run in DOSBox Staging.
 
 - Your whole itch library (plus free games in your itch **collections**), your Epic library and your
-  GOG library, in one place: tabs All · Installed · itch · Epic · GOG
+  GOG library, in one place: tabs All · Installed · itch · Epic · GOG, plus **DOS** once you
+  have a DOS game
 - Game pages with the description, screenshots and, for itch, comments (cached for offline use)
 - One-button installs: download, unpack, done. Windows installers (Inno Setup, NSIS) run silently
 - Linux games run natively, Windows games run through umu-launcher + GE-Proton (one prefix per

@@ -289,6 +289,8 @@ def _shots(t, version):
         ("27_gog_connect", GogConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("27b_gog_rejected", GogConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("06g_library_gog_tab", Library(t, three, filt="gog", focus=0, stores=("itch", "epic", "gog"))),
+        ("06h_library_dos_tab", Library(t, [dict(g, dos=True, state="installed") for g in gog_games[:2]],
+                                        filt="dos", focus=0, stores=("itch", "epic", "gog"))),
         ("15q_game_gog", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300),
                               pos=(2, len(gog_games)))),
         ("15r_game_gog_downloading", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300,
