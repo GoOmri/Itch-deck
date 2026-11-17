@@ -1381,3 +1381,19 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
 - v0.9.12 also: net.get percent-encodes spaces in URLs (net._safe_url): 6 Epic covers failed with
   InvalidURL "control characters" (names like "Store Primary Promo (Landscape)-...jpg"). Checked the helper
   on sample URLs; UNVERIFIED on the Deck (covers should show after a sync).
+
+## ROADMAP NOW (Omri 17 Nov; replaces the 16 Nov list; audience = friends / a few Deck owners; priority = solid first, then features)
+One item per update, plan + size first, wait for "go" and "push":
+1 Deck check of v0.9.12 (no code): Epic covers show, Eye of the Beholder I + II play (Windows build, mouse via
+  Keys mode), one big Windows GOG game, one Linux GOG game, itch games still fine. Fix what it finds.
+2 Share logs (new, small): Settings -> "Copy logs" puts a zip of logs/ + app.log in an easy folder (and shows
+  where), so friends can send them without a terminal or RustDesk. (Getting logs off the Deck took many steps.)
+3 Ready to share: README for new players (install, first run, GE-Proton, where logs are), error texts
+  friendly, fresh-Deck check (new user, empty data, no GE-Proton).
+4 DOS tab, step 1: GOG DOS games shown in a DOS tab (only when one exists). Step 2: add-your-own folders (user's
+  own games; we never fetch games). Step 3: game page for them. Typing = Steam's keyboard (Steam + X) as today.
+  Designer agent sketches the folder-picker screen with Omri before step 2.
+5 Hide extra controllers for player-1-only games (Bleed 2). Research first.
+6 Opt-in "Add to Steam" for one game (own tile + layout; needs a Steam restart).
+PARKED (Omri 17 Nov): DLC for Epic and GOG; cloud saves for Epic and GOG; browser games.
+Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Agents in E:\Projects\GIT\.claude\agents.
