@@ -614,6 +614,12 @@ def setup_steps(folder, app_name, deps, repo, build=None, version=None):
     return steps
 
 
+def required(step):
+    """A step whose program must exist for the setup to count as done (a product's own
+    temp_executable under support/ is optional: gogdl may not provide it)."""
+    return step.get("base") != "support"
+
+
 def step_exe(step, folder):
     """Where a setup step's program is (case-insensitive; redist files may sit with or without
     the __redist folder level). None if it isn't there."""
@@ -668,8 +674,14 @@ def run_setup(steps, folder, umu, env, log_file, timeout=900):
                 out.write(f"# {st['name']}: {st['path']} not found\n")
                 failed.append(st["name"])
                 continue
-            args = [a.replace("{dir}", windows_path(folder)) for a in st["args"]]
-            out.write(f"# {st['name']}: {exe} {' '.join(args)}\n")
+            linux = st.get("linux_dir")
+            args = [a.replace("{dir}", str(folder) if linux else windows_path(folder)) for a in st["args"]]
+            if st.get("msi"):
+                cmd = [str(umu), "msiexec", "/i", str(exe), *args]
+            else:
+                cmd = [str(umu), str(exe), *args]
+            cwd = redist_dir() if st["base"] == "redist" and st["name"] != "ISI" else Path(folder)
+            out.write(f"# {st['name']}: {' '.join(cmd[1:])}\n")
             out.flush()
             try:
                 r = subprocess.run(cmd, cwd=str(cwd),

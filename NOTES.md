@@ -1342,3 +1342,15 @@ UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/go
   Heroic passes the play-task args unchanged (conf autoexec intact), we strip [autoexec] since v0.9.9.
   Next, if it still P03s: send logs/games/eye-of-the-beholder.log + app.log "game log ends".
 - tests/test_gog.py: 11 of 22 fail on Windows even before this (POSIX stand-ins); need a Linux run.
+
+## v0.9.11 (17 Nov, branch v0911-fix-gog-setup, NOT pushed - waits for Omri) = FIX for v0.9.10's first-run setup
+- v0.9.10 BUG (found by the reviewer agent): run_setup used `cmd` and `cwd` that were never defined
+  (a replace in my edit silently didn't apply) -> NameError on every first-run setup step, caught in
+  app_play, so no redist/ISI ran and the game could end in P03. Fixed: cmd = [umu, exe, *args] (or
+  [umu, msiexec, /i, exe, *args] for the PhysX step), cwd = redist folder for shared parts, game folder
+  for ISI. ScummVM's linux_dir flag is now read. Checked by calling run_setup with a missing umu
+  (no NameError, steps logged). LESSON: check every edit landed (diff/grep), don't trust "no output".
+- gog.required(step): a product's temp_executable ("support" step) is optional, so a missing file
+  can't make the setup rerun on every Play. tests/test_gog.py expects ISI first now.
+- UNVERIFIED: where gogdl puts support/<id>/ files, msiexec through umu, ScummVM path, ISI fetched
+  only at first Play when the manifest says scriptInterpreter but no goggame-*.script exist (needs internet).

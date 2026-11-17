@@ -453,7 +453,7 @@ def test_gog_first_run_setup_runs_quietly(tmp_path, monkeypatch):
     inst.enqueue(lib.games[0])
     _wait(inst)
     info = inst.index["gog-3"]
-    assert [s_["name"] for s_ in info["setup_steps"]] == ["MSVC2017", "DirectX", "ISI"]
+    assert [s_["name"] for s_ in info["setup_steps"]] == ["ISI", "MSVC2017", "DirectX"]
     umu = tmp_path / "fake-umu"
     umu.write_text('#!/bin/sh\necho RAN "$@"\ncase "$1" in *DXSETUP*) exit 5;; esac\nexit 0\n')
     umu.chmod(0o755)
