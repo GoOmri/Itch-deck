@@ -43,8 +43,9 @@ class Settings(Scene):
               ("Epic", v.get("epic", ""), ""),
               ("GOG", v.get("gog", ""), "")]),
             ("Storage", "Where games go and what they leave behind.",
-             [("Install location", v["install_label"], ""),          # SD card / Internal storage
-              ("Saves of uninstalled games", v["prefix_size"], "")]),
+             [("Install location", v["install_label"], "")]          # SD card / Internal storage
+             + ([v["dos_row"]] if v.get("dos_row") else [])              # sketch: DOS games folder
+             + [("Saves of uninstalled games", v["prefix_size"], "")]),
             ("Games & controls", "How games run and how you control them.",
              [("Proton version", v["proton"], ""),
               ("Button symbols", v.get("symbols", "Auto"), ""),
@@ -91,7 +92,8 @@ class Settings(Scene):
     ACTION = {"Refresh library": "Refresh", "Install location": "Change",
               "Saves of uninstalled games": "Delete", "Proton version": "Change",
               "Pointer speed": "Change", "Update app": "Check", "Disconnect itch": "Sign out",
-              "Button symbols": "Change", "Send logs": "Open"}
+              "Button symbols": "Change", "Send logs": "Open", "DOS games": "Open",
+              "DOS games folder": "Open"}
 
     def hints(self):
         if self.side:
