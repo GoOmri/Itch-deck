@@ -337,3 +337,14 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   Deck screen: QR 30% -> 42% of the height on this screen only (LogsShare.QR_SIZE), step texts shorter.
 - LESSON: test phone pages in a real browser engine (Edge headless: --headless=new --dump-dom with a harness
   script that clicks), not only by reading the JS. Check every page that inlines LOGO for id clashes.
+
+## README update (17 Nov, branch v0918-readme; docs only, NO version bump = a push builds no release) = roadmap item 3 "Ready to share"
+- Omri: keep the README developer-style (not a friends' landing page); no clean-install Deck check (he won't do it).
+- README now covers: itch + Epic + GOG (tabs), GOG sign-in/versions/first-run setup/DOS games in DOSBox Staging,
+  updates on all stores, save backups + Saves, Move, Send logs (purple button, More = copy/zip), an error-code
+  table (from words.CODES), more troubleshooting rows, where files live (gog/, Documents/SCRiTCH saves + logs),
+  known limits (GOG/Epic no DLC/cloud saves, GOG Linux libs, DOS needs Flathub once).
+- words.CODES P03 text updated (first-run setup runs since v0.9.5). Error texts otherwise already plain: short(),
+  codes only when there is nothing to act on (checked, no change).
+- CLAUDE.md (E:\Projects\GIT) now says: touch ONLY E:\Projects\GIT (no temp/system folders). Scratch files go in
+  E:\Projects\GIT\scratch\ (outside the repo).

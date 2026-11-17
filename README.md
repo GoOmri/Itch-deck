@@ -3,22 +3,29 @@
   <img src="itch_deck/assets/logo.svg" alt="SCRiTCH" height="56">
 </picture></h1>
 
-A controller-first launcher for your **itch.io** library on the **Steam Deck**. It shows up as one
-Steam tile in Game Mode. From there you can browse the games you own, install them, play and
-uninstall, all with the pad. Windows games run through GE-Proton automatically.
+A controller-first launcher for your **itch.io**, **Epic Games** and **GOG** libraries on the
+**Steam Deck**. It shows up as one Steam tile in Game Mode. From there you can browse the games you
+own, install them, play and uninstall, all with the pad. Windows games run through GE-Proton
+automatically, and GOG's DOS games run in DOSBox Staging.
 
-- Your whole itch library, plus free games you added to your itch **collections**
-- Game pages with the full description, screenshots and comments (cached for offline use)
+- Your whole itch library (plus free games in your itch **collections**), your Epic library and your
+  GOG library, in one place: tabs All · Installed · itch · Epic · GOG
+- Game pages with the description, screenshots and, for itch, comments (cached for offline use)
 - One-button installs: download, unpack, done. Windows installers (Inno Setup, NSIS) run silently
 - Linux games run natively, Windows games run through umu-launcher + GE-Proton (one prefix per
   game, so your saves survive an uninstall)
+- **GOG:** the Linux version when GOG has one, else Windows. GOG's first-run setup (Visual C++,
+  DirectX and so on) runs by itself on the first play
 - **Mouse and Keys modes** for games that ignore the pad: the pad becomes a mouse (and keyboard)
-- **Game updates:** a newer build on itch shows *Update* on the tile; Options → Update gets it
+- **Updates** for installed games on all three stores: the tile shows *Update*
+- **Save backups** after every play, **Move** games between the SD card and internal storage
 - **Button symbols** follow your controller (Steam Deck, DualSense, Xbox)
+- **Send logs** to the developer from your phone, with secrets hidden (see below)
 - Installs to the SD card by default, and updates itself from Settings
 
 It's a single Linux binary (Python + pygame-ce, built with PyInstaller). Nothing gets installed on
-the Deck's system, and you never need a terminal.
+the Deck's system (apart from DOSBox Staging from Flathub, the first time you play a DOS game),
+and you never need a terminal.
 
 ## Setup (about 10 minutes, once)
 
@@ -63,15 +70,31 @@ The key is stored only in `~/.config/scritch/config.json`, which only your user 
 Settings → **Disconnect itch** makes scritch forget it; to revoke it as well, delete it on itch.io
 → Settings → API keys.
 
-### Epic Games (optional, early)
-Settings → Account → **Epic Games** → A shows a QR code. Scan it, tap **Open Epic sign-in**, sign
-in, then copy the page of text Epic shows, paste it and tap Send. Your Epic library becomes its
-own tab (All · Installed · itch · Epic). The code on that page works once and only for a few
-minutes, so do it in one go. SCRiTCH downloads the small open-source Epic helper
+### Epic Games (optional)
+Settings → Accounts → **Epic** → A shows a QR code. Scan it, tap **Open Epic sign-in**, sign in,
+then copy the page of text Epic shows, paste it and tap Send. The code on that page works once and
+only for a few minutes, so do it in one go. Your Epic library becomes the **Epic** tab.
+SCRiTCH downloads the small open-source Epic helper
 ([legendary](https://github.com/legendary-gl/legendary)) the first time and keeps its own Epic
-sign-in, separate from Heroic. Epic games install and play like itch Windows games (GE-Proton,
-saves kept on uninstall). Not yet: Epic game updates, DLC, cloud saves. Games with anti-cheat or
+sign-in, separate from Heroic. Epic games install, update and play like itch Windows games
+(GE-Proton, saves kept on uninstall). Not yet: DLC and cloud saves. Games with anti-cheat or
 online-only Epic features won't run (same as in Heroic).
+
+### GOG (optional)
+Settings → Accounts → **GOG** → A shows a QR code. Scan it, tap **Open GOG sign-in** and sign in.
+GOG then shows a nearly blank page: copy its **address** from the address bar, paste it on the
+phone page and tap Send. Your GOG library becomes the **GOG** tab. SCRiTCH uses a copy of GOG's
+open-source download tool ([gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl), the one
+Heroic uses), so nothing extra is downloaded.
+- **Which version:** the Linux version when GOG has one, otherwise the Windows version through
+  GE-Proton. If a game has both, Options → **Change build** lets you choose.
+- **First play of a Windows game:** SCRiTCH runs GOG's own setup quietly (Visual C++, DirectX, the
+  game's setup script). You see "Preparing…" once; it can take a few minutes.
+- **DOS games** (Eye of the Beholder and the like) run in **DOSBox Staging**. SCRiTCH installs it
+  from Flathub the first time it's needed (one time, a few seconds with Wi-Fi). Use *Mouse* or
+  *Keys* mode for them; Steam + X opens the on-screen keyboard for questions like "Which graphics
+  mode?".
+- Updates show on the tile. Not yet: DLC and cloud saves.
 
 ### 4. GE-Proton (for Windows games)
 Nothing to do: the first time you install a Windows game, scritch downloads the newest
@@ -107,6 +130,11 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
   Menu = Enter, L1 = R, R1 = Shift, and the right stick + R2 / L2 still work as a mouse.
 - **Updates:** SCRiTCH checks itch for newer builds of installed games. The tile shows *Update*,
   and Options → Update installs it; if that fails, the old build stays.
+- **Saves:** after each play SCRiTCH backs up the game's saves (the last 5) to
+  `~/Documents/SCRiTCH saves/<game>/`. Options → **Saves** puts an old one back. Windows games also
+  keep their saves when uninstalled (see Settings).
+- **Move:** Options → **Move to SD card / Move to internal storage** copies a game (and its Windows
+  prefix) over, checks the copy and then removes the old one. Cancel keeps the old copy.
 - **Quitting a game:** use the game's own Quit, or **hold View + Menu (DualSense: Create +
   Options) for 2 seconds**: scritch closes the game and everything it started, and comes back.
   Handy for games that ignore the controller. Steam → *Exit game* also works, but it closes
@@ -122,6 +150,8 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 - **Pointer speed:** slow / normal / fast, for Mouse and Keys mode.
 - **Button symbols:** *Auto* follows the controller you pressed last; or fix it to Steam Deck,
   PlayStation or Xbox.
+- **Accounts:** sign in to or out of itch, Epic and GOG.
+- **Help → Send logs:** see *When something goes wrong*.
 - **Update app:** checks GitHub for a new version, downloads it and restarts. The previous
   version is kept as `scritch.old` next to the app, in case you need to go back: rename it
   back to `scritch` in Dolphin.
@@ -138,14 +168,37 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | "…can't run silently" | The installer type isn't supported. Try Options → Change build. |
 | A game closes right after starting | Try Change build (Windows instead of Linux, or 64-bit). |
 | "needs a newer GE-Proton" | Settings → Proton version → pick the newest (or Auto). |
+| A GOG DOS game shows a text screen with a question | Normal: answer it with Steam + X (keyboard). The game itself is running. |
+| A GOG game closes right after starting (Code P03) | Send your logs. Try Options → Change build (the other version). |
+| "Sign in to GOG again" / "Connect Epic again" | Settings → Accounts → sign in again. |
 | A game's controls do nothing | It may need a mouse or keyboard: Options → Controls → Mouse or Keys. To get out: hold View + Menu for 2 s. |
 
-**Something not working?** Settings → Help → Send logs shows a QR code. Scan it with your phone
-(same Wi-Fi): the page shows the end of the log with keys, sign-in codes, e-mail addresses, your user
-name, folders and network addresses hidden. Read it, tap Copy, and paste it into a
-[GitHub issue](https://github.com/GoOmri/Itch-deck/issues/new?template=bug_report.yml) (issues are
-public). Nothing is sent by the Deck itself. A on that screen saves the cleaned logs as a zip in
-`Documents/SCRiTCH logs`.
+**Something not working?** Settings → Help → **Send logs** shows a QR code. Scan it with your phone
+(same Wi-Fi). The page has one purple button: it opens a new [GitHub
+issue](https://github.com/GoOmri/Itch-deck/issues/new?template=bug_report.yml) with your version,
+system and the end of your log already filled in. Under **More** you can copy a longer text or
+download all logs as a zip (for the developer, privately). Keys, sign-in codes, e-mail addresses,
+your user name, folders and network addresses are hidden from the log. Issues are public, so read
+the text before you post. Nothing is sent by the Deck itself. A on that screen saves the cleaned
+logs as a zip in `~/Documents/SCRiTCH logs`.
+
+**Error codes.** When there's nothing you can fix, the screen shows *Code XNN* and `app.log` has a
+line `ERROR CODE XNN: …` with the reason.
+
+| Code | Meaning |
+|---|---|
+| I01 · I02 · I03 | Install: unexpected error · no Linux or Windows download · no itch key |
+| I04 · I05 · I06 | Install: Epic helper failed · GOG download failed · GOG game has nothing to start |
+| W01–W06 | Getting umu-launcher or GE-Proton failed (no download, damaged, odd archive) |
+| W07 · W08 · W09 · W10 | Windows installer: couldn't start · took over 15 minutes · stopped with an error · GE-Proton or umu missing |
+| W11 | Getting GE-Proton from Settings failed |
+| P01 | A game closed straight away |
+| P02 | Mouse or Keys mode didn't start (the game still ran) |
+| P03 | A GOG game closed straight away (it ships first-run setup scripts) |
+| L01 | Refreshing the library failed |
+| U01 | Downloading an app update failed |
+| M01 · M02 · M03 | Moving a game: unexpected error · a folder with that name is already there · the copy didn't match (old copy kept) |
+| S01 · S02 | Saves backup or restore failed |
 
 **Logs** (open them in Dolphin; turn on *Show hidden files*):
 - `~/.local/state/scritch/logs/app.log`: what scritch did
@@ -161,6 +214,9 @@ public). Nothing is sent by the Deck itself. A on that screen saves the cleaned 
 ~/.config/scritch/config.json           settings + API key
 ~/.local/share/scritch/                 library cache, covers, game pages, times to beat, umu-launcher
 ~/.local/share/scritch/epic/            the Epic helper (legendary) and your Epic sign-in
+~/.local/share/scritch/gog/             your GOG sign-in, GOG's shared Windows parts, gogdl's records
+~/Documents/SCRiTCH saves/<game>/       save backups (last 5 per game)
+~/Documents/SCRiTCH logs/               zips from Send logs (press A on that screen)
 ~/.local/state/scritch/logs/            logs
 <SD card>/scritch/<game>/               installed games (or ~/Games/scritch/ on internal storage)
 <SD card>/scritch/_prefixes/<game>/     Windows saves (Proton prefixes)
@@ -171,6 +227,11 @@ the games folder (`itch`) stay where they are.
 
 ## Known limits
 - **Browser (HTML5) games** are listed and tagged, but they can't be played from scritch yet.
+- **GOG and Epic:** no DLC and no cloud saves yet. Online-only and anti-cheat games won't run.
+- **GOG Linux builds** sometimes need libraries SteamOS lacks (for example `libFLAC.so.8` for the
+  bundled DOSBox). SCRiTCH then suggests the Windows version (Options → Change build).
+- **DOS games** need Flathub for DOSBox Staging the first time (Wi-Fi once). They have no pad
+  support of their own: use Mouse or Keys mode.
 - **Paid games in collections** are only listed if you own them. Free ones are added.
 - Some Linux builds need libraries SteamOS doesn't ship (for example `libwebkit2gtk`). They stop
   straight away. Use the Windows build instead.
@@ -187,8 +248,9 @@ python run.py --render-mockups out # PNGs of every screen
 sh packaging/build.sh              # release/scritch: folder build packed behind a launcher
 ```
 Every push to `main` builds the binary on GitHub Actions (Ubuntu 22.04) and publishes a release
-named after `VERSION` in `itch_deck/app.py`. Read `NOTES.md` (working notes and decisions) and
-`DESIGN.md` (UI rules) before changing things.
+named after `VERSION` in `itch_deck/app.py`. Read `NOTES.md` (working rules, code map, recent notes; older ones are in
+`docs/history/`) and `DESIGN.md` (UI rules) before changing things. Most tests are written for Linux
+(symlinks, `fcntl`) and fail on Windows; CI is the reference.
 
 ## Licence
 scritch is free software under the **GNU General Public License v3.0** (see `LICENSE`). You may
