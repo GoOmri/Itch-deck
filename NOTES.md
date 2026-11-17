@@ -475,3 +475,19 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   traceback; `ls -la ~/.local/share/Steam/userdata/<id>/config/grid` shows the files (expect <appid>p.png, <appid>.png,
   <appid>_hero.png for the shortcut's appid).
 - Tests: indexed + broken cover, fallback, no font, add-again. Whole Steam feature: 15 + 7 tests.
+
+## ROADMAP NOW (Omri 17 Nov evening; replaces the earlier 17 Nov list; page https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo)
+Released: v0.9.13 safer deleting, 0.9.14 tidy-up + NOTES split, 0.9.15-0.9.17 Send logs, 0.9.18 DOS tab, 0.9.19 own DOS
+games folder, 0.9.20 Settings "Sources", 0.9.21-0.9.22 Add to Steam per game (0.9.21 build failed once on a test, fixed).
+1 Deck tests (no code): Add to Steam cover art in v0.9.22 (Remove + Add again, restart Steam), own DOS folder with a real
+  game and a zip, older leftovers (itch game updates, split installers, Epic updates).
+2 Hide extra controllers for player-1-only games (Bleed 2). Research first.
+3 Maintenance (no new features): merge the duplicated Epic/GOG code (app_epic/app_gog, library sync, installer start/end),
+  split the longest functions, check helper stderr (legendary/gogdl) can never put a token into app.log.
+4 New features and ideas: to discuss with Omri.
+PARKED: DLC for Epic and GOG; cloud saves for Epic and GOG; browser games.
+DECIDED AGAINST: console emulators / a ROM library (Omri 17 Nov: not planned), a Steam tile for every game, IGDB,
+  fetching DOS games for the player.
+LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are 60 per hour PER INTERNET ADDRESS, and the
+  Deck shares Omri's home address: my polling made the Deck's app say "can't reach GitHub" until the hour reset.
+  After a push look ONCE, a little later (github.com/GoOmri/Itch-deck/releases is fine to read), never a loop.
