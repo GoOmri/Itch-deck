@@ -530,3 +530,11 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   a damaged cached file is deleted and fetched again; (2) the screen waited on the download once per Steam user: it is fetched
   ONCE before the user loop, in a thread, and gives up after 8 s in total; (3) a fill could come out 1 px short (a black line
   at one edge): sizes round up when filling; a transparent cover shows the dark tile, not black. Tests 22 in test_steam_games.py.
+
+## Storage manager (17 Nov, branch v0926-storage-manager) = WORK IN PROGRESS, NOT finished, NOT reviewed, NOT released
+- Omri's choices: Settings > Storage > "Manage games" row; games only (no save backups yet); sort switchable Size / A-Z / Last played (Y).
+- Written and compiling: itch_deck/storagemgr.py (entries/ordered/total_mb/drives), ui/scenes/storage.py (StorageManager scene: drives
+  free space, tick with A, Y sort, X uninstall), app_storage.py (go_storage, _h_storage, confirm + _storage_uninstall via Installer.uninstall,
+  free space refresh), Settings row + "manage" value, App wiring. Whole-suite failures unchanged (44, Windows-only baseline).
+- STILL TO DO: mockups (scratch/storage_mock_patch.py was written but NOT applied; focus numbers shift: Games & controls 9, Help 12),
+  tests (pure helpers, scene handle/hints, app handlers with a stub), README line, VERSION bump (0.9.24), reviewer pass, Deck checklist.
