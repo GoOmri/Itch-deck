@@ -22,7 +22,9 @@ class StorageMixin:
     def _h_storage(self, act):
         sc = self.scene
         if act == B:
+            prev = getattr(self, "settings_back", "library")
             self.go_settings()
+            self.settings_back = prev                    # Settings' own B still returns where it came from
         elif act == X:
             if sc.selected:
                 ids = sorted(sc.selected)
@@ -42,16 +44,18 @@ class StorageMixin:
     def _storage_uninstall(self, ids):
         """One after another; the folders are deleted in the background, so this is quick."""
         done = failed = freed = 0
+        gone = set()
         by_id = {e["id"]: e for e in self.scene.items}
         for gid in ids:
             if self.inst.uninstall(gid):
                 done += 1
+                gone.add(gid)
                 freed += (by_id.get(gid) or {}).get("size_mb", 0)
             else:
                 failed += 1                                       # e.g. the SD card is out
         log.info("storage: uninstalled %d, failed %d", done, failed)
         sc = self.scene
-        sc.selected.clear()
+        sc.selected -= gone                                       # the ones that failed stay ticked
         sc.set_items(storagemgr.entries(self.lib.games, self.inst.index))
         sc.drives = storagemgr.drives()
         if failed:

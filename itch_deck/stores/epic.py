@@ -21,6 +21,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 
 from .. import net, paths
 
@@ -330,15 +331,18 @@ class EpicStore:
         return True
 
     def uninstall(self, app_name):
-        """Make legendary forget the install (SCRiTCH deletes the files itself)."""
-        if self.ready() and app_name in self.installed():
-            try:
-                self._run(["uninstall", app_name, "-y", "--keep-files", "--skip-uninstaller"],
-                          timeout=60)
-            except EpicError:
-                pass
+        """Make legendary forget the install (SCRiTCH deletes the files itself). One at a time: each run
+        rewrites legendary's installed.json (Manage games can uninstall several Epic games together)."""
+        with _UNINSTALL_LOCK:
+            if self.ready() and app_name in self.installed():
+                try:
+                    self._run(["uninstall", app_name, "-y", "--keep-files", "--skip-uninstaller"],
+                              timeout=60)
+                except EpicError:
+                    pass
 
 
+_UNINSTALL_LOCK = threading.Lock()
 PROGRESS = re.compile(r"Progress: ([\d.]+)%.*?ETA: (\d+):(\d+):(\d+)")
 SPEED = re.compile(r"\+ Download\s*-\s*([\d.]+) MiB/s")
 SIZE = re.compile(r"Install size: ([\d.]+) MiB")     # legendary: "- Install size: 7436.06 MiB"

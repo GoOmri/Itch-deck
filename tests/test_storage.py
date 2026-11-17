@@ -168,3 +168,41 @@ def test_settings_has_the_manage_games_row_in_storage():
     storage = groups["Storage"]
     assert [r[0] for r in storage] == ["Install location", "Saves of uninstalled games", "Manage games"]
     assert storage[2][1] == "12 games · 38.4 GB" and Settings.ACTION["Manage games"] == "Open"
+
+
+def test_epic_uninstalls_never_run_together(monkeypatch):
+    """Reviewer v0.9.23: legendary rewrites installed.json on every uninstall; Manage games can start several at once."""
+    import threading
+    import time
+    from itch_deck.stores import epic
+    st = epic.EpicStore.__new__(epic.EpicStore)
+    running, peak = [0], [0]
+
+    def fake_run(args, timeout=0, **k):
+        running[0] += 1
+        peak[0] = max(peak[0], running[0])
+        time.sleep(0.05)
+        running[0] -= 1
+    st._run = fake_run
+    st.ready = lambda: True
+    st.installed = lambda: {"a": 1, "b": 1, "c": 1, "d": 1}
+    threads = [threading.Thread(target=st.uninstall, args=(n,)) for n in "abcd"]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert peak[0] == 1
+
+
+def test_back_goes_where_settings_came_from_and_failed_games_stay_ticked(monkeypatch):
+    monkeypatch.setattr(SM, "entries", lambda games, index: [])
+    monkeypatch.setattr(SM, "drives", lambda: [])
+    me, sc, _s, said, _asked, went, calls = _app()
+    me.settings_back = "game"
+    me.go_settings = lambda: setattr(me, "settings_back", "storage")      # what App.go_settings does
+    app_storage.StorageMixin._h_storage(me, B)
+    assert me.settings_back == "game"                                      # not "storage": B twice returns to the game
+    sc.items = [{"id": "a", "size_mb": 10}, {"id": "bad", "size_mb": 20}]
+    sc.selected = {"a", "bad"}
+    app_storage.StorageMixin._storage_uninstall(me, ["a", "bad"])
+    assert sc.selected == {"bad"} and said[-1][1] is True                  # the failed one is still ticked

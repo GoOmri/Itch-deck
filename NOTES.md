@@ -531,14 +531,6 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   ONCE before the user loop, in a thread, and gives up after 8 s in total; (3) a fill could come out 1 px short (a black line
   at one edge): sizes round up when filling; a transparent cover shows the dark tile, not black. Tests 22 in test_steam_games.py.
 
-## Storage manager (17 Nov, branch v0926-storage-manager) = WORK IN PROGRESS, NOT finished, NOT reviewed, NOT released
-- Omri's choices: Settings > Storage > "Manage games" row; games only (no save backups yet); sort switchable Size / A-Z / Last played (Y).
-- Written and compiling: itch_deck/storagemgr.py (entries/ordered/total_mb/drives), ui/scenes/storage.py (StorageManager scene: drives
-  free space, tick with A, Y sort, X uninstall), app_storage.py (go_storage, _h_storage, confirm + _storage_uninstall via Installer.uninstall,
-  free space refresh), Settings row + "manage" value, App wiring. Whole-suite failures unchanged (44, Windows-only baseline).
-- STILL TO DO: mockups (scratch/storage_mock_patch.py was written but NOT applied; focus numbers shift: Games & controls 9, Help 12),
-  tests (pure helpers, scene handle/hints, app handlers with a stub), README line, VERSION bump (0.9.24), reviewer pass, Deck checklist.
-
 ## v0.9.23 CI fix (18 Nov): the build failed in the SMOKE TEST (`scritch --selftest`), not in pytest
 - Cause: itch_deck/app.py _selftest_gog asserted a not-installed GOG game page has actions == ["Install"]; v0.9.23 added the
   Options button (Hide from SCRiTCH) so it is ["Install", "Options"]. I had updated test_epic/test_gog but not this assertion.
@@ -564,3 +556,8 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   game), clearing save backups.
 - Deck check: Settings > Storage > Manage games: drives show free space; games by size; A ticks, count + "frees X" update;
   Y changes the order; X > Uninstall removes them (free space grows a few seconds later); an SD card out = "Couldn't uninstall...".
+- Reviewer-agent findings on v0.9.24, fixed: (1) ticking several Epic games started several `legendary uninstall` runs that each
+  rewrite installed.json: EpicStore.uninstall now takes a lock (one at a time); (2) B from Manage games sent Settings' own B to the
+  Library instead of the game page it came from: settings_back is restored; (3) after a partial failure only the games that
+  really went lose their tick; (4) removed the old WIP note. Not changed (minor): drives() runs on the main thread every 2 s (same
+  cost as _check_mounts), the list is only refreshed after an uninstall, after Y the highlight stays on the same position.
