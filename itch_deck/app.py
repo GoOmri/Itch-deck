@@ -149,6 +149,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         sc = LibScene(self.t, self.lib.games, filt=self.filt, views=self._views(),
                       stores=self._stores())
         self._set("library", sc)
+        self.filt = sc.filt              # the scene fell back to All when its tab is gone (DOS)
         self._sync_library_scene()
         ids = [g["id"] for g in sc.shown]
         if self.lib_focus_id in ids:

@@ -57,3 +57,12 @@ def test_install_marks_dosbox_games(tmp_path):
     lib.installs.pop("gog-1")                                       # uninstalled: no longer DOS
     lib._apply_install(g1)
     assert "dos" not in g1
+
+
+def test_next_tab_survives_the_dos_tab_going_away():
+    g = {"id": "gog-1", "title": "Eye", "platforms": {"windows"}, "store": "gog", "dos": True}
+    sc = _scene([g])
+    sc.filt = "dos"
+    g.pop("dos")                                                    # uninstalled while looking at it
+    sc.next_tab(1)                                                  # must not raise ValueError
+    assert sc.filt == "installed"                                   # All is the start, so +1

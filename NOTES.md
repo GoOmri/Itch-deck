@@ -362,3 +362,6 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   Only INSTALLED GOG DOS games show (an uninstalled GOG game isn't known to be DOS yet).
 - Tests tests/test_dos_tab.py (4). Mockup 06h_library_dos_tab rendered and looked at. UNVERIFIED on the Deck.
   Deck: install Eye of the Beholder -> a DOS tab appears (L1/R1) with it; uninstall -> the tab goes.
+- Reviewer-agent findings on v0.9.18, both fixed: App.go_library now copies the scene's tab back to self.filt
+  (a stale "dos" left the game page at "1 of 0"); Library.next_tab falls back to All if its tab is gone
+  (ValueError). Test added.

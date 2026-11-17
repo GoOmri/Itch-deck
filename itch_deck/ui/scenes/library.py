@@ -174,6 +174,8 @@ class Library(Scene):
 
     def next_tab(self, step):
         keys = [k for k, _ in self.tabs()]
+        if self.filt not in keys:        # its tab went away meanwhile (the last DOS game)
+            self.filt = "all"
         self.filt = keys[(keys.index(self.filt) + step) % len(keys)]
         self.focus, self._first, self._sy = 0, 0, None
 
