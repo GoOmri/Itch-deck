@@ -85,6 +85,16 @@ def _unique_name(tree, title, exe):
 
 
 # --- art ---------------------------------------------------------------------------------------------
+def _to32(pg, img):
+    """The same picture as a 32-bit surface: smoothscale refuses the indexed-colour (8-bit) covers that many
+    small games have (Deck test 17 Nov: "art for ... failed" for KIDS)."""
+    if img.get_bitsize() >= 24:
+        return img
+    out = pg.Surface(img.get_size(), pg.SRCALPHA, 32)
+    out.blit(img, (0, 0))
+    return out
+
+
 def _fit(pg, img, box, fill=False):
     """img scaled to fit inside (or, fill=True, to cover) the box, keeping its shape."""
     w, h = img.get_size()
@@ -100,9 +110,9 @@ def compose(pg, cover, title, size):
     img = None
     if cover:
         try:
-            img = pg.image.load(str(cover))
-        except (pg.error, OSError, FileNotFoundError):
-            img = None
+            img = _to32(pg, pg.image.load(str(cover)))
+        except (pg.error, OSError, FileNotFoundError, ValueError):
+            img = None                                   # an unreadable cover: the title card instead
     if img is not None:
         bg = _fit(pg, img, (W, H), fill=True)
         small = pg.transform.smoothscale(bg, (max(1, bg.get_width() // 16), max(1, bg.get_height() // 16)))
@@ -118,26 +128,29 @@ def compose(pg, cover, title, size):
     col = pg.Color(0)
     col.hsva = (hue, 45, 38, 100)
     surf.fill(col)
-    pg.font.init()
-    words = title.split()
-    for px in range(max(24, H // 7), 19, -4):                   # the biggest type in which the whole title fits
-        font = pg.font.Font(None, px)
-        lines, cur = [], ""
-        for w in words:
-            t = (cur + " " + w).strip()
-            if font.size(t)[0] <= W * 0.86 or not cur:
-                cur = t
-            else:
-                lines.append(cur)
-                cur = w
-        lines.append(cur)
-        if len(lines) * font.get_linesize() <= H * 0.7 and all(font.size(ln)[0] <= W * 0.9 for ln in lines):
-            break
-    y = (H - len(lines) * font.get_linesize()) // 2
-    for ln in lines:
-        img = font.render(ln, True, (240, 240, 244))
-        surf.blit(img, ((W - img.get_width()) // 2, y))
-        y += font.get_linesize()
+    try:
+        pg.font.init()
+        words = title.split()
+        for px in range(max(24, H // 7), 19, -4):                # the biggest type in which the whole title fits
+            font = pg.font.Font(None, px)
+            lines, cur = [], ""
+            for w in words:
+                t = (cur + " " + w).strip()
+                if font.size(t)[0] <= W * 0.86 or not cur:
+                    cur = t
+                else:
+                    lines.append(cur)
+                    cur = w
+            lines.append(cur)
+            if len(lines) * font.get_linesize() <= H * 0.7 and all(font.size(ln)[0] <= W * 0.9 for ln in lines):
+                break
+        y = (H - len(lines) * font.get_linesize()) // 2
+        for ln in lines:
+            img = font.render(ln, True, (240, 240, 244))
+            surf.blit(img, ((W - img.get_width()) // 2, y))
+            y += font.get_linesize()
+    except Exception:  # noqa: BLE001  - no usable font in this build: a plain coloured tile is still art
+        log.info("steam games: no font for the title card of %r", title)
     return surf
 
 
@@ -151,7 +164,12 @@ def write_art(pg, grid, appid, cover, title, written=None):
         if steam_art._exists(grid, stem):
             continue
         tmp = grid / (stem + ".png.scritch-tmp.png")
-        pg.image.save(compose(pg, cover, title, size), str(tmp))
+        try:
+            pic = compose(pg, cover, title, size)
+        except Exception:  # noqa: BLE001  - a cover that can't be drawn must not leave the tile bare
+            log.exception("steam games: cover %s can't be drawn, using a title card", cover)
+            pic = compose(pg, None, title, size)
+        pg.image.save(pic, str(tmp))
         os.replace(tmp, grid / (stem + ".png"))
         written.append(stem + ".png")
     return written
@@ -171,13 +189,14 @@ def add(g, launcher, roots=None, pg=None):
     rec, did = _record(), False
     for f in fs:
         tree = SS.read_file(f)
-        if any(_mine(e, gid) for _k, e in SS.shortcuts_of(tree)):
-            did = True
-            continue
-        name = _unique_name(tree, g.get("title") or gid, str(launcher))
-        entry = SS.make_entry(name, str(launcher), str(Path(launcher).parent), launch_options(gid))
-        SS.add_shortcut(tree, entry)
-        SS.write_file(f, tree)                     # the whole read-modify-write takes milliseconds
+        have = next((e for _k, e in SS.shortcuts_of(tree) if _mine(e, gid)), None)
+        if have is not None:                       # already added: still draw the art if it is missing
+            entry = have
+        else:
+            name = _unique_name(tree, g.get("title") or gid, str(launcher))
+            entry = SS.make_entry(name, str(launcher), str(Path(launcher).parent), launch_options(gid))
+            SS.add_shortcut(tree, entry)
+            SS.write_file(f, tree)                 # the whole read-modify-write takes milliseconds
         appid = SS._field(entry, "appid") & 0xFFFFFFFF
         did = True
         user = f.parent.parent

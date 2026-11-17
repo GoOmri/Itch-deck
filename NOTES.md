@@ -463,3 +463,15 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
 - LESSON: on this Windows PC run the suite with PYTHONUTF8=1 and a fcntl stand-in on PYTHONPATH (python -m pytest -q
   tests): without UTF-8 mode some Linux-only checks (test_codes) fail for the wrong reason here, which hid this one.
   And ALWAYS look at the build's result after a push (api.github.com/repos/GoOmri/Itch-deck/actions/runs).
+
+## v0.9.22 (17 Nov, branch v0924-art-fix; waits for "push v0.9.22") = Add to Steam: art failed on the Deck
+- Deck test of v0.9.21 (Omri): Add worked (toast, tile after a Steam restart, KIDS starts with --play, Remove makes the tile
+  go away), BUT the tile had no art. app.log: "steam games: art for <id> failed" (traceback line not seen). Reproduced here:
+  KIDS' cover is an 8-bit indexed picture and pygame's smoothscale raises "Only 24-bit or 32-bit surfaces can be smoothly
+  scaled". Fix: steam_games._to32 converts a cover to 32 bits first; an unreadable/undrawable cover falls back to a title
+  card; no usable font (frozen build) = a plain coloured tile instead of an error; pressing Add on a game that is already
+  added now draws its missing art (no second shortcut, one write).
+- If art is STILL missing on the Deck: `grep -B2 -A12 "steam games" ~/.local/state/scritch/logs/app.log | tail -40` shows the
+  traceback; `ls -la ~/.local/share/Steam/userdata/<id>/config/grid` shows the files (expect <appid>p.png, <appid>.png,
+  <appid>_hero.png for the shortcut's appid).
+- Tests: indexed + broken cover, fallback, no font, add-again. Whole Steam feature: 15 + 7 tests.
