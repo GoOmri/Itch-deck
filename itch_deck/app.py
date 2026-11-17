@@ -26,7 +26,7 @@ from .app_logs import LogsMixin
 from .app_dos import DosMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.21"
+VERSION = "0.9.22"
 
 
 def setup_logging():

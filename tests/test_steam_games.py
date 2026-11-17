@@ -154,7 +154,7 @@ def test_art_is_recorded_even_when_a_later_picture_fails_and_on_a_re_add(steam, 
 
     def flaky(pg_, cover, title, size):
         calls.append(size)
-        if len(calls) == 2:
+        if len(calls) >= 2:                                  # this and the title-card retry both fail
             raise RuntimeError("disk full")
         return real(pg_, cover, title, size)
     monkeypatch.setattr(steam_games, "compose", flaky)
@@ -200,3 +200,54 @@ def test_autoplay_says_the_right_thing_waits_for_the_backup_and_ends_quietly(mon
     monkeypatch.setattr(app_play.time, "time", lambda: next(ticks))     # a fake clock: no real 5 seconds
     app_play.PlayMixin._autoplay(_autoplay_stub({"id": "g-1", "state": "installed"}, calls, True))
     assert calls.count("draw") >= 1
+
+
+def test_indexed_colour_and_broken_covers_still_get_art(steam, tmp_path):
+    """Deck test 17 Nov: KIDS' cover is an 8-bit indexed picture, smoothscale refused it, the log said
+    'art for ... failed' and the tile had no art."""
+    indexed = tmp_path / "indexed.png"
+    surf = pg.Surface((120, 120), 0, 8)
+    surf.set_palette([(i, 255 - i, 128) for i in range(256)])
+    surf.fill(40)
+    pg.image.save(surf, str(indexed))
+    assert pg.image.load(str(indexed)).get_bitsize() == 8
+    for _suffix, size in steam_games.ART:
+        assert steam_games.compose(pg, indexed, "KIDS", size).get_size() == size
+    broken = tmp_path / "broken.png"
+    broken.write_bytes(b"this is not a picture")
+    assert steam_games.compose(pg, broken, "KIDS", (600, 900)).get_size() == (600, 900)    # a title card
+    g = {"id": "kids-1", "title": "KIDS", "cover_file": str(indexed)}
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)
+    assert len(steam_games._record()["kids-1"]["users"]["4242"]["art"]) == 3
+
+
+def test_a_cover_that_cannot_be_drawn_falls_back_to_a_title_card(steam, monkeypatch):
+    real = steam_games.compose
+    seen = []
+
+    def picky(pg_, cover, title, size):
+        seen.append(cover)
+        if cover:
+            raise RuntimeError("odd picture")
+        return real(pg_, cover, title, size)
+    monkeypatch.setattr(steam_games, "compose", picky)
+    g = {"id": "g-9", "title": "Odd", "cover_file": str(steam.cover)}
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)
+    assert len(steam_games._record()["g-9"]["users"]["4242"]["art"]) == 3 and None in seen
+
+
+def test_no_font_means_a_plain_tile_not_a_failure(monkeypatch):
+    def nofont(*a, **k):
+        raise FileNotFoundError("freesansbold.ttf")
+    monkeypatch.setattr(pg.font, "Font", nofont)
+    assert steam_games.compose(pg, None, "A Game", (600, 900)).get_size() == (600, 900)
+
+
+def test_adding_again_draws_missing_art_without_a_second_shortcut(steam, monkeypatch):
+    g = {"id": "kids-1", "title": "KIDS", "cover_file": None}
+    assert steam_games.add(g, LAUNCHER, steam.roots)                         # added without art (the v0.9.21 state)
+    assert not steam.grid.exists() or not any(steam.grid.iterdir())
+    assert steam_games.add(g, LAUNCHER, steam.roots, pg)                     # pressed again: art appears
+    assert _names(steam).count("KIDS") == 1 and len(list(steam.grid.iterdir())) == 3
+    assert len(steam_games._record()["kids-1"]["users"]["4242"]["art"]) == 3
+    assert len(list(steam.vdf.parent.glob("shortcuts.vdf.scritch-backup-*"))) == 1     # the file was written once
