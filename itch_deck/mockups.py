@@ -114,7 +114,8 @@ def _shots(t, version):
     settings_vals = {
         "install_label": "SD card", "install_path": "/run/media/deck/SD/itch", "free": "112 GB",
         "proton": "Auto · GE-Proton9-20", "prefix_size": "2 games · 1.2 GB", "last_sync": "today 11:02", "itch_user": "omri",
-        "update": (f"v{version[:-1]}9 available", "Update"), "symbols": "Auto · Steam Deck",
+        "update": (f"v{version[:-1]}9 available", "Update"),
+        "dos_row": ("DOS games", "SD card \u00b7 3 games", "Folder: scritch/dos"), "symbols": "Auto · Steam Deck",
         "epic": "Connected as omri",
     }
     # Epic step 1 (read-only): a few sample games marked as Epic, sorted in with itch's
@@ -273,24 +274,23 @@ def _shots(t, version):
             0))),
         ("21_settings", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log")),
         ("21a_settings_account", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=2)),
-        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=5)),
+        ("21c_settings_storage", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=6)),
         ("21e_settings_epic", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=3)),
         ("21f_settings_epic_in", Settings(t, dict(settings_vals, epic="Connected as omri"), version, "~/.local/state/scritch/logs/app.log", focus=3)),
         ("21i_settings_downloading", _act(Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=2), "Downloading 42% · Quiet Quarry")),
         ("21g_settings_app_refresh", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=1)),
-        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=7)),
+        ("21h_settings_games_controls", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=8)),
         ("26_epic_connect", EpicConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("26b_epic_getting_ready", EpicConnect(t, "prep", qr=_qr(), url=PHONE_URL, progress=0.4)),
         ("26c_epic_rejected", EpicConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),
         ("21j_settings_gog", Settings(t, dict(settings_vals, gog="Not connected"), version, "~/.local/state/scritch/logs/app.log", focus=4)),
-        ("21k_settings_help", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=10)),
+        ("21k_settings_help", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=11)),
         ("28_send_logs", LogsShare(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("28b_send_logs_no_wifi", LogsShare(t, "nonet")),
         # --- DOS games folder (v0.9.19): the Settings row, the "Add DOS games" box, a DOS game's page ---
-        ("21m_dos_row", Settings(t, dict(settings_vals, dos_row=("DOS games", "SD card \u00b7 3 games",
-                                 "Folder: scritch/dos")), version, "~/.local/state/scritch/logs/app.log", focus=6)),
-        ("21o_dos_howto", with_overlay(Settings(t, dict(settings_vals, dos_row=("DOS games", "SD card \u00b7 3 games",
-                                 "Folder: scritch/dos")), version, "~/.local/state/scritch/logs/app.log", focus=6), (
+        ("21m_dos_row", Settings(t, settings_vals, version, "~/.local/state/scritch/logs/app.log", focus=5)),
+        ("21o_dos_howto", with_overlay(Settings(t, settings_vals, version,
+                                                "~/.local/state/scritch/logs/app.log", focus=5), (
             "confirm", "Add DOS games",
             ["Copy game folders or .zip files into scritch/dos", "on your SD card, then press Refresh."],
             [("A", "Refresh"), ("B", "Cancel")], "main"))),

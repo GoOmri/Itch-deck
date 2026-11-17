@@ -396,3 +396,14 @@ Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Ag
   per game (depth 2 for programs/images), folder names with a double quote skipped, own games are not sent to
   HowLongToBeat. Not changed: no scan without an itch key (the app needs one to reach the library).
   Tests: tests/test_dosgames.py now 15 (run on Windows).
+
+## v0.9.20 (17 Nov, branch v0921-sources; waits for "push v0.9.20") = Settings: "Accounts" group -> "Sources" with the DOS row
+- Omri: the DOS games folder belongs next to the stores. Settings groups now: App, Sources (itch, Epic, GOG, DOS games),
+  Storage (Install location, Saves of uninstalled games), Games & controls, Help. Row indexes after Sources move by one
+  (mockups updated: Storage focus 6, Games 8, Help 11, DOS row 5). README/comments say Settings -> Sources.
+- HISTORY REWRITE (17 Nov, Omri's choice after GitHub blocked a push for exposing his email): all 26 commits that carried
+  his real email were rewritten to 14329843+GoOmri@users.noreply.github.com on ALL branches and tags and force-pushed
+  (commit hashes changed, trees identical; v0.9.19 and older releases keep working, they hang on tag names). Nobody had
+  cloned the repo; GitHub Support was NOT asked to purge the old objects (they stay reachable by direct SHA for an
+  unknown time). Any chat still holding old branches must `git fetch` + reset to origin. Use that noreply email from
+  now on (also in CLAUDE.md).

@@ -1,4 +1,4 @@
-"""Connect Epic Games (Settings → Account → Epic Games): get legendary once, phone QR sign-in,
+"""Connect Epic Games (Settings → Sources → Epic): get legendary once, phone QR sign-in,
 then the Epic tab fills in the background. Mixed into App (app.py)."""
 import logging
 import threading
@@ -106,7 +106,7 @@ class EpicMixin:
 
     # --- Settings row --------------------------------------------------------------
     def _epic_label(self):
-        """Settings → Account → Epic Games."""
+        """Settings → Sources → Epic."""
         if self.lib.epic and self.lib.epic.connected():
             return f"Connected as {self.lib.epic.user() or 'Epic'}"
         return "Signed out" if self.lib.epic else "Not connected"

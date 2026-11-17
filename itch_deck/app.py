@@ -26,7 +26,7 @@ from .app_logs import LogsMixin
 from .app_dos import DosMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.19"
+VERSION = "0.9.20"
 
 
 def setup_logging():
@@ -53,7 +53,7 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         if self.cfg.get("epic"):                   # opt-in: Settings -> Account -> Epic Games
             from .stores.epic import EpicStore
             self.lib.epic = EpicStore()            # cached Epic games show at once
-        if self.cfg.get("gog"):                    # opt-in: Settings -> Accounts -> GOG
+        if self.cfg.get("gog"):                    # opt-in: Settings -> Sources -> GOG
             from .stores.gog import GogStore
             self.lib.gog = GogStore()
         self.inst = Installer(self.lib, lambda: config.install_root(self.cfg), self.cfg)

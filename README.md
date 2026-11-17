@@ -72,7 +72,7 @@ Settings → **Disconnect itch** makes scritch forget it; to revoke it as well, 
 → Settings → API keys.
 
 ### Epic Games (optional)
-Settings → Accounts → **Epic** → A shows a QR code. Scan it, tap **Open Epic sign-in**, sign in,
+Settings → Sources → **Epic** → A shows a QR code. Scan it, tap **Open Epic sign-in**, sign in,
 then copy the page of text Epic shows, paste it and tap Send. The code on that page works once and
 only for a few minutes, so do it in one go. Your Epic library becomes the **Epic** tab.
 SCRiTCH downloads the small open-source Epic helper
@@ -82,7 +82,7 @@ sign-in, separate from Heroic. Epic games install, update and play like itch Win
 online-only Epic features won't run (same as in Heroic).
 
 ### GOG (optional)
-Settings → Accounts → **GOG** → A shows a QR code. Scan it, tap **Open GOG sign-in** and sign in.
+Settings → Sources → **GOG** → A shows a QR code. Scan it, tap **Open GOG sign-in** and sign in.
 GOG then shows a nearly blank page: copy its **address** from the address bar, paste it on the
 phone page and tap Send. Your GOG library becomes the **GOG** tab. SCRiTCH uses a copy of GOG's
 open-source download tool ([gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl), the one
@@ -98,7 +98,7 @@ Heroic uses), so nothing extra is downloaded.
 - Updates show on the tile. Not yet: DLC and cloud saves.
 
 ### Your own DOS games (optional)
-Settings → Storage → **DOS games** shows the folder, `scritch/dos` next to your other games (SD card
+Settings → Sources → **DOS games** shows the folder, `scritch/dos` next to your other games (SD card
 or internal, following *Install location*), and how many games it holds. A opens a short box: copy
 game folders or `.zip` files into that folder (Dolphin, Warpinator, a USB stick), then choose
 **Refresh**. SCRiTCH also looks there at start and when you press Y in the library.
@@ -172,7 +172,7 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 - **Pointer speed:** slow / normal / fast, for Mouse and Keys mode.
 - **Button symbols:** *Auto* follows the controller you pressed last; or fix it to Steam Deck,
   PlayStation or Xbox.
-- **Accounts:** sign in to or out of itch, Epic and GOG.
+- **Sources:** sign in to or out of itch, Epic and GOG, and the DOS games folder.
 - **Help → Send logs:** see *When something goes wrong*.
 - **Update app:** checks GitHub for a new version, downloads it and restarts. The previous
   version is kept as `scritch.old` next to the app, in case you need to go back: rename it
@@ -192,7 +192,7 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
 | "needs a newer GE-Proton" | Settings → Proton version → pick the newest (or Auto). |
 | A GOG DOS game shows a text screen with a question | Normal: answer it with Steam + X (keyboard). The game itself is running. |
 | A GOG game closes right after starting (Code P03) | Send your logs. Try Options → Change build (the other version). |
-| "Sign in to GOG again" / "Connect Epic again" | Settings → Accounts → sign in again. |
+| "Sign in to GOG again" / "Connect Epic again" | Settings → Sources → sign in again. |
 | A game's controls do nothing | It may need a mouse or keyboard: Options → Controls → Mouse or Keys. To get out: hold View + Menu for 2 s. |
 
 **Something not working?** Settings → Help → **Send logs** shows a QR code. Scan it with your phone
