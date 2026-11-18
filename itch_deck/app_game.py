@@ -82,18 +82,17 @@ class GameMixin:
             self.confirm(f"Uninstall {g['title']}?", "The game's files are deleted. You can "
                          "install it again any time.", "Uninstall", lambda: self._uninstall(g))
         elif label == "Hide from SCRiTCH":
+            dos = g.get("store") == "dos"
             self.confirm(f"Hide {g['title']} from SCRiTCH?",
-                         ["It stays in your store account.", "Sort & filter > Show > Hidden games brings it back."],
-                         "Hide", lambda: self._set_hidden(g, True), main=True)
+                         ["Your game files stay in the folder." if dos else
+                          "Nothing is deleted. It stays in your store account.",
+                          "Sort & filter > Show > Hidden games brings it back."],
+                         "Hide", (lambda: self._remove_dos(g)) if dos else (lambda: self._set_hidden(g, True)),
+                         main=True)
         elif label == "Show in SCRiTCH":
             self._set_hidden(g, False)
         elif label in ("Add to Steam", "Remove from Steam"):
             self._steam_toggle(g, label == "Add to Steam")
-        elif label == "Remove from library":
-            self.confirm(f"Remove {g['title']}?",
-                         ["Your game files stay in the folder.",
-                          "Sort & filter > Show > Hidden games brings it back."],
-                         "Remove", lambda: self._remove_dos(g), main=True)
         elif label == "Program to run":
             self._program_picker(gid)
         elif label == "Keep window open after the game":
@@ -321,11 +320,10 @@ class GameMixin:
                 self.go_library()
 
     def _remove_dos(self, g):
-        """Options -> Remove from library (your own DOS game): the game is hidden, never deleted. Its folder stays
+        """Options -> Hide from SCRiTCH (your own DOS game): the game is hidden, never deleted. Its folder stays
         and the game waits under Sort & filter > Show > Hidden games (v0.9.26, Omri: Y could not bring it back)."""
         self.inst.uninstall(g["id"])                     # forgets the install entry only
         self._set_hidden(g, True)
-        self.say(f"{g['title']} was removed. Hidden games brings it back.")
 
     def _steam_toggle(self, g, add):
         """Options -> Add to Steam / Remove from Steam: one shortcut for this game (steam_games.py)."""

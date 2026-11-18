@@ -110,7 +110,7 @@ game folders or `.zip` files into that folder (Dolphin, Warpinator, a USB stick)
   drive D). SCRiTCH installs DOSBox Staging from Flathub the first time. Saves stay in the game's
   own folder, and SCRiTCH never changes or deletes your files.
 - If a folder has several programs, SCRiTCH picks the one named like the folder, or the only `.bat`;
-  Options → **Program to run** changes it. Options → **Remove from library** only forgets the entry
+  Options → **Program to run** changes it. Options → **Hide from SCRiTCH** only forgets the entry
   (the folder stays hidden until it changes; copying the game's `.zip` again brings it back as
   `<name> (2)`, your old folder is never touched).
 - Folders with a double quote in their name are skipped. If you switch *Install location*, the dos
@@ -141,11 +141,10 @@ GE-Proton from ProtonUp-Qt? scritch uses it.
   or hidden games; filter by Genre or Length (Under 2 h / 2–10 h / 10 h+). Lengths come from
   [HowLongToBeat](https://howlongtobeat.com), looked up in the background and refreshed monthly.
   Games HLTB doesn't know (many small itch games) show no time rather than a wrong one.
-- **Hide from SCRiTCH:** for a game that is not installed, Options -> **Hide from SCRiTCH** (after a purple
+- **Hide from SCRiTCH:** for any game, Options -> **Hide from SCRiTCH** (after a purple
   *Hide* confirm) takes its tile out of every tab on this Deck. Nothing changes in your store account, and nothing
   is deleted. Sort & filter -> Show -> **Hidden games** lists them; open one and choose Options -> **Show in
-  SCRiTCH** to bring it back. Installing a hidden game also brings it back. (Games you added in the DOS folder
-  have **Remove from library** instead.)
+  SCRiTCH** to bring it back. A hidden game stays hidden even when installed; you can still install it from the Hidden list. (This works the same for games you added in the DOS folder.)
 - **Installing:** press Install. The download runs in the background (one at a time) and resumes
   if you quit. Then the button turns into **Play**.
 - **Change build:** some games have several downloads (Linux, Windows, 32/64-bit, demos). Options

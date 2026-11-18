@@ -192,10 +192,10 @@ def test_game_page_installs_like_epic():
     assert sc.message() is None
     sc = Game(Theme(pg, (1280, 800)), dict(game, state="installed"))
     assert [a[0] for a in sc.actions()] == ["Play", "Options"]
-    assert sc.options() == ["Uninstall", "Controls", "Saves"]
+    assert sc.options() == ["Uninstall", "Controls", "Saves", "Hide from SCRiTCH"]
     both = dict(game, state="installed", platforms={"windows", "linux"})     # v0.9.5
     assert Game(Theme(pg, (1280, 800)), both).options() == ["Uninstall", "Change build",
-                                                             "Controls", "Saves"]
+                                                             "Controls", "Saves", "Hide from SCRiTCH"]
 
 
 def test_tabs_with_three_stores():

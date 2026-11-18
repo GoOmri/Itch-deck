@@ -82,8 +82,8 @@ class Game(Scene):
         rows = self._options()
         if rows and self.g.get("state") == "installed" and self.g.get("steam_ok"):
             rows = rows + ["Remove from Steam" if self.g.get("on_steam") else "Add to Steam"]
-        if self.g.get("state") in (None, "failed") and not self.phase:
-            rows = rows + ["Hide from SCRiTCH"]           # not installed: hiding it loses nothing
+        if self.g.get("state") not in ("downloading", "queued") and not self.phase:
+            rows = rows + ["Hide from SCRiTCH"]           # any game (files stay); not while it downloads/moves, always last
         return rows
 
     def _options(self):
@@ -93,9 +93,9 @@ class Game(Scene):
             return []
         if g.get("store") == "dos":                    # your own DOS game: files are never deleted
             if st == "installed":
-                return ["Remove from library", "Controls"] + (
+                return ["Controls"] + (
                     ["Program to run"] if g.get("programs", 1) > 1 else []) + ["Keep window open after the game"]
-            return ["Remove from library"] if st == "missing" else []
+            return []
         epic = g.get("store") == "epic" or (       # one build: no Change build. GOG: only when it
             g.get("store") == "gog" and not {"linux", "windows"} <= set(g["platforms"]))  # has both
         if st == "installed":

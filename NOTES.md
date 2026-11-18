@@ -175,3 +175,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - v0.9.31 prep (18 Nov, branch v0931-scrub-logs; maintenance A, no VERSION bump yet) = app.log can never hold a token
 - v0.9.31 prep: text-file reader removed (Omri 18 Nov, he never asked for it by name)
 - v0.9.31 RELEASED 18 Nov (Omri: "push the update") = log scrub, test skip list, text-file reader removed
+- v0.9.32 prep (18 Nov, branch v0932-hide-any-game; no VERSION bump) = "Hide from SCRiTCH" works for EVERY game
+  - Offered (last row of Options) for installed, missing and not-installed games, store or own DOS; not while downloading/queued/moving. A hidden game stays hidden even when installed (auto-unhide, on_unhide and _forget_hidden are gone). Own DOS games: "Remove from library" is now "Hide from SCRiTCH" (same forget-the-entry code, files never touched; Refresh does not bring it back, Show in SCRiTCH does). Manage games already lists hidden installed games (no filter on "hidden").
+  - UNVERIFIED on the Deck. Check: hide an installed itch game (gone from All, still in Hidden games, still in Settings > Storage > Manage games), hide a DOS game and press Refresh (stays hidden), Show in SCRiTCH brings it back; Install from the Hidden list. Log line: "hidden: <id> hidden / shown again".
+  - Old configs: a game that had been auto-unhidden is simply not in the list; nothing to migrate.
