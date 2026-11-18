@@ -1187,12 +1187,17 @@ class Installer:
             done[0] += n
             if gid in self._cancel:
                 raise MoveCancelled()
+            now = time.monotonic()
+            if now - last[0] < 0.4:                    # v0.9.26: not every 4 MB chunk (the page re-draws on each
+                return                                 # change and starved the screen: the bar looked stuck)
+            last[0] = now
             self._upd(gid, progress=min(done[0] / total, 0.999) if total else 0.999)
             pct = int(done[0] * 100 / total) if total else 100
             if pct // 10 != logged[0] // 10:            # v0.9.25: the Deck log shows the move's progress
                 logged[0] = pct
                 log.info("move %s: %d%% of %d MB copied", gid, pct, total // 1_000_000)
         logged = [0]
+        last = [0.0]
         for a, b in jobs:
             _copy_tree(a, b, tick)
         for a, b in jobs:                         # check: same files, same sizes

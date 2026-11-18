@@ -604,5 +604,5 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
 - Dialog titles wrap (W.modal) so "Remove <long name>" stays in the box; the Remove text is shorter.
 - A menu or picker that opens starts with its focus in place (Scene.overlay setter calls W.forget_menu), no slide from the last time.
 - Send logs: the Save hint box is narrower (more room before the QR address).
-- STILL OPEN: the Move progress bar (Omri: a thin bit of purple, then stops). Not reproduced; app.log has "move <id>: N% ..." lines.
+- Move progress bar (Omri: a thin bit of purple, then stops): probable cause = a progress update on every 4 MB chunk made the page re-draw ~25 times/s and starve the screen. Updates are now at most every 0.4 s. UNVERIFIED (not reproduced here); app.log has "move <id>: N% ..." lines either way.
 - UNVERIFIED on the Deck: all of the above.
