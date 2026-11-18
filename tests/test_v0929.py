@@ -176,6 +176,9 @@ def test_old_saved_text_is_fetched_and_cut_again_once(tmp_path, monkeypatch):
     assert d["text_ver"] == dosart.TEXT_VER and "Owners" not in d["description"][0]
     d.update({"text_ver": 2, "description": ["Long old text. " * 80]})              # what v0.9.27 / 0.9.28 saved
     page.write_text(json.dumps(d))
+    ent = json.loads((paths.DATA / "dosart.json").read_text())
+    ent["d1"]["text_tried"] = True                                                    # v0.9.28 saved a plain True
+    (paths.DATA / "dosart.json").write_text(json.dumps(ent))
     n = len([c for c in calls if "api.gog.com" in c])
     lib2 = library.Library(None)
     lib2.set_dos_games([{"id": "d1", "title": "Doom", "cover": None}])
