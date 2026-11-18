@@ -181,7 +181,10 @@ class GameMixin:
             return
         if order == "exe":                 # program picker
             sc.overlay, self.picker = None, None
-            if self.inst.set_exe(gid, self._progs[i]):
+            if self._prog_kinds[i] == "setup":
+                if self.inst.run_once(gid, self._progs[i]):
+                    self.say(f"{Path(self._progs[i]).name} starts once the next time you press Play.")
+            elif self.inst.set_exe(gid, self._progs[i]):
                 self.say(f"{Path(self._progs[i]).name} starts the game from now on.")
             return
         if i < 0:
@@ -215,12 +218,16 @@ class GameMixin:
 
     def _program_picker(self, gid):
         """O1 as a program list: every runnable file found in the install, current one tagged."""
-        self._progs = self.inst.programs(gid)
-        items = [(Path(p).name, "In use" if i == 0 else "", str(Path(p).parent)
-                  if str(Path(p).parent) != "." else "Top folder") for i, p in enumerate(self._progs)]
+        choices = self.inst.program_choices(gid) or [(p, "use" if i == 0 else "prog")
+                                                      for i, p in enumerate(self.inst.programs(gid))]
+        self._progs = [p for p, _k in choices]
+        self._prog_kinds = [k for _p, k in choices]
+        items = [(Path(p).name, {"use": "In use", "setup": "Setup"}.get(k, ""), str(Path(p).parent)
+                  if str(Path(p).parent) != "." else "Top folder") for p, k in choices]
         self.picker = (gid, "exe", True, 0)
-        self.scene.overlay = ("picker", "Choose the program", "Pick the file that starts the game. "
-                              "Helpers like crash reporters are left out.", items, 0)
+        sub = ("Pick the program that starts the game. A setup program runs once, the next time you play."
+               if "setup" in self._prog_kinds else "Pick the file that starts the game.")
+        self.scene.overlay = ("picker", "Choose the program", sub, items, 0)
 
     def open_options(self, sc):
         """⚙ / ☰: the menu also offers moving the game to the other drive (SD card <-> internal)."""

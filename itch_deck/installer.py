@@ -1082,6 +1082,28 @@ class Installer:
         out = [info["exe"]] + [a for a in info.get("alternatives", []) if a != info["exe"]]
         return [p for p in out if (files / p).is_file()]
 
+    def program_choices(self, gid):
+        """[(relative path, kind)] for the "Program to run" list: the one in use first, the other programs, then the
+        setup / install programs (kind "setup": run once, never the default)."""
+        info = self.index.get(gid)
+        if not info:
+            return []
+        out = [(p, "use" if i == 0 else "prog") for i, p in enumerate(self.programs(gid))]
+        if info.get("store") == "dos":
+            base = Path(info["dir"])
+            out += [(p, "setup") for p in info.get("setups", []) if (base / p).is_file()]
+        return out
+
+    def run_once(self, gid, rel):
+        """A setup program picked in the list: it starts the NEXT time the game is played, once. The default
+        program does not change. (Kept in memory only; a rescan forgets it.)"""
+        info = self.index.get(gid)
+        if not info or info.get("store") != "dos" or rel not in info.get("setups", []):
+            return False
+        info["exe_once"] = rel
+        log.info("install %s: %s runs once at the next Play", gid, rel)
+        return True
+
     def set_exe(self, gid, rel):
         """Program picker: run this file from now on (kept in install.json, so restarts and
         updates keep it). The old choice stays in the list."""
@@ -1311,6 +1333,7 @@ class Installer:
             self.index[gid] = {"game_id": gid, "title": e["title"], "store": "dos", "platform": "dos",
                                "dir": e["dir"], "exe": exe, "args": [], "cwd": "", "image": e["image"],
                                "alternatives": [p for p in e["programs"] if p != exe],
+                               "setups": [p for p in e.get("setups", []) if (Path(e["dir"]) / p).is_file()],
                                "exe_chosen": bool(keep), "size": e["size"],
                                "date": old.get("date") or dt.datetime.now().astimezone().isoformat(timespec="seconds")}
         for gid, i in list(self.index.items()):

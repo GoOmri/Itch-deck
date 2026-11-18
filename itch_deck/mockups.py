@@ -361,6 +361,12 @@ def _shots(t, version):
                                               controls_value="Auto \u00b7 Keys"), pos=(1, 3)), (
             "menu", "Options", "", [("Remove from library", "", ""), ("Controls", "Auto \u00b7 Keys", ""),
                                     ("Program to run", "", "")], 0))),
+        ("15zd_game_dos_programs", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
+                                              programs=14, author="", platforms={"linux"}), pos=(1, 3)), (
+            "picker", "Choose the program",
+            "Pick the program that starts the game. A setup program runs once, the next time you play.",
+            [(f"BLOOD{i}.EXE" if i < 9 else f"SETUP{i}.EXE", "In use" if i == 0 else "Setup" if i >= 9 else "",
+              "Top folder") for i in range(14)], 11))),
         ("15w_game_dos_remove", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
                                              author="", platforms={"linux"}), pos=(1, 3)), (
             "confirm", "Remove Amber Atlas?",

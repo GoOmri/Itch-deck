@@ -375,3 +375,93 @@ def test_the_saved_page_holds_only_the_short_text(tmp_path, monkeypatch):
     lib._worker and lib._worker.join(timeout=20)
     d = json.loads((paths.PAGES / "d1.json").read_text())
     assert len(d["description"]) == 1 and "bundle" not in d["description"][0].lower()
+
+
+# --- 7: Program to run -------------------------------------------------------------------------------------
+def test_default_pick_avoids_support_programs_but_keeps_real_games():
+    pick = dosgames.pick_program
+    assert pick("Bio Menace", ["TECHSUPP.EXE", "BM1.EXE", "BM2.EXE"]) == "BM1.EXE"
+    assert pick("Bio Menace", ["ORDERING.EXE", "VENDOR.EXE", "HINTS.EXE", "BM1.EXE"]) == "BM1.EXE"
+    assert pick("Game", ["trainer.exe", "cheat.com", "GO.BAT"]) == "GO.BAT"
+    assert pick("Game", ["TECHSUPP.EXE"]) == "TECHSUPP.EXE"                 # only that: still better than nothing
+    assert pick("Mouse Hunt", ["MOUSEH.EXE"]) == "MOUSEH.EXE"
+    for real in ("HELPFUL.EXE", "TECHNOID.EXE", "INFORMER.EXE", "HINTERLD.EXE", "ORDEAL.EXE", "SUPPORTED.EXE"):
+        assert not dosgames.is_support(real), real
+    assert pick("Game", ["A.EXE", "B.EXE"], saved="TECHSUPP.EXE") == "A.EXE"
+    assert pick("Game", ["TECHSUPP.EXE", "B.EXE"], saved="TECHSUPP.EXE") == "TECHSUPP.EXE"    # a saved choice wins
+    assert pick("Tech", ["TECH.EXE", "Z.EXE"]) == "TECH.EXE"                 # the name like the folder wins
+
+
+def test_setup_programs_are_listed_marked_and_never_the_default(tmp_path, monkeypatch):
+    inst, lib, sd_dos, _ = inst_two_roots(tmp_path, monkeypatch)
+    make_game(sd_dos / "Blood", "BLOOD.EXE", ["SETUP.EXE", "SNDSETUP.EXE", "TOOLS/INSTALL.COM", "DOSBOX.EXE"])
+    inst.sync_dos()
+    gid = dosgames.game_id("Blood")
+    info = inst.index[gid]
+    assert info["exe"] == "BLOOD.EXE"
+    assert sorted(info["setups"]) == ["SETUP.EXE", "SNDSETUP.EXE", "TOOLS/INSTALL.COM"]      # dosbox.exe is junk
+    ch = inst.program_choices(gid)
+    assert ch[0] == ("BLOOD.EXE", "use") and [k for _p, k in ch[1:]] == ["setup"] * 3
+    assert inst.set_exe(gid, "SETUP.EXE") is False                          # a setup can not become the default
+    assert inst.run_once(gid, "SETUP.EXE") and inst.index[gid]["exe"] == "BLOOD.EXE"
+    from itch_deck import dosbox
+    exe, args, cwd = dosbox.launch_own(inst.index[gid], ["dosbox"])
+    assert "SETUP.EXE" in args and "BLOOD.EXE" not in args
+    exe, args, cwd = dosbox.launch_own(inst.index[gid], ["dosbox"])         # once: the next Play is the game
+    assert "BLOOD.EXE" in args and "SETUP.EXE" not in args
+
+
+def test_the_program_list_scrolls_and_fits_both_screens(tmp_path):
+    from itch_deck.ui import widgets as W
+    for size in ((1280, 800), (1920, 1080)):
+        pg.init()
+        pg.display.set_mode((64, 64))
+        from itch_deck import theme
+        t = theme.Theme(pg, size)
+        s = pg.Surface(size)
+        items = [(f"PROGRAM{i}.EXE", "Setup" if i > 15 else "", "Top folder") for i in range(30)]
+        W.forget_menu("Choose the program")
+        sub = "Pick the program that starts the game. A setup program runs once, the next time you play."
+        seen_first = []
+        for focus in (0, 5, 12, 29, 20, 0):
+            r = W.menu(t, s, "Choose the program", sub, items, focus)
+            assert r.top >= 0 and r.bottom <= t.h - t.hint_h, (size, focus, r)   # inside the screen, above the footer
+            seen_first.append(W._MENU_FIRST["Choose the program"])
+        assert seen_first[0] == 0 and seen_first[3] > 0 and seen_first[-1] == 0      # it scrolled down and back
+        fit_rows = int((r.h - 2 * t.lg) // 1)
+        assert r.h > 0
+        # the focused row is always among the rows drawn
+        for focus in range(30):
+            W.menu(t, s, "Choose the program", sub, items, focus)
+            first = W._MENU_FIRST["Choose the program"]
+            assert first <= focus
+        short = [("A.EXE", "In use", "Top folder"), ("B.EXE", "", "Top folder")]
+        W.forget_menu("Choose the program")
+        r = W.menu(t, s, "Choose the program", sub, short, 0)
+        assert W._MENU_FIRST["Choose the program"] == 0 and r.h < t.h / 2        # short lists are not stretched
+
+
+def test_picking_a_setup_runs_it_once_and_picking_a_program_changes_the_default(tmp_path, monkeypatch):
+    import types as T
+    from itch_deck import app_game
+    inst, lib, sd_dos, _ = inst_two_roots(tmp_path, monkeypatch)
+    make_game(sd_dos / "Blood", "BLOOD.EXE", ["BLOOD2.EXE", "SETUP.EXE"])
+    inst.sync_dos()
+    gid = dosgames.game_id("Blood")
+    app = T.SimpleNamespace(inst=inst, said=[])
+    app.say = lambda m, **k: app.said.append(m)
+    app.picker = None
+    app.scene = T.SimpleNamespace(overlay=None)
+    app.lib = T.SimpleNamespace(by_id=lambda i: None)
+    mixin = app_game.GameMixin if hasattr(app_game, "GameMixin") else None
+    assert mixin is not None
+    mixin._program_picker(app, gid)
+    title, sub, items = app.scene.overlay[1], app.scene.overlay[2], app.scene.overlay[3]
+    assert [i[1] for i in items] == ["In use", "", "Setup"] and "once" in sub
+    app.scene.overlay = ("picker", title, sub, items, 2)                       # pick the setup
+    mixin._pick(app, app.scene)
+    assert inst.index[gid]["exe"] == "BLOOD.EXE" and inst.index[gid]["exe_once"] == "SETUP.EXE"
+    mixin._program_picker(app, gid)
+    app.scene.overlay = ("picker", title, sub, items, 1)                       # pick the other program
+    mixin._pick(app, app.scene)
+    assert inst.index[gid]["exe"] == "BLOOD2.EXE"

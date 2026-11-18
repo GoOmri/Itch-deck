@@ -125,12 +125,16 @@ def is_helper(path):
     return any(w in low for w in SKIP_WORDS)
 
 
+SETUP_WORDS = ("setup", "install", "config", "setsound", "sndsetup", "soundset", "update", "patch", "fixit")
+SETUPS = {}                   # folder -> its setup programs, filled by survey() (read by scan(): one walk only)
+
+
 def survey(folder):
     """One walk of the game folder: (programs, disc image, size in bytes). Programs (.exe .com .bat, helpers
     left out) are relative with '/' separators, shallow first; the image is the first .cue (else .iso);
     only MAX_DEPTH folders down are looked at for both. Symlinks are not followed and not counted."""
     folder = Path(folder)
-    progs, images, size = [], [], 0
+    progs, images, size, setups = [], [], 0, []
     try:
         for dirpath, dirs, files in os.walk(folder, followlinks=False):
             rel_dir = Path(dirpath).relative_to(folder)
@@ -149,11 +153,15 @@ def survey(folder):
                 ext = Path(f).suffix.lower()
                 if ext in PROGRAM_EXTS and not is_helper(f):
                     progs.append(rel)
+                elif ext in PROGRAM_EXTS and any(w in Path(f).stem.lower() for w in SETUP_WORDS):
+                    setups.append(rel)                 # listed in "Program to run" as setup, never the default
                 elif ext in IMAGE_EXTS:
                     images.append(rel)
     except OSError:
         pass
     progs.sort(key=lambda r: (r.count("/"), r.lower()))
+    setups.sort(key=lambda r: (r.count("/"), r.lower()))
+    SETUPS[str(folder)] = setups
     images.sort(key=lambda r: (not r.lower().endswith(".cue"), r.count("/"), r.lower()))
     return progs, (images[0] if images else None), size
 
@@ -198,9 +206,25 @@ def tree_size(folder):
     return survey(folder)[2]
 
 
+# Programs that are about the game, not the game (a technical-support or order-form program started instead of Bio
+# Menace). Only the DEFAULT pick avoids them; they stay in the list. Whole words of the name, or the short 8.3 forms
+# DOS games use ("TECHSUPP", "ORDERING"); a real game like "Mouse Hunt", "Helpful Harry" or "Technoid" is not hit.
+SUPPORT_WORDS = {"trainer", "cheat", "cheats", "tech", "support", "help", "order", "ordering", "info", "readme",
+                 "vendor", "hint", "hints", "orderfrm", "orderform", "techsupp", "techsupport", "techhelp",
+                 "techinfo", "vendinfo", "orderinf", "orderinfo"}
+
+
+def is_support(rel):
+    """True for a program that only looks like support / order / cheat help (judged by its file name)."""
+    stem = Path(rel).stem.lower()
+    words = [w for w in re.split(r"[^a-z0-9]+", stem) if w]
+    return stem in SUPPORT_WORDS or (bool(words) and all(w in SUPPORT_WORDS for w in words))
+
+
 def pick_program(folder_name, progs, saved=None):
     """The program to run: the saved choice if it is still there, else the one that looks like the game
-    (a name equal to the folder's, a single .bat, or the only file); else the first (shallowest)."""
+    (a name equal to the folder's, a single .bat, or the only file); else the first (shallowest).
+    Support / order / cheat helpers (is_support) are only taken when nothing else is there."""
     if saved and saved in progs:
         return saved
     if not progs:
@@ -209,10 +233,11 @@ def pick_program(folder_name, progs, saved=None):
     for p in progs:
         if slug(Path(p).stem) == stem:
             return p
-    bats = [p for p in progs if p.lower().endswith(".bat") and "/" not in p]
+    real = [p for p in progs if not is_support(p)] or list(progs)
+    bats = [p for p in real if p.lower().endswith(".bat") and "/" not in p]
     if len(bats) == 1:
         return bats[0]
-    return progs[0]
+    return real[0]
 
 
 def cover_of(folder):
@@ -343,6 +368,7 @@ def scan(root, choices=None, hide=None, used=None):
         title, year = dosart.display(f.name)    # the shown title is tidy; the folder and the id stay as they are
         out.append({"name": f.name, "id": gid, "title": title, "year": year, "dir": str(f),
                     "exe": pick_program(f.name, progs, choices.get(gid)), "programs": progs,
+                    "setups": list(SETUPS.get(str(f), [])),
                     "cover": cover_of(f), "image": image, "size": size})
 
     for f in folders:

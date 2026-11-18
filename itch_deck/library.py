@@ -230,7 +230,7 @@ class Library:
             g["dos"] = dosbox.is_dosbox_game(inst) or dosbox.is_own_dos(inst)
             if dosbox.is_own_dos(inst):
                 g.setdefault("inputs", ["Keyboard", "Mouse"])        # Controls: Auto = Keys
-                g["programs"] = 1 + len(inst.get("alternatives") or [])
+                g["programs"] = 1 + len(inst.get("alternatives") or []) + len(inst.get("setups") or [])
         else:
             g.pop("dos", None)
             g.pop("programs", None)

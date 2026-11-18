@@ -86,9 +86,13 @@ def anim(key, target, start=None, ms=None, back=None):
     return val[0] / 1000.0
 
 
+_MENU_FIRST = {}              # menu title -> index of the first row shown (long lists scroll)
+
+
 def forget_menu(title):
     """A menu that has just opened starts with its focus where it is, not sliding from where the same
     menu's focus was last time (Omri, Deck test 18 Nov)."""
+    _MENU_FIRST.pop(title, None)
     for k in [k for k in _ANIM if isinstance(k, tuple) and k and k[0] == ("menu", title)]:
         del _ANIM[k]
 
@@ -1248,17 +1252,33 @@ def menu(t, s, title, sub, items, focus, arrows=False):
     w = min(t.w - 2 * t.m, t.read_w)
     row_h = int(t.u * (8.5 if any(i[2] for i in items) else 7))
     pad = t.lg
-    head = t.f_h2.get_linesize() + (t.f_small.get_linesize() if sub else 0) + t.md
-    h = pad * 2 + head + len(items) * (row_h + t.u // 2)
+    sub_lines = wrap_lines(t.f_small, sub, w - 2 * pad) if sub else []     # a long sub line wraps, never cut
+    head = t.f_h2.get_linesize() + len(sub_lines) * t.f_small.get_linesize() + t.md
+    step = row_h + t.u // 2
+    room = t.h - t.hint_h - 2 * t.md                       # the dialog must fit above the footer
+    fit = max(1, int((room - 2 * pad - head) // step))
+    n = len(items)
+    show = min(n, fit)
+    first = min(_MENU_FIRST.get(title, 0), max(0, n - show))
+    if focus < first:                                       # long list: scroll so the focused row stays in view
+        first = focus
+    elif focus >= first + show:
+        first = focus - show + 1
+    first = max(0, min(first, max(0, n - show)))
+    _MENU_FIRST[title] = first
+    h = pad * 2 + head + show * step
     r = pg.Rect(0, 0, w, h)
     r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
     panel(t, s, r)
-    ty = text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom
-    if sub:
-        text(t, s, sub, r.x + pad, ty, t.f_small, color=t.dim)
+    tr = text(t, s, title, r.x + pad, r.y + pad, t.f_h2)
+    ty = tr.bottom
+    if n > show:                                            # where am I in the list
+        text(t, s, f"{focus + 1} / {n}", r.right - pad, tr.centery, t.f_small, color=t.dim, anchor="midright")
+    for ln in sub_lines:
+        ty = text(t, s, ln, r.x + pad, ty, t.f_small, color=t.dim).bottom
     # rows sit inset by (pad - row padding) so their text lines up with the title
     rows(t, s, pg.Rect(r.x + pad - t.md, r.y + pad + head, r.w - 2 * (pad - t.md), 0),
-         items, focus, row_h, key=("menu", title), arrows=arrows)
+         items[first:first + show], focus - first, row_h, key=("menu", title), arrows=arrows)
     return r
 
 

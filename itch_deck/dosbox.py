@@ -160,7 +160,8 @@ def launch_own(info, base_cmd):
     drive D when the folder has one, then the chosen program. The game's saves stay in its folder.
     Sub folders are entered with cd (DOS games use short 8.3 names)."""
     folder = Path(info["dir"])
-    rel = (info.get("exe") or "").replace("\\", "/")
+    once = info.pop("exe_once", None)              # a setup program picked in "Program to run": this Play only
+    rel = (once or info.get("exe") or "").replace("\\", "/")
     parts = [p for p in rel.split("/") if p]
     cmds = [f'mount c "{folder}"']
     image = info.get("image")
