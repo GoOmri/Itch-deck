@@ -194,6 +194,6 @@ def test_left_and_right_also_switch_stay_open(tmp_path, monkeypatch):
     monkeypatch.setattr("itch_deck.config.save", lambda cfg: None)
     a.go_game(g)
     a.open_options(a.scene)
-    a.scene.open_options(len(a.scene.options()) - 1)
+    a.scene.open_options(a.scene.options().index("Keep window open after the game"))
     a.handle(RIGHT)
     assert a.cfg["dos_stay_open"] == [g["id"]] and a.scene.overlay[0] == "menu"

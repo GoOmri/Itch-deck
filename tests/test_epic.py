@@ -146,7 +146,7 @@ def test_tabs_and_epic_game_page():
     assert [a[0] for a in gp.actions()] == ["Install", "Options"]
     assert gp.options() == ["Hide from SCRiTCH"]                         # no Change build (v0.9.23: Hide is the one row)
     games[1]["state"] = "installed"
-    assert Game(t, games[1]).options() == ["Uninstall", "Controls", "Saves"]
+    assert Game(t, games[1]).options() == ["Uninstall", "Controls", "Saves", "Hide from SCRiTCH"]
 
 
 def test_epic_install_play_uninstall(tmp_path, monkeypatch):

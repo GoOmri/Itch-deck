@@ -34,15 +34,15 @@ def test_hidden_games_leave_every_tab_and_show_in_their_own_filter():
     assert dict(SHOWS)["hidden"] == "Hidden games"
 
 
-def test_the_flag_follows_the_ids_and_never_hides_an_installed_game(tmp_path):
+def test_the_flag_follows_the_ids_even_for_an_installed_game(tmp_path):
     lib = library.Library.__new__(library.Library)
     lib.live, lib.installs = {}, {}
     lib.games = [{"id": "a", "title": "A"}, {"id": "b", "title": "B"}]
     lib.set_hidden(["a", "b", "gone"])
     assert [g["hidden"] for g in lib.games] == [True, True]
     lib.installs = {"b": {"dir": str(tmp_path), "store": "gog", "platform": "windows", "exe": "x", "size": 1}}
-    lib.set_hidden(["a", "b"])                                    # b got installed: it comes back by itself
-    assert [g["hidden"] for g in lib.games] == [True, False]
+    lib.set_hidden(["a", "b"])                                    # v0.9.32: b is installed and stays hidden
+    assert [g["hidden"] for g in lib.games] == [True, True]
     lib.set_hidden([])
     assert not any(g["hidden"] for g in lib.games)
 
@@ -59,8 +59,18 @@ def test_options_offer_hide_only_for_games_that_are_not_installed():
     assert _scene(dict(base, state="failed")).options() == ["Hide from SCRiTCH"]
     itch = dict(base, store="itch", platforms={"linux", "windows"}, state=None)
     assert _scene(itch).options() == ["Change build", "Hide from SCRiTCH"]
-    assert "Hide from SCRiTCH" not in _scene(dict(base, state="installed")).options()
+    assert _scene(dict(base, state="installed")).options()[-1] == "Hide from SCRiTCH"          # v0.9.32: any game
+    assert _scene(dict(base, state="installed", steam_ok=True)).options()[-2:] == ["Add to Steam", "Hide from SCRiTCH"]
+    assert _scene(dict(base, state="missing", missing="files")).options() == ["Uninstall", "Hide from SCRiTCH"]
     assert _scene(dict(base, state="downloading")).options() == []                              # busy: nothing
+    assert _scene(dict(base, state="queued")).options() == []
+    itch_in = dict(base, store="itch", platforms={"linux"}, state="installed")
+    assert _scene(itch_in).options() == ["Uninstall", "Change build", "Controls", "Saves", "Hide from SCRiTCH"]
+    dos = dict(base, store="dos", platforms={"linux"}, state="installed", dos=True, programs=2)
+    assert _scene(dos).options() == ["Controls", "Program to run", "Keep window open after the game",
+                                     "Hide from SCRiTCH"]
+    assert _scene(dict(dos, state=None)).options() == ["Hide from SCRiTCH"]
+    assert _scene(dict(dos, hidden=True)).options() == ["Show in SCRiTCH"]
     assert _scene(dict(base, state=None, hidden=True)).options() == ["Show in SCRiTCH"]         # the way back
     mac = dict(base, store="itch", platforms={"mac"}, state=None)                              # can't play it here
     assert _scene(mac).options() == ["Hide from SCRiTCH"] and [a[0] for a in _scene(mac).actions()] == ["Options"]
@@ -112,25 +122,61 @@ def test_app_hides_and_shows_a_game_and_keeps_it_in_the_config(tmp_path, monkeyp
     assert asked[0][1] == {"main": True}                          # the purple, non-destructive button
 
 
-def test_installing_a_hidden_game_brings_it_back_at_once_and_it_stays_back(tmp_path):
-    """Reviewer, v0.9.23: the flag was only recalculated at start or on a sync, so a hidden game that was installed
-    stayed hidden (and offered only 'Show in SCRiTCH'), and a later uninstall hid it again."""
+def test_a_hidden_game_stays_hidden_when_it_is_installed_or_uninstalled(tmp_path):
     from itch_deck import installer as I
     lib = library.Library.__new__(library.Library)
     lib.live, lib.installs = {}, {}
     lib.games = [{"id": "a", "title": "A", "state": None}]
-    forgotten = []
-    lib.on_unhide = forgotten.append
     lib.set_hidden(["a"])
-    assert lib.games[0]["hidden"] is True
     inst = I.Installer.__new__(I.Installer)
     inst.lib = lib
-    inst._upd("a", state="downloading", progress=0.3)             # it starts downloading: no longer hidden
-    assert lib.games[0]["hidden"] is False and forgotten == ["a"] and "a" not in lib.hidden
-    inst._upd("a", state="installed")
-    inst._upd("a", state=None)                                    # uninstalled later: it must NOT be hidden again
-    lib.set_hidden(lib.hidden)
-    assert lib.games[0]["hidden"] is False
+    for st in ("downloading", "installed", None):
+        inst._upd("a", state=st)
+        assert lib.games[0]["hidden"] is True and "a" in lib.hidden, st
+
+
+def test_hiding_an_own_dos_game_asks_and_forgets_the_entry_only(monkeypatch):
+    asked, done = [], []
+    me = types.SimpleNamespace(confirm=lambda *a, **k: asked.append((a, k)),
+                               _remove_dos=lambda g: done.append(g["id"]), _set_hidden=lambda *a: done.append("plain"))
+    g = {"id": "dos-1", "title": "Doom", "store": "dos"}
+    app_game.GameMixin.game_action(me, g, "Hide from SCRiTCH")
+    title, body, action, fn = asked[0][0][:4]
+    assert title == "Hide Doom from SCRiTCH?" and action == "Hide" and "files stay" in body[0]
+    assert "Hidden games" in body[1] and asked[0][1] == {"main": True}
+    fn()
+    assert done == ["dos-1"]
+
+
+def test_dos_hide_and_show_round_trip(tmp_path, monkeypatch):
+    from itch_deck import installer as I
+    paths.use_root(tmp_path / "home")
+    root = tmp_path / "games" / "dos"
+    (root / "Doom").mkdir(parents=True)
+    (root / "Doom" / "DOOM.EXE").write_bytes(b"x" * 10)
+    lib = library.Library.__new__(library.Library)
+    lib.live, lib.installs, lib.games, lib.hidden = {}, {}, [], set()
+    inst = I.Installer.__new__(I.Installer)
+    inst.lib, inst.index, inst.choices, inst.cfg = lib, {}, {}, {}
+    inst.dos_root = lambda: root
+    inst.dos_roots = lambda: [root]
+    monkeypatch.setattr(I.config, "card_missing", lambda p: False)
+    monkeypatch.setattr(lib, "set_dos_games", lambda games: None, raising=False)
+    assert inst.sync_dos() == 1 and len(inst.index) == 1
+    gid = next(iter(inst.index))
+    inst.uninstall(gid)                                           # what Hide does for a DOS game
+    lib.hidden = {gid}
+    assert inst.sync_dos() == 0 and gid not in inst.index         # Refresh: it does not come back
+    assert (root / "Doom" / "DOOM.EXE").exists()                  # the player's files are untouched
+    lib.hidden = set()                                            # Show in SCRiTCH + the scan it starts
+    assert inst.sync_dos() == 1 and gid in inst.index
+
+
+def test_manage_games_lists_a_hidden_installed_game(tmp_path):
+    from itch_deck import storagemgr
+    games = [{"id": "a", "title": "A", "state": "installed", "hidden": True, "size_mb": 500}]
+    index = {"a": {"dir": str(tmp_path), "store": "itch", "size": 500_000_000}}
+    assert [e["id"] for e in storagemgr.entries(games, index)] == ["a"]
 
 
 def test_hidden_filter_counts_and_genres(tmp_path):
