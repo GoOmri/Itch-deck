@@ -3,7 +3,21 @@ import os
 from pathlib import Path
 
 SIZES = [(1280, 800), (1920, 1080)]
-REAL = None   # --real DIR: (real library list, picked real game) instead of fake data
+REAL = None
+ART_DIR = Path("mockup-art")        # render() points it into the output folder
+
+
+def _tall_art(i):
+    """A plain generated tall (2:3) picture, like GOG's box art: for the DOS tab with a blurred edge."""
+    import pygame as pg
+    ART_DIR.mkdir(parents=True, exist_ok=True)
+    f = ART_DIR / f"tall-{i}.png"
+    img = pg.Surface((300, 450))
+    img.fill(((200, 60, 50), (40, 90, 170))[i % 2])
+    pg.draw.circle(img, (250, 220, 90), (150, 190), 90)
+    pg.draw.rect(img, (20, 20, 30), (30, 340, 240, 70), border_radius=10)
+    pg.image.save(img, str(f))
+    return str(f)   # --real DIR: (real library list, picked real game) instead of fake data
 STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase", "played", "added",
               "genre", "session")
 
@@ -357,6 +371,22 @@ def _shots(t, version):
         ("06g_library_gog_tab", Library(t, three, filt="gog", focus=0, stores=("itch", "epic", "gog"))),
         ("06h_library_dos_tab", Library(t, [dict(g, dos=True, state="installed") for g in gog_games[:2]],
                                         filt="dos", focus=0, stores=("itch", "epic", "gog"))),
+        ("06n_library_dos_cards", Library(t, [dict(g, dos=True, store="dos", state="installed", cover_file=None,
+                                                   title=ti, id="dos-card-" + g["id"]) for g, ti in zip(gog_games, (
+            "Dave", "Eye of the Beholder II: The Legend of Darkmoon", "Keen 4", "Blake Stone"))],
+                                          filt="dos", focus=0, stores=("itch", "epic", "gog"))),
+        ("15zc_game_dos_gog_text", Game(t, dict(gog_games[0], store="dos", state="installed", dos=True, programs=1,
+                                               author="", platforms={"linux"}, cover_file=None,
+                                               title="Commander Keen", comments=None, comment_count=0,
+                                               description=["Billy Blaze, eight-year-old genius, builds a spaceship "
+                                                            "and sets off to save the galaxy.",
+                                                            "Run, jump and pogo through hostile worlds."],
+                                               details_from="GOG", controls_value="Auto · Keys"),
+                                       pos=(1, 3))),
+        ("06o_library_dos_tall_art", Library(t, [dict(g, dos=True, store="dos", state="installed", id="dos-tall-" + g["id"],
+                                                      title=ti, cover_file=cf) for g, ti, cf in zip(
+            gog_games, ("Commander Keen", "Doom II", "Dave"), (_tall_art(0), _tall_art(1), None))],
+                                             filt="dos", focus=0, stores=("itch", "epic", "gog"))),
         ("15q_game_gog", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300),
                               pos=(2, len(gog_games)))),
         ("15r_game_gog_downloading", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300,
@@ -401,6 +431,8 @@ def render(outdir, version, real=None):
     REAL = load_real(real) if real else None
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
+    global ART_DIR
+    ART_DIR = out / "_art"
     files = []
     from . import pads
     for kind in ("deck", "ps"):        # every screen with Deck glyphs + a DualSense set

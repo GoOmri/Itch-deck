@@ -606,3 +606,36 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
 - Send logs: the Save hint box is narrower (more room before the QR address).
 - Move progress bar (Omri: a thin bit of purple, then stops): probable cause = a progress update on every 4 MB chunk made the page re-draw ~25 times/s and starve the screen. Updates are now at most every 0.4 s. UNVERIFIED (not reproduced here); app.log has "move <id>: N% ..." lines either way.
 - UNVERIFIED on the Deck: all of the above.
+
+## v0.9.27 (18 Nov, branch v0927-dos-art; waits for "push v0.9.27") = art and info for your own DOS games (part 1)
+- Each DOS game now asks GOG's public catalog (catalog.gog.com, no key, no login) for a match. A match gives the tall cover,
+  GOG's description and screenshots (same page fields as GOG/Epic pages: "From GOG"). No match = a generated title card
+  (dark blue-purple, thin purple line, the name in Inter Bold, wrapped). The folder's own cover.png/jpg ALWAYS wins for the cover
+  (GOG text still shows). Nothing is ever written into the player's DOS folder: GOG art lives in data/dosart/, the text in pages/,
+  the answers in data/dosart.json.
+- New itch_deck/dosart.py (pure, no network/files): parse() cleans the folder name (signs, v1.1, shareware/registered/full/retail/cd/dos/cracked,
+  [..] and (..) groups, ".exe", Doom2 -> Doom 2, & = and, accents folded) and reads a year 1980-1999 out of the groups first;
+  queries() = up to 4 search texts (full, Doom II -> Doom 2, before the subtitle, without a leading Commander/The);
+  choose() scores candidates (exact 100 > starts-with 85/70 > contains-all 62; a lone word that only starts a title is too weak),
+  sequel numbers must agree (Doom / Doom II / Doom 3; no number = 1), a pack (productType pack or Complete/Collection...) is
+  accepted for any episode but a single product beats it; year hint: equal +20, +/-1 +12, else -25 (not for packs); no hint: the earlier
+  release wins; minimum 60, two different games within 5 points = NO match (title card). Last try: the name without its trailing number.
+- library.py: job kind "dosart" (priority 6, after covers/pages, 1.5 s pause between games, hidden games skipped), cache per game
+  in data/dosart.json for 30 days, "no match" too; another name = new lookup. The Refresh box (Settings > DOS games) asks again for
+  games whose answer is older than a day (a Refresh may not bypass the cache more than once a day). Offline = nothing cached, asked again later.
+  A cover that is not a picture is dropped. If the match changes, the old art/text go (our own files only).
+- widgets.py: title_card(); for store "dos" a tall (or very wide) cover is shown WHOLE over a dark blurred copy (like the Steam tile)
+  instead of a middle slice; other stores unchanged. The game page text: GOG's text replaces the "A DOS game from your own folder..." line
+  (that line stays when there is no text).
+- tests/conftest.py: every test's net.get / net.get_json refuses ("offline") unless the test stubs it. selftest(): the DOS lookup is stubbed.
+  tests/test_dosart.py (22 tests). Mockups 06n (title cards) and 15zc (DOS page with GOG text) added, rendered and looked at.
+- Tests on Windows: 44 failed / 271 passed, the same 44 failures as main (list in scratch/base3.txt); selftest fails on main and here at the same
+  Epic step (Windows). Mockups render (230).
+- UNVERIFIED (no Deck, no real GOG here): the live catalog answer (only fake answers were tested; field names from Omri's 18 Nov check:
+  id, title, releaseDate, productType, coverVertical, genres is a guess and tolerated if missing), how good the matches are on real folder names,
+  how the tall cover looks on the Deck, the real api.gog.com/products answer for a pack id.
+- Check on the Deck: put a Keen and a Doom folder in dos/, Settings > DOS games > Refresh: after a minute they get a cover + text ("From GOG");
+  a made-up folder name gets the title card; a folder with its own cover.png keeps it; the dos folder has no new files. app.log lines:
+  "dosart <id>: <title> (<gog id>, score N)" or "dosart <id>: no match, title card".
+- Not done / ideas: wrong matches can be fixed only by renaming the folder; no per-game "pick another" yet (ask Omri).
+- v0.9.27 review fixes (same release): a rescan during a cover download no longer loses the cover (the CURRENT entry gets it); a broken cover or failed text is tried once per cache entry ("cover_tried"/"text_tried"), not on every scan; packs follow the same rules as games (one common word is too weak; the folder's sequel number must be inside the pack: Doom 3 / Doom 64 do not match "DOOM + DOOM II"; when a pack fits, a single game from 2000 or later (DOOM 2016) is dropped, and a game more than a year off the folder's year loses); the number-dropped last try (dosart.find, the `if p["num"] and p["bw"]` block near the end) KEEPS the folder's title and uses only GOG's art (no description: match["fallback"]); the DOS page line about cover.png only shows when there is no cover; title card font never below the theme meta size, ellipsis on the last line, long words cut; mockups 06o (tall art with blurred edge) added, 15zc has no Comments. Tests: 30 in test_dosart.py; 44 failed / 279 passed, same 44 failures as main.

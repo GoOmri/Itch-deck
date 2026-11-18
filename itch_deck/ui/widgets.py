@@ -281,12 +281,90 @@ def _src(path):
     return img
 
 
+def _fit_blur(path, size):
+    """A tall (or very wide) picture shown WHOLE, centred over a dark blurred copy of itself, so the tile
+    is not a middle slice of box art. None if the file can't be read."""
+    key = ("fitblur", path, size)
+    if key in _cover_cache:
+        return _cover_cache[key]
+    try:
+        src = _src(path)
+        w, h = src.get_size()
+        out = pg.transform.smoothscale(
+            pg.transform.smoothscale(src, (max(1, size[0] // 14), max(1, size[1] // 14))), size)
+        shade = pg.Surface(size, pg.SRCALPHA)
+        shade.fill((0, 0, 0, 120))
+        out.blit(shade, (0, 0))
+        k = min(size[0] / w, size[1] / h)
+        fg = pg.transform.smoothscale(src, (max(1, round(w * k)), max(1, round(h * k))))
+        out.blit(fg, ((size[0] - fg.get_width()) // 2, (size[1] - fg.get_height()) // 2))
+    except Exception:  # noqa: BLE001
+        out = None
+    _cover_cache[key] = out
+    return out
+
+
+def _needs_fit(path, size):
+    """True when filling the tile would cut away more than a third of the picture (tall box art on a
+    near-square tile)."""
+    try:
+        w, h = _src(path).get_size()
+    except Exception:  # noqa: BLE001
+        return False
+    a, b = h / w, size[1] / size[0]
+    return (1 - min(a, b) / max(a, b)) > 0.34
+
+
+def title_card(t, game, size):
+    """The tile of a game without any art (your own DOS games): the theme's dark-blue-to-purple, a thin
+    purple line and the game's name in the theme font, wrapped and centred. Made once per size."""
+    key = ("titlecard", game["id"], game["title"], size)
+    if key in _cover_cache:
+        return _cover_cache[key]
+    w, h = size
+    img = pg.Surface(size)
+    top, bot = mix(t.bg_from, t.accent_btn, 0.38), mix(t.bg_to, t.bg_from, 0.2)
+    for y in range(h):
+        pg.draw.line(img, mix(top, bot, y / max(1, h - 1)), (0, y), (w, y))
+    maxw = int(w * 0.80)
+    title = " ".join(str(game["title"]).split()) or " "
+    lo = max(12, int(t.u * 2.4))                  # never smaller than the theme's meta text: readable on a TV
+    px = max(lo, int(h * 0.15))
+    while True:
+        f = t.font("Bold", px)
+        lines = wrap_lines(f, title, maxw)
+        room = max(1, int(h * 0.62 // f.get_linesize()))
+        if (len(lines) <= room and all(f.size(ln)[0] <= maxw for ln in lines)) or px <= lo:
+            break
+        px -= 2
+    if len(lines) > room:                         # too much text: the last shown line ends with an ellipsis
+        lines = lines[:room]
+        lines[-1] = lines[-1] + " …"
+    lines = [fit(f, ln, maxw) for ln in lines]    # one very long word is cut too, nothing runs past the tile
+    lh = f.get_linesize()
+    y = (h - lh * len(lines)) // 2
+    bar = pg.Rect(0, 0, max(8, int(w * 0.16)), max(2, h // 60))
+    bar.midbottom = (w // 2, y - max(4, h // 28))
+    pg.draw.rect(img, t.accent, bar, border_radius=bar.h // 2)
+    for ln in lines:
+        txt = f.render(ln, True, (255, 255, 255))
+        img.blit(txt, txt.get_rect(midtop=(w // 2, y)))
+        y += lh
+    _cover_cache[key] = img
+    return img
+
+
 def cover(t, game, size):
     """Cover image: the cached itch cover if downloaded, else a generated placeholder."""
     if game.get("cover_file"):
-        img = _from_file(game["cover_file"], size)
+        if game.get("store") == "dos" and _needs_fit(game["cover_file"], size):
+            img = _fit_blur(game["cover_file"], size)
+        else:
+            img = _from_file(game["cover_file"], size)
         if img:
             return img
+    if game.get("store") == "dos":                 # no art at all: a title card, not a letter
+        return title_card(t, game, size)
     key = (game["id"], size)
     if key in _cover_cache:
         return _cover_cache[key]

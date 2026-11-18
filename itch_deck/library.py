@@ -10,12 +10,14 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, hltb, net, paths
+from . import config, dosart, hltb, net, paths
 from .stores import itch_page
 
 log = logging.getLogger("scritch")
 PAGE_MAX_AGE = dt.timedelta(days=7)
 HLTB_MAX_AGE = dt.timedelta(days=30)   # time to beat (and "not on HLTB") rechecked monthly
+DOSART_MAX_AGE = dt.timedelta(days=30)  # GOG art for your own DOS games (a "no match" too)
+DOSART_FORCE_AFTER = dt.timedelta(days=1)   # Refresh asks again, but not more than once a day
 MAX_SHOTS = 8
 SHOT_W = 1280
 
@@ -65,6 +67,16 @@ _GOG_GENRES = {"Role-playing": "Role Playing", "Rpg": "Role Playing", "RPG": "Ro
                "Shooter": "Shooter", "Strategy": "Strategy", "Adventure": "Adventure",
                "Action": "Action", "Racing": "Racing", "Simulation": "Simulation",
                "Sports": "Sports", "Puzzle": "Puzzle", "Platformer": "Platformer"}
+
+
+def _gog_genre(genres):
+    """GOG's "genres" is a list of {"name": "Shooter", "slug": "shooter"} (a plain list of names is fine too);
+    first one in itch's words, "" when there is none."""
+    for x in genres or []:
+        n = x.get("name") if isinstance(x, dict) else x
+        if n and isinstance(n, str):
+            return _GOG_GENRES.get(n, n)
+    return ""
 
 
 def inputs_for(pad):
@@ -132,12 +144,14 @@ class Library:
         self.sync_error = None
         self._q = queue.PriorityQueue()
         self._seq = itertools.count()
+        self._dosart_force = set()
         self._queued = set()
         self._worker = None
         self.installs, self.live = {}, {}   # set by Installer: install index, in-progress fields
         self.hidden = set()            # game ids the player hid from SCRiTCH (config "hidden")
-        self.jobs = {"cover": [0, 0], "page": [0, 0], "hltb": [0, 0]}   # [done, total] (top bar)
+        self.jobs = {"cover": [0, 0], "page": [0, 0], "hltb": [0, 0], "dosart": [0, 0]}   # [done, total] (top bar)
         self._hltb, self._hltb_client, self._hltb_down = self._load_hltb(), None, False
+        self._dosart = self._load_dosart()
         self.load_cache()
 
     # --- cache ------------------------------------------------------------------
@@ -188,6 +202,10 @@ class Library:
         for f in paths.COVERS.glob(f"{g['id']}.*") if paths.COVERS.exists() else []:
             g["cover_file"] = str(f)
             break
+        if g["store"] == "dos" and not g.get("cover_file"):       # no cover of its own: GOG's, if we found one
+            art = self._dosart_cover(g["id"])
+            if art:
+                g["cover_file"] = art
         self._apply_install(g)
         g["ttb"] = self._ttb(g["id"])
         self._page_filters(g)
@@ -435,6 +453,9 @@ class Library:
         self.games = sorted([g for g in self.games if g.get("store", "itch") != "dos"] + fresh,
                             key=lambda g: g["title"].lower())
         self.save_cache()
+        for g in fresh:
+            self._apply_page(g)                # GOG's text for it, when we already have it
+        self.queue_dosart()
 
     def drop_gog(self):
         self.gog = None
@@ -479,6 +500,8 @@ class Library:
                 return
             self._queued.discard((kind, gid))
             g = self.by_id(gid)
+            if kind == "dosart" and g and g.get("hidden"):
+                g = None                                   # hidden: nobody sees it, do not ask GOG
             if not g or (self.offline and prio > 0):
                 self._job_done(kind)
                 continue
@@ -487,6 +510,8 @@ class Library:
             try:
                 if kind == "cover":
                     self._fetch_cover(g)
+                elif kind == "dosart":
+                    self._fetch_dosart(g, force=(gid in self._dosart_force))
                 elif kind == "hltb":
                     self._fetch_hltb(g)
                 else:
@@ -574,6 +599,173 @@ class Library:
         _write_json(paths.HLTB, self._hltb)
         g["ttb"] = self._ttb(g["id"])
         log.info("hltb %s: %s", g["id"], hltb.summary(g["ttb"]) or "not found")
+
+    # --- art + info for your own DOS games (GOG's public catalog; v0.9.27) -------------
+    @staticmethod
+    def _dosart_file():
+        return paths.DATA / "dosart.json"
+
+    @staticmethod
+    def _dosart_dir():
+        return paths.DATA / "dosart"
+
+    def _load_dosart(self):
+        try:
+            d = json.loads(self._dosart_file().read_text())
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _dosart_cover(self, gid):
+        """The GOG cover we saved for this game (our own folder, never the player's), or None."""
+        d = self._dosart_dir()
+        if not d.exists():
+            return None
+        for f in sorted(d.glob(f"{gid}.*")):
+            return str(f)
+        return None
+
+    @staticmethod
+    def _dosart_age(e):
+        try:
+            return _now() - dt.datetime.fromisoformat(e["at"])
+        except (KeyError, TypeError, ValueError):
+            return None
+
+    def _dosart_fresh(self, g):
+        e = self._dosart.get(g["id"])
+        age = self._dosart_age(e or {})
+        return bool(e) and e.get("key") == g["title"] and e.get("algo") == dosart.ALGO \
+            and age is not None and age < DOSART_MAX_AGE
+
+    def _dosart_complete(self, g):
+        """Fresh answer AND (when it is a match) its text file and cover are on disk."""
+        if not self._dosart_fresh(g):
+            return False
+        m = self._dosart[g["id"]].get("match")
+        if not m:
+            return True
+        e = self._dosart[g["id"]]
+        try:
+            d = json.loads(self._page_file(g).read_text())
+        except (OSError, ValueError):
+            d = {}
+        text_ok = d.get("gog_id") == m["id"] or bool(e.get("text_tried"))      # a failed try counts as done
+        cover_ok = bool(g.get("cover_file")) or not m.get("cover") or bool(e.get("cover_tried"))
+        return text_ok and cover_ok
+
+    def queue_dosart(self, force=False):
+        """Ask GOG about every DOS game whose answer is missing, older than 30 days, or for another name.
+        force (the Refresh box): ask again, but a game asked within the last day is left alone."""
+        for g in self.games:
+            if g.get("store") != "dos" or g.get("hidden"):
+                continue
+            if force and self._dosart_fresh(g):
+                age = self._dosart_age(self._dosart[g["id"]])
+                if age is not None and age >= DOSART_FORCE_AFTER:
+                    self._dosart_force.add(g["id"])
+                    self._put(6, "dosart", g["id"])
+                    continue
+            if not self._dosart_complete(g):
+                self._put(6, "dosart", g["id"])
+
+    def _fetch_dosart(self, g, force=False):
+        """One DOS game: GOG lookup (cached 30 days, "no match" too), then the cover, text and screenshots of
+        the match. Nothing is written into the player's folder. A network error caches nothing."""
+        self._dosart_force.discard(g["id"])
+        e = self._dosart.get(g["id"])
+        if self._dosart_fresh(g) and not force:
+            match = e.get("match")
+        else:
+            match = dosart.find(g["title"], lambda u: net.get_json(u, timeout=20))
+            prev = (e or {}).get("match")
+            if prev and (not match or prev.get("id") != match["id"]):
+                self._dosart_forget(g)                 # another game now: the old art and text go
+            self._dosart[g["id"]] = {"key": g["title"], "algo": dosart.ALGO, "match": match,
+                                     "at": _now().isoformat(timespec="seconds")}
+            _write_json(self._dosart_file(), self._dosart)
+            log.info("dosart %s: %s", g["id"], "%s (%s, score %s)" % (match["title"], match["id"], match["score"])
+                     if match else "no match, title card")
+        if not match:
+            self._dosart_forget(g)
+            return
+        e = self._dosart[g["id"]]
+        cur = self.by_id(g["id"]) or g      # a rescan may have built a NEW entry while we worked
+        own = bool(cur.get("cover_file")) and Path(cur["cover_file"]).parent == paths.COVERS
+        if match.get("cover") and not own and not self._dosart_cover(g["id"]) and not e.get("cover_tried"):
+            try:
+                self._dosart_get_cover(g, match["cover"])
+            except Exception as err:  # noqa: BLE001  - not a picture, or the net dropped: do not retry every scan
+                log.info("dosart %s: cover failed (%s)", g["id"], err)
+            e["cover_tried"] = True
+            _write_json(self._dosart_file(), self._dosart)
+        art = self._dosart_cover(g["id"])
+        for x in (g, self.by_id(g["id"])):
+            if x and art and not x.get("cover_file"):        # also the CURRENT entry
+                x["cover_file"] = art
+        try:
+            d = json.loads(self._page_file(g).read_text())
+        except (OSError, ValueError):
+            d = {}
+        if d.get("gog_id") != match["id"] and not e.get("text_tried"):
+            from .stores.gog import GogStore
+            try:
+                try:
+                    paras, shots = GogStore().details(match["id"])
+                except net.NotFound:
+                    paras, shots = [], []
+                if match.get("fallback"):          # found without its sequel number: art yes, text no
+                    paras = []
+                n = self._save_shots(g, shots[:MAX_SHOTS])
+                genre = _gog_genre(match.get("genres"))
+                _write_json(self._page_file(g), {
+                    "fetched": _now().isoformat(timespec="seconds"), "description": paras, "comments": [],
+                    "comment_count": 0, "shots": n, "inputs": ["Keyboard", "Mouse"],
+                    "genre": [genre] if genre else [], "source": "GOG" if paras else None,
+                    "gog_id": match["id"]})
+                log.info("dosart %s: %d paras, %d shots", g["id"], len(paras), n)
+            except Exception as err:  # noqa: BLE001  - remembered: not asked again on every scan
+                log.info("dosart %s: text failed (%s)", g["id"], err)
+            e["text_tried"] = True
+            _write_json(self._dosart_file(), self._dosart)
+        for x in {id(g): g, id(self.by_id(g["id"])): self.by_id(g["id"])}.values():
+            if x:
+                x.pop("details_at", None)
+                self._apply_page(x)
+
+    def _dosart_get_cover(self, g, url):
+        """Download GOG's cover into our own dosart folder. Raises when it fails or is no picture."""
+        d = self._dosart_dir()
+        d.mkdir(parents=True, exist_ok=True)
+        ext = Path(url.split("?")[0]).suffix.lower()
+        f = d / f"{g['id']}{ext if ext in ('.png', '.jpg', '.jpeg', '.webp') else '.jpg'}"
+        try:
+            f.write_bytes(net.get(url, timeout=20))
+            import pygame as pg
+            pg.image.load(str(f))                        # not a picture (an error page)? then none
+        except BaseException:
+            f.unlink(missing_ok=True)
+            raise
+        small = shrink_cover(f)
+        if not g.get("cover_file"):
+            g["cover_file"] = str(small)
+
+    def _dosart_forget(self, g):
+        """No match (any more): remove what an earlier match left (our own files only)."""
+        try:
+            d = json.loads(self._page_file(g).read_text())
+        except (OSError, ValueError):
+            d = {}
+        if d.get("gog_id"):
+            self._page_file(g).unlink(missing_ok=True)
+            for f in (paths.SHOTS / g["id"]).glob("*.jpg"):
+                f.unlink(missing_ok=True)
+            g["description"], g["shot_files"], g["screens"], g["details_at"] = [], [], 0, None
+        art = self._dosart_cover(g["id"])
+        if art:
+            if g.get("cover_file") == art:
+                g.pop("cover_file", None)
+            Path(art).unlink(missing_ok=True)
 
     # --- itch page details ------------------------------------------------------
     def _page_file(self, g):
