@@ -1188,6 +1188,11 @@ class Installer:
             if gid in self._cancel:
                 raise MoveCancelled()
             self._upd(gid, progress=min(done[0] / total, 0.999) if total else 0.999)
+            pct = int(done[0] * 100 / total) if total else 100
+            if pct // 10 != logged[0] // 10:            # v0.9.25: the Deck log shows the move's progress
+                logged[0] = pct
+                log.info("move %s: %d%% of %d MB copied", gid, pct, total // 1_000_000)
+        logged = [0]
         for a, b in jobs:
             _copy_tree(a, b, tick)
         for a, b in jobs:                         # check: same files, same sizes
@@ -1241,6 +1246,18 @@ class Installer:
         from . import dosgames
         return dosgames.dos_dir(self.root_fn())
 
+    def dos_roots(self):
+        """Every dos folder to read: the one for the install location first, then the other drive's
+        (v0.9.25: internal storage is often the only place with room). Only ones that exist."""
+        from . import dosgames
+        first = self.dos_root()
+        out = [first] if first.is_dir() else []
+        for _name, r in config.install_choices():
+            d = dosgames.dos_dir(r)
+            if d not in out and d.is_dir() and not config.card_missing(d):
+                out.append(d)
+        return out
+
     def scan_dos(self, create=False):
         """Step 1 of a DOS scan, safe in a thread: read (and unpack zips in) <games folder>/dos and
         return what was found, or None when the SD card is out or the folder can't be made. Touches no
@@ -1250,9 +1267,7 @@ class Installer:
         root = self.dos_root()
         if config.card_missing(root):
             return None
-        if not root.is_dir():
-            if not create:
-                return {"entries": []}
+        if not root.is_dir() and create:
             try:
                 root.mkdir(parents=True, exist_ok=True)
             except OSError as e:
@@ -1260,7 +1275,11 @@ class Installer:
                 return None
         picked = {gid: i["exe"] for gid, i in dict(self.index).items()
                   if i.get("store") == "dos" and i.get("exe_chosen")}
-        return {"entries": dosgames.scan(root, picked)}
+        entries = []
+        for r in self.dos_roots():                  # the install location's folder first; it may not exist
+            have = {e["id"] for e in entries}       # (the other drive's can still hold the games)
+            entries += [e for e in dosgames.scan(r, picked) if e["id"] not in have]
+        return {"entries": entries}
 
     def apply_dos(self, result):
         """Step 2, on the main thread: bring the install index and the library in line with a scan.

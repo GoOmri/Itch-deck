@@ -112,7 +112,7 @@ def test_the_scene_draws_long_lists_scrolled_empty_and_with_drives(tmp_path, mon
 
 def _app(me_extra=None):
     saved, said, asked, went = [], [], [], []
-    inst_calls = []
+    inst_calls, dropped = [], []
     sc = types.SimpleNamespace(selected=set(), sort="size", items=[], drives=[], handled=[],
                                selected_mb=lambda: 0)
     sc.handle = lambda act: sc.handled.append(act)
@@ -120,8 +120,10 @@ def _app(me_extra=None):
     me = types.SimpleNamespace(scene=sc, cfg={}, inst=types.SimpleNamespace(
         index={}, uninstall=lambda gid: (inst_calls.append(gid), gid != "bad")[1]),
         lib=types.SimpleNamespace(games=[]), say=lambda m, error=False: said.append((m, error)),
-        confirm=lambda *a, **k: asked.append((a, k)), go_settings=lambda: went.append("settings"))
+        confirm=lambda *a, **k: asked.append((a, k)), go_settings=lambda: went.append("settings"),
+        _drop_steam_tile=lambda gid: dropped.append(gid))
     me._storage_uninstall = lambda ids: app_storage.StorageMixin._storage_uninstall(me, ids)
+    me.dropped = dropped
     return me, sc, saved, said, asked, went, inst_calls
 
 
@@ -206,3 +208,12 @@ def test_back_goes_where_settings_came_from_and_failed_games_stay_ticked(monkeyp
     sc.selected = {"a", "bad"}
     app_storage.StorageMixin._storage_uninstall(me, ["a", "bad"])
     assert sc.selected == {"bad"} and said[-1][1] is True                  # the failed one is still ticked
+
+
+def test_uninstalling_in_manage_games_also_drops_the_steam_tiles():
+    """v0.9.25 (Omri, Deck test): an uninstalled game stayed in Steam."""
+    me, sc, _s, said, _asked, _went, calls = _app()
+    sc.items = [{"id": "a", "size_mb": 10}, {"id": "bad", "size_mb": 20}, {"id": "c", "size_mb": 5}]
+    sc.selected = {"a", "bad", "c"}
+    app_storage.StorageMixin._storage_uninstall(me, ["a", "bad", "c"])
+    assert me.dropped == ["a", "c"]                                        # not the one that failed

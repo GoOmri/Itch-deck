@@ -561,3 +561,29 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   Library instead of the game page it came from: settings_back is restored; (3) after a partial failure only the games that
   really went lose their tick; (4) removed the old WIP note. Not changed (minor): drives() runs on the main thread every 2 s (same
   cost as _check_mounts), the list is only refreshed after an uninstall, after Y the highlight stays on the same position.
+
+## v0.9.25 (18 Nov, branch v0925-deck-feedback; waits for "push v0.9.25") = Omri's Deck-test feedback
+- DOS: a folder with no program of its own and 3 or more game folders inside (what DOS.zip unpacks to) now gives one tile per
+  game (`dosgames.collection`). Helper-named folders (setup...) do not count. The old "DOS" tile goes on the next Refresh; no
+  file is touched. Removing one game inside remembers that sub-folder's name.
+- DOS folders on BOTH drives: `Installer.dos_roots()` reads scritch/dos on the SD card and on internal storage (first the one for
+  the install location; the other only if it exists). Settings > DOS games still shows the install location's folder only.
+- "Game details 1/5" on every Y: a page that itch answered with 404 was saved without a genre, so `_has_page_fields` was
+  False and it was fetched again each time. Now a "missing" page counts as done for 7 days. UNVERIFIED that Omri's 5 are all 404s.
+- Game page Options: an installed itch game had 6 rows. Now Uninstall, Controls, More; More holds Change build, Saves, Move to...,
+  Add/Remove Steam (`Game.menu_split`, only when the list has more than 4 rows and at least 2 of them are in RARE). B in More goes
+  back to Options. Epic/GOG/DOS lists (4 or fewer) are unchanged. Selftest's Move step opens More first.
+- Uninstall (game page and Manage games) also removes the game's Steam tile (`_drop_steam_tile`; says "Its Steam tile goes after
+  a Steam restart"). A Steam file error never stops the uninstall.
+- Send logs: the "A saves a copy" hint moved from the grey subtitle into a box under the steps (the subtitle is shorter now).
+- Move progress bar "stuck at the start": the Game scene draws the fill correctly when fed rising progress (checked headless), so
+  the cause is NOT found. The move now logs "move <id>: N% of M MB copied" every 10% in app.log. UNVERIFIED / OPEN: on the Deck,
+  move a game and send app.log: if the percents rise, the problem is drawing; if not, it is the copy loop.
+- NOT built: "X on a tile opens its options". X is Sort & filter, Y Refresh, Menu Settings in the library. Needs a new button (ask Omri).
+- Check on the Deck: DOS.zip splits into tiles; zip on internal storage is found; Y no longer says Game details every time;
+  Options shows More; uninstalling Kids removes its Steam tile after a Steam restart; Send logs shows the box under step 3.
+- Reviewer findings on v0.9.25, fixed: (1) a missing dos folder on the install drive stopped the scan before the other drive was read,
+  and the games already listed from there vanished (they were only dropped from the list, no file touched); (2) an old "removed" mark
+  on the single "DOS" tile hid the games inside it; (3) folder names containing a helper word ("Mouse Hunt", "Patch Adams") were
+  skipped: now only whole names like Setup/Tools/Editor are helpers. KNOWN, not fixed: a game that keeps its programs only in 3+
+  sub-folders and none at the top is split into tiles, and a collection cut down to 2 games turns back into one tile.

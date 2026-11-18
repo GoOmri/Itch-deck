@@ -116,6 +116,34 @@ def programs(folder):
     return survey(folder)[0]
 
 
+HELPER_FOLDERS = ("setup", "install", "tools", "utils", "util", "drivers", "sound", "docs", "doc", "patch",
+                  "patches", "update", "config", "editor", "editors")
+COLLECTION_MIN = 3           # a folder with this many game folders inside (and no program of its own) is a collection
+
+
+def collection(folder):
+    """A folder that only holds game folders (a zip of 20 games unpacks to one): {subfolder: survey} for
+    each game inside, or {} when this is a game itself. Needs no program directly inside, and at least
+    COLLECTION_MIN subfolders that each hold one (setup / editor tools don't count as games)."""
+    folder = Path(folder)
+    subs = []
+    try:
+        for p in sorted(folder.iterdir(), key=lambda p: p.name.lower()):
+            if p.is_file() and p.suffix.lower() in PROGRAM_EXTS and not is_helper(p.name):
+                return {}                                    # it has a program of its own: one game
+            if p.is_dir() and not p.is_symlink() and not p.name.startswith((".", "_")) \
+                    and p.name.lower().strip() not in HELPER_FOLDERS:    # whole name: "Mouse Hunt" is a game
+                subs.append(p)
+    except OSError:
+        return {}
+    found = {}
+    for p in subs:
+        s = survey(p)
+        if s[0]:
+            found[p] = s
+    return found if len(found) >= COLLECTION_MIN else {}
+
+
 def cd_image(folder):
     return survey(folder)[1]
 
@@ -260,8 +288,27 @@ def scan(root, choices=None, hide=None):
                           and not p.name.endswith(".unpacking")), key=lambda p: p.name.lower())
     except OSError:
         return out
+    seen = set()
+
+    def add(f, progs, image, size):
+        gid = game_id(f.name)
+        if gid in seen:                         # the same name twice (a game and a collection's game)
+            return
+        seen.add(gid)
+        out.append({"name": f.name, "id": gid, "title": title_of(f.name), "dir": str(f),
+                    "exe": pick_program(f.name, progs, choices.get(gid)), "programs": progs,
+                    "cover": cover_of(f), "image": image, "size": size})
+
     for f in folders:
-        if _hidden(f, hide):
+        games = collection(f)                   # v0.9.25: DOS.zip with many games inside = many tiles
+        if not games and _hidden(f, hide):      # (a mark left by removing the old single "DOS" tile
+            continue                            # must not hide the games inside it)
+        if games:
+            log.info("dosgames: %s holds %d games, each gets its own tile", f.name, len(games))
+            for sub, (progs, image, size) in games.items():
+                if '"' in sub.name or _hidden(sub, hide):
+                    continue
+                add(sub, progs, image, size)
             continue
         if '"' in f.name:                       # DOSBox's mount command can't quote such a name
             log.info("dosgames: %s skipped, the folder name has a double quote", f.name)
@@ -270,8 +317,5 @@ def scan(root, choices=None, hide=None):
         if not progs:
             log.info("dosgames: %s has no .exe/.com/.bat, skipped", f.name)
             continue
-        gid = game_id(f.name)
-        out.append({"name": f.name, "id": gid, "title": title_of(f.name), "dir": str(f),
-                    "exe": pick_program(f.name, progs, choices.get(gid)), "programs": progs,
-                    "cover": cover_of(f), "image": image, "size": size})
+        add(f, progs, image, size)
     return out
