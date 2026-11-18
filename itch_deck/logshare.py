@@ -118,12 +118,13 @@ def system_line():
     return ""
 
 
-def report(version, app_lines=REPORT_LINES, game_lines=GAME_LINES):
+def report(version, app_lines=REPORT_LINES, game_lines=GAME_LINES, dos_short=""):
     """The short text for a GitHub issue: version, system, the last app.log lines and the end of
     the most recent game's log, all through scrub(). At most REPORT_CHARS (the END is kept)."""
     head = f"SCRiTCH {version}\nSystem: {system_line() or 'unknown'}\n\n"
     app = _tail(paths.LOGS / "app.log", app_lines)
-    parts = ["--- app.log (last lines) ---"] + (app or ["(empty)"])
+    parts = (["--- own DOS games ---", dos_short, ""] if dos_short else []) + \
+        ["--- app.log (last lines) ---"] + (app or ["(empty)"])
     g = _latest_game_log()
     if g:
         parts += ["", f"--- game log: {g.name} (last lines) ---"] + (_tail(g, game_lines) or ["(empty)"])
@@ -134,13 +135,15 @@ def report(version, app_lines=REPORT_LINES, game_lines=GAME_LINES):
     return scrub(head) + body
 
 
-def zip_bytes(version):
+def zip_bytes(version, dos_text=""):
     """Every log file, cleaned, as one zip (the end of each file when it is big)."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("about.txt", scrub(f"SCRiTCH {version}\nSystem: {system_line() or 'unknown'}\n"
                                       "Secrets, e-mail addresses, user name, folders and network "
                                       "addresses are hidden.\n"))
+        if dos_text:                                  # v0.9.29: one line per own DOS game (dossummary.py)
+            z.writestr("dos-summary.txt", scrub(dos_text))
         files = []
         try:
             files = [p for p in paths.LOGS.rglob("*") if p.is_file()]
@@ -155,12 +158,12 @@ def zip_bytes(version):
     return buf.getvalue()
 
 
-def save_zip(version, when):
+def save_zip(version, when, dos_text=""):
     """Write the zip to ~/Documents/SCRiTCH logs/ (a visible folder). Returns the path."""
     d = paths.HOME / "Documents" / "SCRiTCH logs"
     d.mkdir(parents=True, exist_ok=True)
     f = d / f"scritch-logs-{when:%Y-%m-%d-%H%M}.zip"
-    f.write_bytes(zip_bytes(version))
+    f.write_bytes(zip_bytes(version, dos_text))
     return f
 
 
@@ -170,9 +173,19 @@ REPO = "GoOmri/Itch-deck"
 COMPACT_CHARS = 2200         # what fits in a link (GitHub reads it from the address, ~8 KB limit)
 
 
-def compact(chars=COMPACT_CHARS):
+DOS_COMPACT_CHARS = 700      # the DOS games' share of the issue link
+
+
+def compact(chars=COMPACT_CHARS, dos_short=""):
     """The very end of the logs, cleaned, small enough to travel inside the issue link. Nothing has
     to be copied on the phone (Deck test 17 Nov: Copy did not work in the phone's browser)."""
+    dos = ""
+    if dos_short:                                  # the first lines that fit, whole lines only
+        for ln in scrub(dos_short).split("\n"):
+            if len(dos) + len(ln) + 1 > DOS_COMPACT_CHARS:
+                break
+            dos += ln + "\n"
+        chars = max(500, chars - len(dos))
     app = _tail(paths.LOGS / "app.log", 40)
     parts = ["--- app.log (last lines) ---"] + (app or ["(empty)"])
     g = _latest_game_log()
@@ -182,7 +195,7 @@ def compact(chars=COMPACT_CHARS):
     if len(text) > chars:                      # keep the END, start on a whole line
         text = text[-chars:]
         text = text[text.find("\n") + 1:] if "\n" in text else text
-    return text
+    return dos + text
 
 
 def issue_url(version, log=""):

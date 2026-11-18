@@ -4,7 +4,7 @@ import datetime as dt
 import logging
 import threading
 
-from . import logshare, paths
+from . import dossummary, logshare, paths
 from .input import A, B
 
 log = logging.getLogger("scritch")
@@ -12,18 +12,19 @@ log = logging.getLogger("scritch")
 
 class _Provider:
     """What the phone page asks for; built when a request comes in, so it is always current."""
-    def __init__(self, version):
+    def __init__(self, version, dos=None):
         self.version = version
+        self._dos = dos or (lambda: ("", ""))          # -> (full text, short text) of the own DOS games
         self.zip_name = f"scritch-logs-{dt.datetime.now():%Y-%m-%d-%H%M}.zip"
 
     def report(self):
-        return logshare.report(self.version)
+        return logshare.report(self.version, dos_short=self._dos()[1])
 
     def zip(self):
-        return logshare.zip_bytes(self.version)
+        return logshare.zip_bytes(self.version, dos_text=self._dos()[0])
 
     def issue(self):
-        return logshare.issue_url(self.version, logshare.compact())
+        return logshare.issue_url(self.version, logshare.compact(dos_short=self._dos()[1]))
 
 
 class LogsMixin:
@@ -33,10 +34,22 @@ class LogsMixin:
         self.phone_status = ""
         self._phone_start("logs", lambda text: None)
         if self.phone:
-            self.phone.logs = _Provider(VERSION)
+            self.phone.logs = _Provider(VERSION, self._dos_summary)
         self._set("logs", LogsShare(self.t, status="phone" if self.phone else "nonet",
                                     qr=self.phone and self.phone.qr(),
                                     url=self.phone and self.phone.short_url))
+
+    def _dos_summary(self):
+        """(full, short) text about the own DOS games, built when the phone asks (never raises)."""
+        try:
+            try:
+                text = (paths.LOGS / "app.log").read_text(errors="replace")[-1_000_000:]
+            except OSError:
+                text = ""
+            return dossummary.build(list(self.lib.games), dict(self.inst.index), dict(self.lib._dosart), text)
+        except Exception:  # noqa: BLE001
+            log.exception("dos summary failed")
+            return "", ""
 
     def _logs_tick(self, now):
         if self.kind != "logs":
@@ -52,7 +65,7 @@ class LogsMixin:
 
             def save():
                 try:
-                    f = logshare.save_zip(VERSION, dt.datetime.now())
+                    f = logshare.save_zip(VERSION, dt.datetime.now(), dos_text=self._dos_summary()[0])
                     log.info("logs: saved %s", f)
                     self.backup_note = ("Saved to Documents/SCRiTCH logs.", False)
                 except OSError as e:

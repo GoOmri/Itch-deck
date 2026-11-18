@@ -11,6 +11,11 @@ from .app_common import LATER
 log = logging.getLogger("scritch")
 
 
+def t_id_in(cfg, gid):
+    """Is "Stay open when the game ends" switched on for this game (config "dos_stay_open", a list of ids)?"""
+    return gid in (cfg.get("dos_stay_open") or [])
+
+
 class GameMixin:
     CONTROLS = ("auto", "gamepad", "mouse", "keys")
 
@@ -88,6 +93,15 @@ class GameMixin:
                          "Remove", lambda: self._remove_dos(g), main=True)
         elif label == "Program to run":
             self._program_picker(gid)
+        elif label == "Stay open when the game ends":
+            ids = [i for i in (self.cfg.get("dos_stay_open") or []) if i != gid]
+            if not t_id_in(self.cfg, gid):
+                ids.append(gid)
+            self.cfg["dos_stay_open"] = ids                 # in SCRiTCH's own config, never in the game's folder
+            config.save(self.cfg)
+            self.scene.g["stay_value"] = "On" if gid in ids else "Off"
+            opts = self.scene.options()
+            self.scene.open_options(opts.index(label) if label in opts else 0)
         elif label == "Play":
             self.play(g)
         elif label == "Update":
@@ -236,6 +250,7 @@ class GameMixin:
         sc.g["move_to"] = (t[0] if t[0] == "SD card" else t[0].lower()) if t else None
         from . import steam_games, updater
         self._launcher = updater.launcher_path()
+        sc.g["stay_value"] = "On" if t_id_in(self.cfg, sc.g["id"]) else "Off"
         sc.g["steam_ok"] = steam_games.available(self._launcher)          # a real build + a Steam user folder
         sc.g["on_steam"] = sc.g["steam_ok"] and steam_games.is_added(sc.g["id"])
         sc.open_options()
