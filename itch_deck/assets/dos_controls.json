@@ -1,0 +1,82 @@
+{
+  "_about": "Controller keys for DOS games. FROM MEMORY, none of it is tested on a Deck yet (verified: false). names = the game's title words (sequel numbers as digits, a name matches when the title starts with it; 'doom' does not match 'doom 3'). layout = keys | keys+mouse | mouse. map = pad button -> key (see keynames.py). The D-pad is always the arrow keys; in keys layouts the left stick too. hints = [button, plain words] shown on the game page. Edit freely: a broken entry is skipped with one line in app.log.",
+  "games": [
+    {"id": "doom", "not": ["doom eternal"], "names": ["doom", "doom 2", "doom 1", "doom doom 2", "ultimate doom", "final doom"],
+     "layout": "keys+mouse",
+     "map": {"a": "ctrl", "b": "space", "x": "shift", "y": "enter", "l1": "comma", "r1": "period", "back": "tab", "start": "esc"},
+     "hints": [["A", "Fire"], ["B", "Open doors"], ["X", "Run"], ["Y", "Menu select"], ["L1", "Step left"], ["R1", "Step right"], ["BACK", "Map"], ["START", "Menu / Esc"]],
+     "note": "Ctrl fire, Space use, Shift run, comma and period step sideways. Enter picks a menu entry.", "verified": false},
+
+    {"id": "keen123", "names": ["commander keen 1", "commander keen 2", "commander keen 3", "keen 1", "keen 2", "keen 3"],
+     "layout": "keys",
+     "map": {"a": "ctrl", "b": "alt", "x": "space", "y": "enter", "start": "esc"},
+     "hints": [["A", "Jump"], ["B", "Shoot the raygun"], ["X", "Pogo stick"], ["Y", "Enter / go into a level"], ["START", "Menu / Esc"]],
+     "note": "Ctrl jump, Alt raygun. UNSURE: Space as the pogo stick in Keen 1-3.", "verified": false},
+
+    {"id": "keen456", "names": ["commander keen 4", "commander keen 5", "commander keen 6", "keen 4", "keen 5", "keen 6"],
+     "layout": "keys",
+     "map": {"a": "ctrl", "b": "alt", "x": "space", "y": "enter", "start": "esc"},
+     "hints": [["A", "Jump"], ["B", "Pogo stick"], ["X", "Shoot"], ["Y", "Enter / go into a level"], ["START", "Menu / Esc"]],
+     "note": "Ctrl jump, Alt pogo, Space shoot.", "verified": false},
+
+    {"id": "dave", "not": ["dave the diver"], "names": ["dangerous dave", "dangerous dave 2", "dave", "dave 2", "dangerous dave in the haunted mansion"],
+     "layout": "keys",
+     "map": {"a": "ctrl", "b": "alt", "x": "space", "y": "enter", "start": "esc"},
+     "hints": [["A", "Jump"], ["B", "Shoot"], ["DPAD", "Move, up = climb / jetpack"], ["START", "Menu / Esc"]],
+     "note": "Ctrl jump, Alt shoot. UNSURE: Up for the jetpack and climbing, and which key the jetpack really uses.", "verified": false},
+
+    {"id": "biomenace", "names": ["bio menace"],
+     "layout": "keys",
+     "map": {"a": "ctrl", "b": "alt", "x": "space", "y": "enter", "start": "esc"},
+     "hints": [["A", "Jump"], ["B", "Shoot"], ["X", "Use / action"], ["START", "Menu / Esc"]],
+     "note": "Ctrl jump, Alt shoot. UNSURE: Space as the action key.", "verified": false},
+
+    {"id": "duke2", "names": ["duke nukem 2"],
+     "layout": "keys",
+     "map": {"a": "ctrl", "b": "alt", "x": "space", "y": "enter", "start": "esc"},
+     "hints": [["A", "Jump"], ["B", "Shoot"], ["DPAD", "Move, up = open doors"], ["START", "Menu / Esc"]],
+     "note": "Ctrl jump, Alt shoot. UNSURE: Space.", "verified": false},
+
+    {"id": "duke3d", "names": ["duke nukem 3d", "duke nukem 3d atomic edition"],
+     "layout": "keys+mouse",
+     "map": {"a": "ctrl", "b": "space", "x": "shift", "y": "enter", "l1": "comma", "r1": "period", "start": "esc"},
+     "hints": [["A", "Fire"], ["B", "Open / use"], ["X", "Run"], ["Y", "Use item / menu select"], ["L1", "Step left"], ["R1", "Step right"], ["START", "Menu / Esc"]],
+     "note": "Ctrl fire, Space open, Shift run. UNSURE: weapon keys (the number keys 1-0 are not on the pad yet), Enter for the item.", "verified": false},
+
+    {"id": "wolf3d", "names": ["wolfenstein 3d", "wolf3d"],
+     "layout": "keys",
+     "map": {"a": "ctrl", "b": "space", "x": "shift", "y": "enter", "l1": "alt", "start": "esc"},
+     "hints": [["A", "Fire"], ["B", "Open doors"], ["X", "Run"], ["L1", "Hold to sidestep"], ["Y", "Menu select"], ["START", "Menu / Esc"]],
+     "note": "Ctrl fire, Space open, Shift run, Alt strafe (hold with left / right).", "verified": false},
+
+    {"id": "blood", "names": ["blood"], "not": ["blood bowl", "blood omen"],
+     "layout": "keys+mouse",
+     "map": {"a": "ctrl", "b": "space", "x": "shift", "y": "enter", "l1": "comma", "r1": "period", "start": "esc"},
+     "hints": [["A", "Fire"], ["B", "Use"], ["X", "Run"], ["Y", "Menu select"], ["L1", "Step left"], ["R1", "Step right"], ["START", "Menu / Esc"]],
+     "note": "Ctrl fire, Space use, Shift run. UNSURE: the sidestep keys.", "verified": false},
+
+    {"id": "quake", "names": ["quake"], "not": ["quake champions"],
+     "layout": "keys+mouse",
+     "map": {"a": "ctrl", "b": "space", "x": "shift", "y": "enter", "l1": "comma", "r1": "period", "start": "esc"},
+     "hints": [["A", "Fire"], ["B", "Jump"], ["X", "Run"], ["Y", "Menu select"], ["L1", "Step left"], ["R1", "Step right"], ["START", "Menu / Esc"]],
+     "note": "Ctrl fire, Space jump. UNSURE: Shift for run, the sidestep keys.", "verified": false},
+
+    {"id": "jazz", "names": ["jazz jackrabbit"],
+     "layout": "keys",
+     "map": {"a": "ctrl", "b": "alt", "x": "space", "y": "enter", "start": "esc"},
+     "hints": [["A", "Jump"], ["B", "Shoot"], ["Y", "Menu select"], ["START", "Menu / Esc"]],
+     "note": "Ctrl jump, Alt shoot.", "verified": false},
+
+    {"id": "raptor", "names": ["raptor", "raptor call of the shadows"],
+     "layout": "keys",
+     "map": {"a": "ctrl", "b": "alt", "x": "space", "y": "enter", "start": "esc"},
+     "hints": [["A", "Fire"], ["B", "Missile"], ["X", "Bomb"], ["Y", "Menu select"], ["START", "Menu / Esc"]],
+     "note": "Ctrl fire, Alt missile, Space bomb.", "verified": false},
+
+    {"id": "indy4", "names": ["indiana jones and the fate of atlantis", "fate of atlantis"],
+     "layout": "mouse",
+     "map": {"a": "lmb", "r2": "lmb", "b": "rmb", "l2": "rmb", "y": "esc", "start": "esc"},
+     "hints": [["RSTICK", "Move the pointer"], ["A", "Click"], ["B", "Right click"], ["Y", "Game menu"]],
+     "note": "Point and click. UNSURE: whether the game menu is Esc.", "verified": false}
+  ]
+}

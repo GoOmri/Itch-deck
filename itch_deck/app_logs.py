@@ -46,7 +46,8 @@ class LogsMixin:
                 text = (paths.LOGS / "app.log").read_text(errors="replace")[-1_000_000:]
             except OSError:
                 text = ""
-            return dossummary.build(list(self.lib.games), dict(self.inst.index), dict(self.lib._dosart), text)
+            return dossummary.build(list(self.lib.games), dict(self.inst.index), dict(self.lib._dosart), text,
+                                    inputs=dict(self.lib._dosinput))
         except Exception:  # noqa: BLE001
             log.exception("dos summary failed")
             return "", ""

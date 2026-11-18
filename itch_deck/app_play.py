@@ -104,8 +104,9 @@ class PlayMixin:
         mm = None
         eff = self.controls_of(g)[1]
         if eff in ("mouse", "keys"):           # Keys = keyboard keys + the same mouse
+            plan = self.controls_plan(g)       # a DOS game: its own layout and keys (dos_controls.py)
             mm = mouse.MouseMode(pg, self.inp.pads, self.cfg.get("pointer_speed", "normal"),
-                                 layout=eff)
+                                 layout=plan["layout"] if plan else eff, keymap=plan["keymap"] if plan else None)
         combo = mouse.QuitCombo(pg, self.inp.pads, runner.stop_child)
 
         def release():                       # the game's window is up: step aside
@@ -149,7 +150,7 @@ class PlayMixin:
             self._closed_at_once(g)
             return
         if mm and mm.error and not runner.crashed(rc, secs):
-            mode = "Keys" if mm.mapper.layout == "keys" else "Mouse"
+            mode = "Keys" if mm.mapper.layout.startswith("keys") else "Mouse"
             words.log_code("P02", f"{g['id']}: {mode} mode off: {mm.error}")
             self.say(words.with_code(f"{mode} controls didn't start.", "P02"), error=True)
         if runner.crashed(rc, secs):

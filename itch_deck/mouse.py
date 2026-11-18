@@ -23,6 +23,8 @@ import struct
 import threading
 import time
 
+from . import keynames
+
 log = logging.getLogger("scritch")
 
 UINPUT = "/dev/uinput"
@@ -32,8 +34,9 @@ REL_X, REL_Y, REL_WHEEL = 0, 1, 8
 BTN_LEFT, BTN_RIGHT, BTN_MIDDLE = 0x110, 0x111, 0x112
 KEY_ESC, KEY_ENTER, KEY_UP, KEY_LEFT, KEY_RIGHT, KEY_DOWN = 1, 28, 103, 105, 106, 108
 KEY_SPACE, KEY_Z, KEY_X, KEY_R, KEY_LEFTSHIFT = 57, 44, 45, 19, 42
-KEYS = (BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, KEY_ESC, KEY_ENTER, KEY_UP, KEY_LEFT, KEY_RIGHT, KEY_DOWN,
-        KEY_SPACE, KEY_Z, KEY_X, KEY_R, KEY_LEFTSHIFT)
+KEY_LEFTCTRL, KEY_LEFTALT, KEY_TAB = keynames.CODES["ctrl"], keynames.CODES["alt"], keynames.CODES["tab"]
+KEYS = tuple(sorted({BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, KEY_ESC, KEY_ENTER, KEY_UP, KEY_LEFT, KEY_RIGHT, KEY_DOWN,
+                     KEY_SPACE, KEY_Z, KEY_X, KEY_R, KEY_LEFTSHIFT} | set(keynames.CODES.values())))
 STICK_KEY = 0.5                            # Keys mode: left stick past this = an arrow key held
 
 # ioctl numbers (asm-generic): _IOW('U', 100..102, int), _IO('U', 1/2), _IOW('U', 3, uinput_setup)
@@ -98,8 +101,13 @@ class Mapper:
                ("space", KEY_SPACE), ("enter", KEY_ENTER), ("z", KEY_Z), ("x", KEY_X),
                ("r", KEY_R), ("shift", KEY_LEFTSHIFT))
 
-    def __init__(self, speed="normal", layout="mouse"):
-        self.layout = layout                      # "mouse" | "keys"
+    def __init__(self, speed="normal", layout="mouse", keymap=None):
+        # layout: "mouse" | "keys" (the old, same for every game) and, with a keymap (a DOS game's own buttons,
+        # dos_controls.py): "mouse" | "keys" (keys only) | "keysmouse" (keys + the right stick as a mouse)
+        self.layout = layout
+        self.keymap = ({b: k for b, k in keymap.items() if k in keynames.CODES}
+                       if keymap is not None else None)                # button -> key name (keynames.CODES)
+        self.codes = set()                        # key codes held in keymap mode
         self.px_s = SPEEDS.get(speed, SPEEDS["normal"])
         self.rem = [0.0, 0.0]
         self.held = set()
@@ -112,7 +120,57 @@ class Mapper:
             return 0.0
         return (1 if v > 0 else -1) * ((a - DEADZONE) / (1 - DEADZONE)) ** CURVE
 
+    def _step_map(self, st, dt):
+        """A DOS game's own layout: the D-pad is arrows, every button in the keymap presses its key; "keys" also
+        makes the left stick arrows, "keysmouse" and "mouse" also move the pointer with the right stick."""
+        out = []
+        lay = self.layout
+        if lay in ("mouse", "keysmouse"):
+            for i, axis, code in ((0, "rx", REL_X), (1, "ry", REL_Y)):
+                self.rem[i] += self._curve(st.get(axis, 0.0)) * self.px_s * dt
+                move = int(self.rem[i])
+                if move:
+                    self.rem[i] -= move
+                    out.append((EV_REL, code, move))
+        wy = self._curve(st.get("ly", 0.0)) if lay == "mouse" else 0.0
+        if wy:
+            self.wheel += abs(wy) * dt / WHEEL_STEP_S
+            if self.wheel >= 1:
+                self.wheel -= 1
+                out.append((EV_REL, REL_WHEEL, -1 if wy > 0 else 1))
+        else:
+            self.wheel = 0.0
+        codes = keynames.CODES
+        lx, ly = st.get("lx", 0.0), st.get("ly", 0.0)
+        stick = lay in ("keys", "keysmouse")
+        want = set()
+        for name, on in (("up", st.get("up") or (stick and ly < -STICK_KEY)),
+                         ("down", st.get("down") or (stick and ly > STICK_KEY)),
+                         ("left", st.get("left") or (stick and lx < -STICK_KEY)),
+                         ("right", st.get("right") or (stick and lx > STICK_KEY))):
+            if on:                                # arrows, unless the game's own text says W A S D (map "up": "w" ...)
+                want.add(codes[self.keymap.get(name, name)])
+        for btn, key in self.keymap.items():
+            if btn in ("up", "down", "left", "right"):
+                continue
+            on = st.get({"l2": "lt", "r2": "rt"}.get(btn, btn), 0)
+            if (on > 0.5) if btn in ("l2", "r2") else on:
+                want.add(codes[key])
+        if lay == "keysmouse":                    # the triggers click, unless the map gave them a key
+            if "r2" not in self.keymap and st.get("rt", 0) > 0.5:
+                want.add(BTN_LEFT)
+            if "l2" not in self.keymap and st.get("lt", 0) > 0.5:
+                want.add(BTN_RIGHT)
+        for code in sorted(want - self.codes):
+            out.append((EV_KEY, code, 1))
+        for code in sorted(self.codes - want):
+            out.append((EV_KEY, code, 0))
+        self.codes = want
+        return out
+
     def step(self, st, dt):
+        if self.keymap is not None:
+            return self._step_map(st, dt)
         out = []
         for i, axis, code in ((0, "rx", REL_X), (1, "ry", REL_Y)):
             self.rem[i] += self._curve(st.get(axis, 0.0)) * self.px_s * dt
@@ -156,7 +214,9 @@ class Mapper:
 
     def release_all(self):
         out = [(EV_KEY, code, 0) for name, code in self.BUTTONS if name in self.held]
+        out += [(EV_KEY, code, 0) for code in sorted(self.codes)]
         self.held.clear()
+        self.codes.clear()
         return out
 
 
@@ -255,8 +315,8 @@ class QuitCombo:
 class MouseMode:
     """Runs the mapper on a thread for the length of one game."""
 
-    def __init__(self, pg, pads, speed="normal", layout="mouse"):
-        self.pg, self.pads, self.mapper = pg, pads, Mapper(speed, layout)
+    def __init__(self, pg, pads, speed="normal", layout="mouse", keymap=None):
+        self.pg, self.pads, self.mapper = pg, pads, Mapper(speed, layout, keymap)
         self.combo = None          # QuitCombo fed from this loop while mouse mode runs
         self.dev = self.sdl = self._thread = None
         self._stop = threading.Event()
