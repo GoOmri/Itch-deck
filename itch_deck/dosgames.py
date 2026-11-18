@@ -68,6 +68,24 @@ def game_id(name):
     return f"dos-{slug(name)[:40]}-{hashlib.sha1(name.encode('utf-8', 'replace')).hexdigest()[:6]}"
 
 
+def unique_id(name, folder, used):
+    """The id for a game folder. The first folder with a name keeps the old id (game_id(name)): hidden marks and
+    saves follow it. A SECOND folder with the same name (a copy in another place or on the other drive) used to be
+    dropped silently, so a new game could "not show up"; now it gets its own id from its whole path. None when this
+    very folder was already listed."""
+    gid = game_id(name)
+    if gid not in used:
+        used[gid] = str(folder)
+        return gid
+    if used[gid] == str(folder):
+        return None
+    gid = game_id(f"{name}|{folder}")
+    if gid in used:
+        return None
+    used[gid] = str(folder)
+    return gid
+
+
 def title_of(name):
     """Folder name -> title: underscores to spaces, nothing else ("EOB_1" stays recognisable)."""
     t = re.sub(r"[_]+", " ", name).strip()
@@ -273,7 +291,7 @@ def unpack_zips(root, hide=None):
 
 
 # --- the scan ----------------------------------------------------------------------------------------
-def scan(root, choices=None, hide=None):
+def scan(root, choices=None, hide=None, used=None):
     """Every game folder in root (after unpacking zips): [{"name", "id", "title", "dir", "exe",
     "programs", "cover", "image", "size"}]. choices = {game id: chosen program}; hide = removed().
     Reads and unpacks files only; touches no shared state, so it may run in a thread."""
@@ -288,34 +306,41 @@ def scan(root, choices=None, hide=None):
                           and not p.name.endswith(".unpacking")), key=lambda p: p.name.lower())
     except OSError:
         return out
-    seen = set()
+    used = {} if used is None else used         # id -> folder: the same name twice gets two tiles
 
     def add(f, progs, image, size):
-        gid = game_id(f.name)
-        if gid in seen:                         # the same name twice (a game and a collection's game)
+        gid = unique_id(f.name, f, used)
+        if gid is None:
             return
-        seen.add(gid)
         out.append({"name": f.name, "id": gid, "title": title_of(f.name), "dir": str(f),
                     "exe": pick_program(f.name, progs, choices.get(gid)), "programs": progs,
                     "cover": cover_of(f), "image": image, "size": size})
 
     for f in folders:
-        games = collection(f)                   # v0.9.25: DOS.zip with many games inside = many tiles
-        if not games and _hidden(f, hide):      # (a mark left by removing the old single "DOS" tile
-            continue                            # must not hide the games inside it)
-        if games:
-            log.info("dosgames: %s holds %d games, each gets its own tile", f.name, len(games))
-            for sub, (progs, image, size) in games.items():
-                if '"' in sub.name or _hidden(sub, hide):
-                    continue
-                add(sub, progs, image, size)
-            continue
-        if '"' in f.name:                       # DOSBox's mount command can't quote such a name
-            log.info("dosgames: %s skipped, the folder name has a double quote", f.name)
-            continue
-        progs, image, size = survey(f)
-        if not progs:
-            log.info("dosgames: %s has no .exe/.com/.bat, skipped", f.name)
-            continue
-        add(f, progs, image, size)
+        try:
+            _scan_folder(f, hide, add)
+        except Exception:  # noqa: BLE001  - one odd folder must not hide all the others
+            log.exception("dosgames: %s skipped", f.name)
     return out
+
+
+def _scan_folder(f, hide, add):
+    """One top-level folder of the dos folder: a collection gives a tile per game inside, else one tile."""
+    games = collection(f)                       # v0.9.25: DOS.zip with many games inside = many tiles
+    if not games and _hidden(f, hide):          # (a mark left by removing the old single "DOS" tile
+        return                                  # must not hide the games inside it)
+    if games:
+        log.info("dosgames: %s holds %d games, each gets its own tile", f.name, len(games))
+        for sub, (progs, image, size) in games.items():
+            if '"' in sub.name or _hidden(sub, hide):
+                continue
+            add(sub, progs, image, size)
+        return
+    if '"' in f.name:                           # DOSBox's mount command can't quote such a name
+        log.info("dosgames: %s skipped, the folder name has a double quote", f.name)
+        return
+    progs, image, size = survey(f)
+    if not progs:
+        log.info("dosgames: %s has no .exe/.com/.bat, skipped", f.name)
+        return
+    add(f, progs, image, size)

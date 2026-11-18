@@ -67,7 +67,7 @@ def visible(games, filt="all", sort="az", show="all", genre="any", length="any")
     if filt == "installed":
         gs = [g for g in gs if g.get("state") in ("installed", "missing")]
     elif filt == "dos":                                     # games that run in DOSBox
-        gs = [g for g in gs if g.get("dos")]
+        gs = [g for g in gs if g.get("dos") or g.get("store") == "dos"]   # a hidden own DOS game has no "dos" flag
     elif filt in STORE_NAMES:                               # a store tab
         gs = [g for g in gs if g.get("store", "itch") == filt]
     if sort == "played":                                    # last played first, then the rest A–Z
@@ -173,7 +173,7 @@ class Library(Scene):
 
     @property
     def dos(self):
-        return any(g.get("dos") for g in self.games)
+        return any(g.get("dos") or g.get("store") == "dos" for g in self.games)
 
     def tabs(self):
         return tabs(self.stores, self.dos)
@@ -289,7 +289,7 @@ class Library(Scene):
                                         "Install a game from All and it shows up here.")
             if self.filt == "dos":
                 return self._center_msg(s, y, "No DOS games yet.",
-                                        "DOS games you install from GOG show up here.")
+                                        "Copy games into your dos folder, then press Refresh.")
             if self.filt in STORE_NAMES and not self.filtered():
                 name = STORE_NAMES[self.filt]
                 return self._center_msg(s, y, f"No {name} games yet.",

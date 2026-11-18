@@ -1257,10 +1257,12 @@ class Installer:
         from . import dosgames
         first = self.dos_root()
         out = [first] if first.is_dir() else []
-        for _name, r in config.install_choices():
-            d = dosgames.dos_dir(r)
-            if d not in out and d.is_dir() and not config.card_missing(d):
-                out.append(d)
+        bases = [Path(self.root_fn()).parent] + [Path(r).parent for _n, r in config.install_choices()]
+        for base in bases:                          # on each drive BOTH names: "itch" and "scritch" (a player
+            for name in ("itch", "scritch"):        # may copy into the one games_dir() does not pick)
+                d = dosgames.dos_dir(base / name)
+                if d not in out and d.is_dir() and not config.card_missing(d):
+                    out.append(d)
         return out
 
     def scan_dos(self, create=False):
@@ -1283,7 +1285,9 @@ class Installer:
         entries = []
         for r in self.dos_roots():                  # the install location's folder first; it may not exist
             have = {e["id"] for e in entries}       # (the other drive's can still hold the games)
-            entries += [e for e in dosgames.scan(r, picked, hide={}) if e["id"] not in have]
+            got = dosgames.scan(r, picked, hide={})
+            entries += [e for e in got if e["id"] not in have]
+            log.info("dos: %s -> %d games (%d new to the list)", r, len(got), len([e for e in got if e["id"] not in have]))
         return {"entries": entries}                 # hide={}: "removed" games are the app's hidden list now
 
     def apply_dos(self, result):
