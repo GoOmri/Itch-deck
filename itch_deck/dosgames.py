@@ -16,7 +16,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from . import paths
+from . import dosart, paths
 
 log = logging.getLogger("scritch")
 
@@ -84,6 +84,34 @@ def unique_id(name, folder, used):
         return None
     used[gid] = str(folder)
     return gid
+
+
+def _tag_of(name):
+    """What a folder name says in its (...) / [...] groups apart from a year: "(Apogee Software)" -> "Apogee Software"."""
+    bits = [g[1:-1].strip() for g in dosart.GROUP_RE.findall(name)]
+    return ", ".join(b for b in bits if b and not dosart.YEAR_RE.fullmatch(b))
+
+
+def disambiguate(entries):
+    """Two games that would show the same title get a short difference: the year when they differ, else what the
+    folder name says in its brackets, else a number. Only the shown title changes (ids, folders, marks stay)."""
+    groups = {}
+    for e in entries:
+        groups.setdefault(e["title"].casefold(), []).append(e)
+    for same in groups.values():
+        if len(same) < 2:
+            continue
+        years = [e.get("year") for e in same if e.get("year")]
+        if len(set(years)) == len(years) and len(same) - len(years) <= 1:
+            for e in same:
+                if e.get("year"):                   # the one without a year keeps the plain title
+                    e["title"] = f"{e['title']} ({e['year']})"
+            continue
+        tags = [_tag_of(e["name"]) for e in same]
+        use_tags = all(tags) and len(set(tags)) == len(tags)
+        for n, e in enumerate(same):
+            e["title"] = f"{e['title']} ({tags[n] if use_tags else n + 1})"
+    return entries
 
 
 def title_of(name):
@@ -312,7 +340,8 @@ def scan(root, choices=None, hide=None, used=None):
         gid = unique_id(f.name, f, used)
         if gid is None:
             return
-        out.append({"name": f.name, "id": gid, "title": title_of(f.name), "dir": str(f),
+        title, year = dosart.display(f.name)    # the shown title is tidy; the folder and the id stay as they are
+        out.append({"name": f.name, "id": gid, "title": title, "year": year, "dir": str(f),
                     "exe": pick_program(f.name, progs, choices.get(gid)), "programs": progs,
                     "cover": cover_of(f), "image": image, "size": size})
 

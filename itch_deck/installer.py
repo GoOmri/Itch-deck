@@ -1288,6 +1288,7 @@ class Installer:
             got = dosgames.scan(r, picked, hide={})
             entries += [e for e in got if e["id"] not in have]
             log.info("dos: %s -> %d games (%d new to the list)", r, len(got), len([e for e in got if e["id"] not in have]))
+        dosgames.disambiguate(entries)
         return {"entries": entries}                 # hide={}: "removed" games are the app's hidden list now
 
     def apply_dos(self, result):
@@ -1320,8 +1321,9 @@ class Installer:
         _write_json(paths.INSTALLS, self.index)
         covers = {e["id"]: e["cover"] for e in entries}
         listed = {e["id"]: e["title"] for e in entries}
+        folders = {e["id"]: e["name"] for e in entries}
         listed.update({gid: i["title"] for gid, i in self.index.items() if i.get("store") == "dos"})
-        self.lib.set_dos_games([{"id": gid, "title": title, "cover": covers.get(gid)}
+        self.lib.set_dos_games([{"id": gid, "title": title, "cover": covers.get(gid), "folder": folders.get(gid)}
                                 for gid, title in listed.items()])
         n = sum(1 for e in entries if e["id"] not in hidden)
         log.info("dos: %d games listed", n)

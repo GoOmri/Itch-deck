@@ -70,7 +70,7 @@ def test_every_game_folder_and_zip_in_every_root_is_listed(tmp_path, monkeypatch
     names = sorted(e["title"] for e in lib.dos)
     per_root = 18 + 5 + 2 + 4
     assert n == 2 * per_root, (n, names)
-    assert any(t.startswith("deep") for t in names) and any(t.startswith("zipflat") for t in names)
+    assert any(t.lower().startswith("deep") for t in names) and any(t.lower().startswith("zipflat") for t in names)
 
 
 def test_the_same_game_name_twice_in_one_root_gives_two_tiles(tmp_path, monkeypatch):
@@ -131,3 +131,76 @@ def _theme():
     pg.init()
     pg.display.set_mode((64, 64))
     return theme.Theme(pg, (1280, 800))
+
+
+# --- 3: clean display titles ----------------------------------------------------------------------
+def test_display_titles_are_tidy_and_the_year_is_read_first():
+    from itch_deck import dosart
+    d = dosart.display
+    assert d("Commander Keen 3 Keen Must Die (1990)(Apogee Software)") == ("Commander Keen 3 Keen Must Die", 1990)
+    assert d("Blood (1997)(Monolith)") == ("Blood", 1997)
+    assert d("dave2") == ("Dave2", None)
+    assert d("doom") == ("Doom", None)
+    assert d("Prince_of_Persia_v1.1_[cracked]") == ("Prince of Persia", None)
+    assert d("Wolfenstein.3D.shareware") == ("Wolfenstein 3D", None)
+    assert d("Full Throttle")[0] == "Full Throttle"
+    assert d("Pok\u00e9mon (TM) Co")[0] == "Pok\u00e9mon Co"          # accents stay for showing
+    assert d("(1990)(x)")[0] == "(1990)(x)"                          # nothing left: the folder name as it is
+    assert dosart_search("Blood (1997)(Monolith)") == "Blood (1997)"
+
+
+def dosart_search(n):
+    from itch_deck import dosart
+    return dosart.search_name(n)
+
+
+def test_the_title_changes_but_ids_and_folders_do_not(tmp_path, monkeypatch):
+    inst, lib, sd_dos, _ = inst_two_roots(tmp_path, monkeypatch)
+    folder = make_game(sd_dos / "Blood (1997)(Monolith)", "BLOOD.EXE")
+    before = sorted(p.name for p in folder.parent.iterdir())
+    inst.sync_dos()
+    e = lib.dos[0]
+    assert e["title"] == "Blood" and e["folder"] == "Blood (1997)(Monolith)"
+    assert e["id"] == dosgames.game_id("Blood (1997)(Monolith)")      # the id still follows the folder name
+    assert inst.index[e["id"]]["dir"] == str(folder)
+    assert sorted(p.name for p in folder.parent.iterdir()) == before
+
+
+def test_two_games_with_one_title_get_a_short_difference(tmp_path, monkeypatch):
+    inst, lib, sd_dos, _ = inst_two_roots(tmp_path, monkeypatch)
+    make_game(sd_dos / "Blood (1997)(Monolith)")
+    make_game(sd_dos / "Blood (1998)(Other)")
+    make_game(sd_dos / "Doom (1993)(id)")
+    make_game(sd_dos / "Doom [shareware]")
+    make_game(sd_dos / "Alone (1992)(A)")
+    make_game(sd_dos / "Alone (1992)(B)")
+    inst.sync_dos()
+    titles = sorted(e["title"] for e in lib.dos)
+    assert "Blood (1997)" in titles and "Blood (1998)" in titles
+    assert "Doom (1993)" in titles and "Doom" in titles               # the one without a year keeps the plain title
+    assert "Alone (A)" in titles and "Alone (B)" in titles           # same year: what the brackets say
+    assert len(set(titles)) == 6
+
+
+def test_gog_is_asked_with_the_clean_name_and_the_subtitle_less_form():
+    from itch_deck import dosart
+    p = dosart.parse("Commander Keen 3 Keen Must Die")
+    q = dosart.queries(p)
+    assert q[0] == "commander keen 3 keen must die" and "commander keen 3" in q
+    cat = [{"id": "9", "title": "Commander Keen 3", "slug": "k3", "productType": "game", "releaseDate": "1990.12.14",
+            "coverHorizontal": "https://x/h.jpg"}]
+    m = dosart.find(dosart.search_name("Commander Keen 3 Keen Must Die (1990)(Apogee Software)"),
+                    lambda u: {"products": cat})
+    assert m and m["id"] == "9"
+
+
+def test_the_art_cache_key_follows_the_clean_title_not_the_folder_or_the_disambiguator(tmp_path):
+    from itch_deck import library
+    paths.use_root(tmp_path / "home")
+    lib = library.Library(None)
+    lib._fetch_dosart = lambda *a, **k: None
+    lib.set_dos_games([{"id": "d1", "title": "Blood (1997)", "folder": "Blood (1997)(Monolith)", "cover": None}])
+    g = lib.by_id("d1")
+    assert lib._dosart_name(g) == "Blood (1997)"
+    g2 = {"id": "d2", "title": "Blood", "folder": "BLOOD_v1.1"}
+    assert lib._dosart_name(g2) == "BLOOD"

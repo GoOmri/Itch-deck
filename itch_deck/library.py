@@ -271,7 +271,7 @@ class Library:
     def save_cache(self):
         keep = ("id", "title", "author", "cover_url", "url", "short_text", "platforms",
                 "download_key_id", "classification", "source", "store", "app_name", "long_text", "category",
-                "tall_url")
+                "tall_url", "folder")
         games = [{k: (sorted(g[k]) if k == "platforms" else g.get(k)) for k in keep} for g in self.games]
         _write_json(paths.LIBRARY, {"synced_at": self.synced_at, "games": games})
 
@@ -437,7 +437,8 @@ class Library:
         fresh = []
         for e in entries:
             g = {"id": e["id"], "title": e["title"], "author": "", "platforms": ["linux"], "store": "dos",
-                 "short_text": "A DOS game from your own folder.", "source": "dos"}
+                 "short_text": "A DOS game from your own folder.", "source": "dos",
+                 "folder": e.get("folder")}
             c = e.get("cover")
             if c and Path(c).is_file():
                 try:
@@ -626,6 +627,12 @@ class Library:
         return None
 
     @staticmethod
+    def _dosart_name(g):
+        """What GOG is asked and what the cache key follows: the CLEAN title with the year of the folder name
+        ("Blood (1997)"), never the shown title with a disambiguator."""
+        return dosart.search_name(g.get("folder") or g["title"])
+
+    @staticmethod
     def _dosart_age(e):
         try:
             return _now() - dt.datetime.fromisoformat(e["at"])
@@ -635,7 +642,7 @@ class Library:
     def _dosart_fresh(self, g):
         e = self._dosart.get(g["id"])
         age = self._dosart_age(e or {})
-        return bool(e) and e.get("key") == g["title"] and e.get("algo") == dosart.ALGO \
+        return bool(e) and e.get("key") == self._dosart_name(g) and e.get("algo") == dosart.ALGO \
             and age is not None and age < DOSART_MAX_AGE
 
     def _dosart_complete(self, g):
@@ -677,11 +684,11 @@ class Library:
         if self._dosart_fresh(g) and not force:
             match = e.get("match")
         else:
-            match = dosart.find(g["title"], lambda u: net.get_json(u, timeout=20))
+            match = dosart.find(self._dosart_name(g), lambda u: net.get_json(u, timeout=20))
             prev = (e or {}).get("match")
             if prev and (not match or prev.get("id") != match["id"]):
                 self._dosart_forget(g)                 # another game now: the old art and text go
-            self._dosart[g["id"]] = {"key": g["title"], "algo": dosart.ALGO, "match": match,
+            self._dosart[g["id"]] = {"key": self._dosart_name(g), "algo": dosart.ALGO, "match": match,
                                      "at": _now().isoformat(timespec="seconds")}
             _write_json(self._dosart_file(), self._dosart)
             log.info("dosart %s: %s", g["id"], "%s (%s, score %s)" % (match["title"], match["id"], match["score"])

@@ -11,7 +11,7 @@ import urllib.parse
 CATALOG = ("https://catalog.gog.com/v1/catalog?limit=10&query=like%3A{q}&order=desc%3Ascore"
            "&productType=in%3Agame%2Cpack&page=1&countryCode=US&locale=en-US&currencyCode=USD")
 MIN_SCORE = 60                 # below this a match is too weak: no match at all
-ALGO = 1                       # bump when the matching changes: old "no match" answers are asked again
+ALGO = 2                       # bump when the matching changes: old "no match" answers are asked again
 
 NOISE = {"shareware", "registered", "full", "retail", "cd", "dos", "cracked", "version", "ver", "cdrom"}
 ROMAN = {"ii": 2, "iii": 3, "iv": 4, "vi": 6, "vii": 7, "viii": 8, "ix": 9}
@@ -69,8 +69,54 @@ def parse(name, noise=True):
     num, bw = _number(words)
     _, bmain = _number(main)
     bhead = _head(words)
-    return {"words": words, "main": main, "bw": bw, "bmain": bmain, "bhead": bhead, "year": year, "num": num,
+    headnum = None
+    for i, w in enumerate(words):
+        if i and ((w.isdigit() and len(w) <= 2) or w in ROMAN):
+            headnum = words[:i + 1] if i + 1 < len(words) else None    # "commander keen 3" of "... keen must die"
+            break
+    return {"words": words, "main": main, "bw": bw, "bmain": bmain, "bhead": bhead, "headnum": headnum, "year": year, "num": num,
             "text": " ".join(words)}
+
+
+def display(name):
+    """Folder name -> (the title a player sees, the year or None). "Commander Keen 3 Keen Must Die
+    (1990)(Apogee Software)" -> ("Commander Keen 3 Keen Must Die", 1990). Groups, version words, shareware /
+    registered / cd / dos ..., underscores and extra spaces go; subtitles, case and accents stay (a name that
+    is all lower case gets capitals). The folder itself and the game's id are never touched."""
+    year = parse(name)["year"]
+    s = fold_keep(name).replace("_", " ")
+    s = GROUP_RE.sub(" ", s)
+    s = re.sub(r"\.(?:exe|com|bat|zip)\b", " ", s, flags=re.I)
+    s = re.sub(r"\bversion\s+v?\d+(?:\.\d+)*", " ", s, flags=re.I)
+    s = re.sub(r"\bv\d+(?:\.\d+)*\b", " ", s, flags=re.I)
+    s = re.sub(r"\b\d+(?:\.\d+)+\b", " ", s)
+    s = re.sub(r"(?<=\w)\.(?=\w)", " ", s)
+    toks = []
+    for i, w in enumerate(s.split()):
+        bare = re.sub(r"[^a-z0-9]", "", w.lower())
+        if bare == "tm" or (i and bare in NOISE):
+            continue
+        toks.append(w)
+    if year and len(toks) > 1 and toks[-1] == str(year):
+        toks.pop()
+    t = " ".join(toks).strip(" -:–—,.")
+    if not t:
+        t = " ".join(name.replace("_", " ").split()) or name
+    if t == t.lower():
+        t = " ".join(w[:1].upper() + w[1:] for w in t.split())
+    return t, year
+
+
+def search_name(name):
+    """What the GOG lookup is asked: the clean title with its year in brackets ("Blood (1997)")."""
+    t, y = display(name)
+    return f"{t} ({y})" if y else t
+
+
+def fold_keep(s):
+    """Signs like (TM) (R) (C) removed; accents stay (this is for showing)."""
+    s = (s or "").replace("™", " ").replace("®", " ").replace("©", " ")
+    return re.sub(r"\((?:tm|r|c)\)", " ", s, flags=re.I)
 
 
 def _drop_noise(words):
@@ -107,7 +153,7 @@ def queries(p):
     w = p["words"]
     full = " ".join(w)
     arabic = " ".join(str(ROMAN[x]) if x in ROMAN else x for x in w)
-    forms = [full, arabic, " ".join(p["main"]), " ".join(_lead(w)), " ".join(_lead(p["main"]))]
+    forms = [full, " ".join(p["headnum"] or []), arabic, " ".join(p["main"]), " ".join(_lead(w)), " ".join(_lead(p["main"]))]
     out = []
     for f in forms:
         if f and f not in out:
