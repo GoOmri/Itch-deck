@@ -204,3 +204,130 @@ def test_the_art_cache_key_follows_the_clean_title_not_the_folder_or_the_disambi
     assert lib._dosart_name(g) == "Blood (1997)"
     g2 = {"id": "d2", "title": "Blood", "folder": "BLOOD_v1.1"}
     assert lib._dosart_name(g2) == "BLOOD"
+
+
+# --- 4: art lookups are not starved by the big queues -----------------------------------------------
+def test_dos_art_jobs_run_before_covers_pages_and_hltb(tmp_path, monkeypatch):
+    from itch_deck import library
+    paths.use_root(tmp_path / "home")
+    monkeypatch.setattr(library.Library, "_work", lambda self: None)       # only look at the queue
+    lib = library.Library(None)
+    lib.games = [{"id": f"i{n}", "title": f"I{n}", "store": "itch", "platforms": {"linux"}, "cover_url": "x",
+                  "url": "https://x/" + str(n)} for n in range(30)]
+    lib.queue_covers()
+    lib.queue_prefetch()
+    lib.queue_hltb()
+    lib.set_dos_games([{"id": "d1", "title": "Doom", "cover": None}, {"id": "d2", "title": "Blood", "cover": None}])
+    order = []
+    while not lib._q.empty():
+        order.append(lib._q.get()[2:])
+    kinds = [k for k, _ in order]
+    assert kinds[:2] == ["dosart", "dosart"], kinds[:5]
+    assert kinds.count("dosart") == 2 and kinds.count("cover") == 30
+
+
+def test_every_scan_queues_the_art_jobs_again_for_new_games(tmp_path, monkeypatch):
+    from itch_deck import library
+    paths.use_root(tmp_path / "home")
+    monkeypatch.setattr(library.Library, "_work", lambda self: None)
+    lib = library.Library(None)
+    lib.set_dos_games([{"id": "d1", "title": "Doom", "cover": None}])
+    assert ("dosart", "d1") in lib._queued
+    lib.set_dos_games([{"id": "d1", "title": "Doom", "cover": None}, {"id": "d2", "title": "Blood", "cover": None}])
+    assert ("dosart", "d2") in lib._queued
+
+
+def test_the_page_you_open_still_comes_before_the_art_jobs(tmp_path, monkeypatch):
+    from itch_deck import library
+    paths.use_root(tmp_path / "home")
+    monkeypatch.setattr(library.Library, "_work", lambda self: None)
+    lib = library.Library(None)
+    lib.set_dos_games([{"id": "d1", "title": "Doom", "cover": None}])
+    g = {"id": "i1", "title": "I", "store": "itch", "platforms": {"linux"}, "url": "https://x/1"}
+    lib.games.append(g)
+    lib.ensure_details(g)
+    first = lib._q.get()
+    assert first[2:] == ("page", "i1")
+
+
+# --- 5: the wide GOG cover is the tile art ---------------------------------------------------------------
+def _png(path, size, color):
+    s = pg.Surface(size)
+    s.fill(color)
+    pg.image.save(s, str(path))
+    return Path(path).read_bytes()
+
+
+def _prod(**k):
+    return dict({"id": "7", "title": "Doom", "slug": "doom", "productType": "game", "releaseDate": "1993.12.10",
+                 "coverHorizontal": "https://img.test/wide.jpg", "coverVertical": "https://img.test/tall.jpg"}, **k)
+
+
+def test_the_wide_cover_is_preferred_and_the_tall_one_is_the_fallback():
+    from itch_deck import dosart
+    assert dosart.pick_cover(_prod()).endswith("wide.jpg")
+    assert dosart.pick_cover(_prod(coverHorizontal=None)).endswith("tall.jpg")
+    assert dosart.pick_cover(_prod(coverHorizontal="//img.test/w.jpg")) == "https://img.test/w.jpg"
+    m = dosart.summary(_prod())
+    assert m["cover"].endswith("wide.jpg") and m["cover_tall"].endswith("tall.jpg")      # the tall one is kept for later
+
+
+def test_the_wide_cover_is_downloaded_for_the_tile_and_a_folder_cover_still_wins(tmp_path, monkeypatch):
+    from itch_deck import library, net
+    paths.use_root(tmp_path / "home")
+    monkeypatch.setattr(library.time, "sleep", lambda s: None)
+    wide = _png(tmp_path / "w.png", (640, 360), (10, 120, 200))
+    got = []
+
+    def get(url, key=None, timeout=20, **k):
+        got.append(url)
+        return wide
+
+    def get_json(url, key=None, timeout=20):
+        if "catalog.gog.com" in url:
+            return {"products": [_prod()]}
+        return {"description": {"full": "<p>Text.</p>"}, "screenshots": []}
+    monkeypatch.setattr(net, "get", get)
+    monkeypatch.setattr(net, "get_json", get_json)
+    lib = library.Library(None)
+    own = tmp_path / "dos" / "Doom"
+    own.mkdir(parents=True)
+    own_png = own / "cover.png"
+    _png(own_png, (200, 300), (1, 2, 3))
+    lib.set_dos_games([{"id": "d1", "title": "Doom", "cover": None}, {"id": "d2", "title": "Doom 2 x", "cover": own_png}])
+    lib._worker and lib._worker.join(timeout=20)
+    assert [u for u in got if "wide.jpg" in u] and not [u for u in got if "tall.jpg" in u]
+    assert "dosart" in lib.by_id("d1")["cover_file"]
+    assert Path(lib.by_id("d2")["cover_file"]).parent == paths.COVERS            # the folder's cover.png wins
+
+
+def test_an_old_tall_cover_from_v0927_is_replaced_by_the_wide_one(tmp_path, monkeypatch):
+    from itch_deck import library, net
+    paths.use_root(tmp_path / "home")
+    monkeypatch.setattr(library.time, "sleep", lambda s: None)
+    wide = _png(tmp_path / "w.png", (640, 360), (10, 120, 200))
+    monkeypatch.setattr(net, "get", lambda url, key=None, timeout=20, **k: wide)
+    monkeypatch.setattr(net, "get_json", lambda url, key=None, timeout=20: {"products": [_prod()]} if "catalog" in url
+                        else {"description": {"full": "<p>T.</p>"}, "screenshots": []})
+    lib = library.Library(None)
+    art = lib._dosart_dir()
+    art.mkdir(parents=True)
+    old = art / "d1.jpg"
+    _png(old, (300, 450), (200, 0, 0))
+    lib._dosart["d1"] = {"key": "Doom", "algo": 1, "at": "2020-01-01T00:00:00+00:00",
+                         "match": {"id": "7", "title": "Doom", "cover": "https://img.test/tall.jpg"}}
+    lib.set_dos_games([{"id": "d1", "title": "Doom", "cover": None}])
+    lib._worker and lib._worker.join(timeout=20)
+    cf = lib.by_id("d1")["cover_file"]
+    pic = pg.image.load(cf)
+    assert pic.get_width() > pic.get_height()                                     # the wide one now
+
+
+def test_a_wide_cover_fills_the_tile_without_blurred_bars(tmp_path):
+    from itch_deck.ui import widgets as W
+    t = _theme()
+    f = tmp_path / "wide.png"
+    _png(f, (640, 360), (255, 0, 0))
+    img = W.cover(t, {"id": "w1", "title": "X", "store": "dos", "cover_file": str(f)}, (272, 216))
+    for x, y in ((2, 108), (269, 108), (136, 2), (136, 213)):
+        assert img.get_at((x, y))[0] > 240, (x, y)                                  # red everywhere: no bars

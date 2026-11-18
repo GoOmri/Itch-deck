@@ -312,7 +312,7 @@ def _needs_fit(path, size):
     except Exception:  # noqa: BLE001
         return False
     a, b = h / w, size[1] / size[0]
-    return (1 - min(a, b) / max(a, b)) > 0.34
+    return a > b and (1 - b / a) > 0.34          # only TALL art; wide art simply fills the tile (small crop)
 
 
 def title_card(t, game, size):

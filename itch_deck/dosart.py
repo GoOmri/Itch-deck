@@ -277,8 +277,11 @@ def choose(name, products, relaxed=False):
     return {"prod": top[3], "score": top[4]}
 
 
-def pick_cover(prod):
-    for k in ("coverVertical", "coverHorizontal"):
+def pick_cover(prod, wide=True):
+    """The cover for the library tile: GOG's WIDE picture (coverHorizontal; the tile is nearly 5:4, so it fills the
+    tile with a small crop) and only when there is none the tall one (shown whole over a blurred copy)."""
+    keys = ("coverHorizontal", "coverVertical") if wide else ("coverVertical", "coverHorizontal")
+    for k in keys:
         u = str((prod or {}).get(k) or "").strip()
         if u:
             return ("https:" + u) if u.startswith("//") else u
@@ -294,7 +297,8 @@ def summary(prod, score=None):
             genres.append(str(n))
     return {"id": str(prod["id"]), "title": str(prod.get("title") or ""), "slug": prod.get("slug") or "",
             "year": year_of(prod), "type": prod.get("productType") or "game",
-            "cover": pick_cover(prod), "genres": genres, "score": score}
+            "cover": pick_cover(prod), "cover_tall": pick_cover(prod, wide=False), "genres": genres,
+            "score": score}
 
 
 def find(name, fetch):

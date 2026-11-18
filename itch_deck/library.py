@@ -17,6 +17,7 @@ log = logging.getLogger("scritch")
 PAGE_MAX_AGE = dt.timedelta(days=7)
 HLTB_MAX_AGE = dt.timedelta(days=30)   # time to beat (and "not on HLTB") rechecked monthly
 DOSART_MAX_AGE = dt.timedelta(days=30)  # GOG art for your own DOS games (a "no match" too)
+DOSART_PRIO = 0     # there are only a few DOS games: ahead of covers, page prefetch and HowLongToBeat (500+ games)
 DOSART_FORCE_AFTER = dt.timedelta(days=1)   # Refresh asks again, but not more than once a day
 MAX_SHOTS = 8
 SHOT_W = 1280
@@ -671,10 +672,10 @@ class Library:
                 age = self._dosart_age(self._dosart[g["id"]])
                 if age is not None and age >= DOSART_FORCE_AFTER:
                     self._dosart_force.add(g["id"])
-                    self._put(6, "dosart", g["id"])
+                    self._put(DOSART_PRIO, "dosart", g["id"])
                     continue
             if not self._dosart_complete(g):
-                self._put(6, "dosart", g["id"])
+                self._put(DOSART_PRIO, "dosart", g["id"])
 
     def _fetch_dosart(self, g, force=False):
         """One DOS game: GOG lookup (cached 30 days, "no match" too), then the cover, text and screenshots of
@@ -688,6 +689,8 @@ class Library:
             prev = (e or {}).get("match")
             if prev and (not match or prev.get("id") != match["id"]):
                 self._dosart_forget(g)                 # another game now: the old art and text go
+            elif prev and match and prev.get("cover") != match.get("cover"):
+                self._dosart_drop_cover(g)             # same game, another picture (v0.9.28: wide, was tall)
             self._dosart[g["id"]] = {"key": self._dosart_name(g), "algo": dosart.ALGO, "match": match,
                                      "at": _now().isoformat(timespec="seconds")}
             _write_json(self._dosart_file(), self._dosart)
@@ -757,6 +760,18 @@ class Library:
         if not g.get("cover_file"):
             g["cover_file"] = str(small)
 
+    def _dosart_drop_cover(self, g):
+        """Remove OUR saved GOG cover (never the folder's own one) so the right shape is fetched."""
+        art = self._dosart_cover(g["id"])
+        while art:
+            if g.get("cover_file") == art:
+                g.pop("cover_file", None)
+            Path(art).unlink(missing_ok=True)
+            art = self._dosart_cover(g["id"])
+        cur = self.by_id(g["id"])
+        if cur and cur is not g and cur.get("cover_file") and Path(cur["cover_file"]).parent == self._dosart_dir():
+            cur.pop("cover_file", None)
+
     def _dosart_forget(self, g):
         """No match (any more): remove what an earlier match left (our own files only)."""
         try:
@@ -788,7 +803,7 @@ class Library:
         except (KeyError, TypeError, ValueError):
             pass
         if stale and self._has_details(g) and not self.offline:
-            self._put(0, "page", g["id"])
+            self._put(-1, "page", g["id"])        # the page the player just opened comes first
 
     def _apply_page(self, g):
         try:
