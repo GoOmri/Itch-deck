@@ -50,6 +50,8 @@ class DosMixin:
         self.dos_busy = False
         if self.kind == "settings":
             self.scene.v["dos_row"] = self._dos_row()
+        if note["tell"] and n:                   # the Refresh button: ask GOG for art again (once a day at most)
+            self.lib.queue_dosart(force=True)
         if note["tell"]:
             if n is None:
                 self.say("Couldn't read the DOS folder. Is the SD card in?", error=True)

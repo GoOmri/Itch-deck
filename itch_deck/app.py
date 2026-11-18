@@ -27,7 +27,7 @@ from .app_dos import DosMixin
 from .app_storage import StorageMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.26"
+VERSION = "0.9.27"
 
 
 def setup_logging():
@@ -603,6 +603,8 @@ def selftest(screenshot=None):
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     paths.use_root(tempfile.mkdtemp(prefix="scritch-selftest-"))
+    from . import library as library_mod
+    library_mod.Library._fetch_dosart = lambda self, g, force=False: None      # never asks GOG in a test
     app = App(windowed=True)
     assert app.kind == "setup"
     # v0.7 phone login: the phone sends a key -> checked -> library; the page closes soon after

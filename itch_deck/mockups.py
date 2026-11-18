@@ -357,6 +357,18 @@ def _shots(t, version):
         ("06g_library_gog_tab", Library(t, three, filt="gog", focus=0, stores=("itch", "epic", "gog"))),
         ("06h_library_dos_tab", Library(t, [dict(g, dos=True, state="installed") for g in gog_games[:2]],
                                         filt="dos", focus=0, stores=("itch", "epic", "gog"))),
+        ("06n_library_dos_cards", Library(t, [dict(g, dos=True, store="dos", state="installed", cover_file=None,
+                                                   title=ti, id="dos-card-" + g["id"]) for g, ti in zip(gog_games, (
+            "Dave", "Eye of the Beholder II: The Legend of Darkmoon", "Keen 4", "Blake Stone"))],
+                                          filt="dos", focus=0, stores=("itch", "epic", "gog"))),
+        ("15zc_game_dos_gog_text", Game(t, dict(gog_games[0], store="dos", state="installed", dos=True, programs=1,
+                                               author="", platforms={"linux"}, cover_file=None,
+                                               title="Commander Keen",
+                                               description=["Billy Blaze, eight-year-old genius, builds a spaceship "
+                                                            "and sets off to save the galaxy.",
+                                                            "Run, jump and pogo through hostile worlds."],
+                                               details_from="GOG", controls_value="Auto · Keys"),
+                                       pos=(1, 3))),
         ("15q_game_gog", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300),
                               pos=(2, len(gog_games)))),
         ("15r_game_gog_downloading", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300,
