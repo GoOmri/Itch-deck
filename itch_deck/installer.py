@@ -1251,7 +1251,7 @@ class Installer:
         (v0.9.25: internal storage is often the only place with room). Only ones that exist."""
         from . import dosgames
         first = self.dos_root()
-        out = [first]
+        out = [first] if first.is_dir() else []
         for _name, r in config.install_choices():
             d = dosgames.dos_dir(r)
             if d not in out and d.is_dir() and not config.card_missing(d):
@@ -1267,9 +1267,7 @@ class Installer:
         root = self.dos_root()
         if config.card_missing(root):
             return None
-        if not root.is_dir():
-            if not create:
-                return {"entries": []}
+        if not root.is_dir() and create:
             try:
                 root.mkdir(parents=True, exist_ok=True)
             except OSError as e:
@@ -1277,10 +1275,10 @@ class Installer:
                 return None
         picked = {gid: i["exe"] for gid, i in dict(self.index).items()
                   if i.get("store") == "dos" and i.get("exe_chosen")}
-        entries = dosgames.scan(root, picked)
-        for other in self.dos_roots()[1:]:
-            have = {e["id"] for e in entries}
-            entries += [e for e in dosgames.scan(other, picked) if e["id"] not in have]
+        entries = []
+        for r in self.dos_roots():                  # the install location's folder first; it may not exist
+            have = {e["id"] for e in entries}       # (the other drive's can still hold the games)
+            entries += [e for e in dosgames.scan(r, picked) if e["id"] not in have]
         return {"entries": entries}
 
     def apply_dos(self, result):

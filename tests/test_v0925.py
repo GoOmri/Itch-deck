@@ -164,3 +164,34 @@ def test_the_save_hint_is_under_the_steps_not_the_top():
     sc = LogsShare(t, status="phone", qr=[[(r + c) % 3 == 0 for c in range(29)] for r in range(29)], url="http://x")
     sc.draw_page(s)                                                         # draws without error, hint included
     assert "press A" not in sc.SUB.lower() and ("A", "Save a copy") in sc.hints()
+
+
+# --- reviewer findings (v0.9.25) -------------------------------------------------------------------------
+def test_games_only_on_the_other_drive_are_found_and_kept(tmp_path, monkeypatch):
+    from itch_deck import installer as I
+    paths.use_root(tmp_path / "home")
+    sd, internal = tmp_path / "sd/scritch", tmp_path / "home/Games/scritch"      # no dos folder on the SD card
+    _game(internal / "dos", "OnlyInternal", ["B.EXE"])
+    monkeypatch.setattr(config, "install_choices", lambda: [("SD card", sd), ("Internal storage", internal)])
+    inst = I.Installer.__new__(I.Installer)
+    inst.root_fn, inst.index = (lambda: sd), {}
+    got = inst.scan_dos()                                                      # a plain refresh (create=False)
+    assert [e["name"] for e in got["entries"]] == ["OnlyInternal"]
+    assert not (sd / "dos").exists()                                           # nothing was made
+
+
+def test_an_old_removed_mark_on_the_big_folder_does_not_hide_the_games_inside(tmp_path):
+    paths.use_root(tmp_path / "home")
+    root = tmp_path / "dos"
+    for name in ("Doom", "Raptor", "Blood"):
+        _game(root / "DOS", name, [name.upper() + ".EXE"])
+    got = dosgames.scan(root, hide={"DOS": 4_000_000_000})          # "Remove from library" on the old single tile
+    assert sorted(g["name"] for g in got) == ["Blood", "Doom", "Raptor"]
+
+
+def test_game_names_that_contain_a_helper_word_are_still_games(tmp_path):
+    paths.use_root(tmp_path / "home")
+    root = tmp_path / "dos"
+    for name in ("Mouse Hunt", "Patch Adams", "Marjorie's Quest", "Setup"):
+        _game(root / "DOS", name, ["GAME.EXE"])
+    assert sorted(g["name"] for g in dosgames.scan(root)) == ["Marjorie's Quest", "Mouse Hunt", "Patch Adams"]

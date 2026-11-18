@@ -116,6 +116,8 @@ def programs(folder):
     return survey(folder)[0]
 
 
+HELPER_FOLDERS = ("setup", "install", "tools", "utils", "util", "drivers", "sound", "docs", "doc", "patch",
+                  "patches", "update", "config", "editor", "editors")
 COLLECTION_MIN = 3           # a folder with this many game folders inside (and no program of its own) is a collection
 
 
@@ -130,7 +132,7 @@ def collection(folder):
             if p.is_file() and p.suffix.lower() in PROGRAM_EXTS and not is_helper(p.name):
                 return {}                                    # it has a program of its own: one game
             if p.is_dir() and not p.is_symlink() and not p.name.startswith((".", "_")) \
-                    and not is_helper(p.name):
+                    and p.name.lower().strip() not in HELPER_FOLDERS:    # whole name: "Mouse Hunt" is a game
                 subs.append(p)
     except OSError:
         return {}
@@ -298,9 +300,9 @@ def scan(root, choices=None, hide=None):
                     "cover": cover_of(f), "image": image, "size": size})
 
     for f in folders:
-        if _hidden(f, hide):
-            continue
         games = collection(f)                   # v0.9.25: DOS.zip with many games inside = many tiles
+        if not games and _hidden(f, hide):      # (a mark left by removing the old single "DOS" tile
+            continue                            # must not hide the games inside it)
         if games:
             log.info("dosgames: %s holds %d games, each gets its own tile", f.name, len(games))
             for sub, (progs, image, size) in games.items():
