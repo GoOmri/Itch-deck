@@ -3,7 +3,7 @@ import pygame as pg
 
 from ...input import UP, DOWN, LEFT, RIGHT, A, B
 from .. import widgets as W
-from ... import hltb
+from ... import hltb, pads
 from .base import Scene
 
 
@@ -113,7 +113,8 @@ class Game(Scene):
         if self.options():
             rows = [(o, self.g.get("controls_value", "") if o == "Controls" else
                      self.g.get("stay_value", "Off") if o == "Keep window open after the game" else "",
-                     "Helps you read an error message" if o == "Keep window open after the game" else "")
+                     "Helps you read an error message" if o == "Keep window open after the game" else
+                     (self.g.get("controls_hint") or "") if o == "Controls" else "")
                     for o in self.options()]
             self.overlay = ("menu", "Options", "", rows, max(0, min(focus, len(rows) - 1)))
 
@@ -194,6 +195,7 @@ class Game(Scene):
         g = self.g
         key = (id(g), g.get("details_at"), g.get("details_loading"), g.get("state"),
                g.get("controls_label"), g.get("controls_mode"), str(g.get("ttb")), str(g.get("update")),
+               str(g.get("dos_hints")), g.get("dos_verified"), g.get("dos_source"), pads.current,
                g.get("cover_file"), self.section, self.shot,   # focus: buttons are live bool(self.overlay),
                self.offline, self.card_out, self.phase, self.behind, self.fail_reason, self.install_path,
                round(g.get("progress", 0), 3), int(g.get("eta_s", 0)), g.get("size_mb"),
@@ -365,9 +367,36 @@ class Game(Scene):
                    "More details load the next time you're online." if self.offline else
                    "This game's itch page has no description.")
             y = W.text(t, s, msg, t.m, y, t.f_body, color=t.dim).bottom
+        y = self._controls_block(s, y)
         comments_y = y + t.lg
         self._end = self._comments(s, comments_y)
         return desc_y, comments_y
+
+    def _controls_block(self, s, y):
+        """DOS games: which pad button does what. Two columns of "[button icon] action" with the icons of the pad in
+        use (W.glyph follows pads.current: Deck / Xbox letters, DualSense shapes, pills), then where it came from."""
+        t, g = self.t, self.g
+        hints = g.get("dos_hints")
+        if not hints or g.get("state") not in ("installed", "missing"):
+            return y
+        y = W.text(t, s, "Controls", t.m, y + t.lg, t.f_h2).bottom + t.sm
+        lh, colw = int(t.u * 3.8), (t.w - 2 * t.m) // 2
+        words = {"DPAD": "D-pad", "RSTICK": "Right stick"}
+        slot = max((t.f_body.size(words[b])[0] if b in words else W.glyph(t, pg.Surface((1, 1)), b, 0, 0))
+                   for b, _x in hints)                                   # one icon column, so the words line up
+        for i, (btn, action) in enumerate(hints):
+            x, cy = t.m + (i % 2) * colw, y + (i // 2) * lh + lh // 2
+            if btn in words:
+                W.text(t, s, words[btn], x, cy, t.f_body, anchor="midleft")
+            else:
+                W.glyph(t, s, btn, x, cy)
+            W.text(t, s, action, x + slot + t.sm, cy, t.f_body, color=t.text_c, anchor="midleft",
+                   maxw=colw - slot - t.sm - t.md)
+        y += -(-len(hints) // 2) * lh
+        line = g.get("dos_source") or ""
+        if line:                                                         # where the keys came from, one dim line
+            y = W.text(t, s, line, t.m, y + t.sm, t.f_small, color=t.dim, maxw=t.w - 2 * t.m).bottom
+        return y
 
     def _comments(self, s, y):
         """Newest comments from the itch page (cached with it). Long ones cut to 3 lines."""

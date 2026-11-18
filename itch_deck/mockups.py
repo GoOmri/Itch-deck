@@ -35,6 +35,18 @@ def _wide_art(i):
     return str(f)
 
 
+def _dos_controls_game(base, title):
+    """A DOS game page with its controller keys (v0.9.30)."""
+    from . import dos_controls, pads
+    plan = dos_controls.plan({"title": title})
+    return dict(base, store="dos", state="installed", dos=True, programs=1, author="", platforms={"linux"},
+                cover_file=None, title=title, comments=None, comment_count=0, details_from="GOG", screens=0, shot_files=[],
+                description=["The classic, now on your Deck."], controls_mode="keys", dos_hints=plan["hints"],
+                dos_verified=plan["verified"],
+                dos_source=plan["source_text"],
+                controls_hint=dos_controls.hint_text(plan["hints"], pads.name, 3), id="dos-ctl-" + title[:5])
+
+
 def load_real(root, pick=None):
     """Omri's cached itch data (library.json, covers/, pages/, shots/ — never in the repo).
     Returns (games, one game for the game-page states: `pick` title/id, else random)."""
@@ -206,6 +218,9 @@ def _shots(t, version):
                                         focus=7)),        # Button symbols
             ("ps_25_starting", Splash("Starting Moss & Rivets…", QUIT_HINT)),
             ("ps_02b_setup_typing", Setup(t, "waiting", typing=True, typed="Xk3vQ2b7f19aa0c4d6e8")),
+            ("ps_15zj_game_dos_controls_doom", Game(t, _dos_controls_game(dict(lib[0]), "Doom"), pos=(1, 3), section="desc")),
+            ("ps_15zk_game_dos_controls_keen3", Game(t, _dos_controls_game(dict(lib[0]), "Commander Keen 3 Keen Must Die"),
+                                                     pos=(1, 3), section="desc")),
         ]
     return [
         ("25_starting", Splash("Starting Moss & Rivets…", QUIT_HINT)),
@@ -388,6 +403,14 @@ def _shots(t, version):
             "menu", "Options", "", [("Remove from library", "", ""), ("Controls", "Auto \u00b7 Keys", ""),
                                     ("Program to run", "", ""),
                                     ("Keep window open after the game", "Off", "Helps you read an error message")], 3))),
+        ("15zl_game_dos_options_controls", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed",
+                                                    dos=True, programs=2, author="", platforms={"linux"},
+                                                    controls_value="Auto · Keys"), pos=(1, 3)), (
+            "menu", "Options", "", [("Remove from library", "", ""),
+                                    ("Controls", "Auto · Keys", "A Fire  ·  B Open doors  ·  X Run"),
+                                    ("Program to run", "", ""),
+                                    ("Keep window open after the game", "Off", "Helps you read an error message")],
+            1))),
         ("15zf_game_dos_closed_at_once", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed",
                                                                    dos=True, programs=2, author="",
                                                                    platforms={"linux"}), pos=(1, 3)), (
@@ -408,6 +431,9 @@ def _shots(t, version):
                                                   comments=None, comment_count=0, details_from="Steam",
                                                   description=["Fly a fighter through a hostile sky and blast "
                                                                "everything that moves."]), pos=(1, 3))),
+        ("15zj_game_dos_controls_doom", Game(t, _dos_controls_game(gog_games[0], "Doom"), pos=(1, 3), section="desc")),
+        ("15zk_game_dos_controls_keen3", Game(t, _dos_controls_game(gog_games[0], "Commander Keen 3 Keen Must Die"),
+                                              pos=(1, 3), section="desc")),
         ("15w_game_dos_remove", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
                                              author="", platforms={"linux"}), pos=(1, 3)), (
             "confirm", "Remove Amber Atlas?",

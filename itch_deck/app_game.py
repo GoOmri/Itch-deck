@@ -4,7 +4,7 @@ import logging
 import threading
 from pathlib import Path
 
-from . import backups, config, mouse, pads, words
+from . import backups, config, dos_controls, mouse, pads, words
 from .input import (A, B, START, L1, R1, LEFT, RIGHT)
 from .app_common import LATER
 
@@ -371,8 +371,21 @@ class GameMixin:
         setting = (self.cfg.get("controls") or {}).get(g["id"], "auto")
         if setting not in self.CONTROLS:
             setting = "auto"
+        if dos_controls.is_dos(g):                 # a DOS game: its own keys (dos_controls.py), else the default
+            return setting, self.controls_plan(g)["eff"]
         eff = mouse.auto_mode(g.get("inputs")) if setting == "auto" else setting
         return setting, eff
+
+    def controls_plan(self, g):
+        """dos_controls.plan() for a DOS game (what the pad does), None for every other game."""
+        if not dos_controls.is_dos(g):
+            return None
+        setting = (self.cfg.get("controls") or {}).get(g["id"], "auto")
+        try:
+            return dos_controls.plan(g, setting if setting in self.CONTROLS else "auto", g.get("dosinput"))
+        except Exception:  # noqa: BLE001  - never stop a game from starting over its key table
+            log.exception("dos controls failed for %s", g.get("id"))
+            return dos_controls.plan({"title": ""}, "keys")
 
     def controls_label(self, g):
         setting, eff = self.controls_of(g)
@@ -398,7 +411,10 @@ class GameMixin:
         _, eff = self.controls_of(g)
         log.info("controls %s: %s (%s)", g["id"], nxt, eff)
         a = pads.name("A")
-        if eff in ("mouse", "keys"):       # the row shows the setting; say how the mapping works
+        plan = self.controls_plan(g)
+        if plan and plan["hints"] and eff in ("mouse", "keys"):
+            self.say("Controls: " + dos_controls.hint_text(plan["hints"], pads.name, 3))
+        elif eff in ("mouse", "keys"):       # the row shows the setting; say how the mapping works
             self.say({"mouse": "Mouse: right stick moves, R2 clicks.",
                       "keys": f"Keys: D-pad = arrows, {a} = Space."}[eff])
         else:

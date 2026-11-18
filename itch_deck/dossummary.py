@@ -35,7 +35,14 @@ def _age(entry, now):
         return "never"
 
 
-def lines(games, index, cache, app_log_text, now=None):
+def _keys(entry):
+    """What the game's own text files gave (dosinput.py): "from README.TXT (4 actions)" or "none found"."""
+    r = (entry or {}).get("result") or {}
+    return f"from {_rel(r.get('source'))} ({r.get('actions')} actions)" if r.get("map") else \
+        ("none found" if entry else "not read yet")
+
+
+def lines(games, index, cache, app_log_text, now=None, inputs=None):
     """[(full line, short line)] for every own DOS game, sorted by title."""
     now = now or dt.datetime.now().astimezone()
     plays = last_plays(app_log_text)
@@ -55,15 +62,15 @@ def lines(games, index, cache, app_log_text, now=None):
         progs = [exe] + [_rel(a) for a in info.get("alternatives") or [] if _rel(a) != exe] if exe else []
         full = (f"- {g.get('title')} | program: {exe or '-'} | programs: {', '.join(progs) or '-'} | "
                 f"setups: {', '.join(_rel(x) for x in info.get('setups') or []) or '-'} | match: {how} | "
-                f"asked {_age(entry, now)} | last play: {last}")
+                f"asked {_age(entry, now)} | keys: {_keys((inputs or {}).get(g['id']))} | last play: {last}")
         short = f"- {g.get('title')} | {exe or '-'} | {how} | {last}"
         out.append((full, short))
     return out
 
 
-def build(games, index, cache, app_log_text, now=None):
+def build(games, index, cache, app_log_text, now=None, inputs=None):
     """(the full text for dos-summary.txt, the short text for the pasted report), both cleaned."""
-    rows = lines(games, index, cache, app_log_text, now)
+    rows = lines(games, index, cache, app_log_text, now, inputs)
     if not rows:
         return "", ""
     full = "Own DOS games: %d\n" % len(rows) + "\n".join(r[0] for r in rows)

@@ -10,7 +10,7 @@ import time
 import traceback
 from pathlib import Path
 
-from . import config, pads, paths, runner, theme, words
+from . import config, dos_controls, pads, paths, runner, theme, words
 from .input import (Input, A, B, X, Y, UP, DOWN, LEFT, RIGHT, START, L1, R1)
 from .installer import Installer, slug_of
 from .library import Library
@@ -28,7 +28,7 @@ from .app_dos import DosMixin
 from .app_storage import StorageMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.29"
+VERSION = "0.9.30"
 
 
 def setup_logging():
@@ -432,6 +432,11 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
             g["controls_label"] = self.controls_label(g)
             g["controls_value"] = self.controls_value(g)    # the ⚙ menu's Controls row
             g["controls_mode"] = self.controls_of(g)[1]     # what SCRiTCH maps for this game
+            pl = self.controls_plan(g)                      # DOS games: the buttons in plain words (game page)
+            g["dos_hints"] = pl["hints"] if pl and pl["eff"] != "gamepad" else None
+            g["dos_verified"] = pl["verified"] if pl else True
+            g["dos_source"] = pl["source_text"] if pl else ""
+            g["controls_hint"] = dos_controls.hint_text(pl["hints"], pads.name, 3) if g["dos_hints"] else ""
             sc.free_mb = self._free_mb()
             st = g.get("state")
             sc.phase = g.get("phase") if st == "downloading" else \
