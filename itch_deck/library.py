@@ -69,6 +69,16 @@ _GOG_GENRES = {"Role-playing": "Role Playing", "Rpg": "Role Playing", "RPG": "Ro
                "Sports": "Sports", "Puzzle": "Puzzle", "Platformer": "Platformer"}
 
 
+def _gog_genre(genres):
+    """GOG's "genres" is a list of {"name": "Shooter", "slug": "shooter"} (a plain list of names is fine too);
+    first one in itch's words, "" when there is none."""
+    for x in genres or []:
+        n = x.get("name") if isinstance(x, dict) else x
+        if n and isinstance(n, str):
+            return _GOG_GENRES.get(n, n)
+    return ""
+
+
 def inputs_for(pad):
     """Epic / GOG have no itch "Inputs" row: the store's controller flag stands in for it, so
     Controls -> Auto works the same (True -> Pad; False -> Keys, which moves the mouse too;
@@ -635,11 +645,14 @@ class Library:
         m = self._dosart[g["id"]].get("match")
         if not m:
             return True
+        e = self._dosart[g["id"]]
         try:
             d = json.loads(self._page_file(g).read_text())
         except (OSError, ValueError):
-            return False
-        return d.get("gog_id") == m["id"] and (bool(g.get("cover_file")) or not m.get("cover"))
+            d = {}
+        text_ok = d.get("gog_id") == m["id"] or bool(e.get("text_tried"))      # a failed try counts as done
+        cover_ok = bool(g.get("cover_file")) or not m.get("cover") or bool(e.get("cover_tried"))
+        return text_ok and cover_ok
 
     def queue_dosart(self, force=False):
         """Ask GOG about every DOS game whose answer is missing, older than 30 days, or for another name.
@@ -676,31 +689,52 @@ class Library:
         if not match:
             self._dosart_forget(g)
             return
-        own = bool(g.get("cover_file")) and Path(g["cover_file"]).parent == paths.COVERS
-        if match.get("cover") and not own and not self._dosart_cover(g["id"]):
-            self._dosart_get_cover(g, match["cover"])
+        e = self._dosart[g["id"]]
+        cur = self.by_id(g["id"]) or g      # a rescan may have built a NEW entry while we worked
+        own = bool(cur.get("cover_file")) and Path(cur["cover_file"]).parent == paths.COVERS
+        if match.get("cover") and not own and not self._dosart_cover(g["id"]) and not e.get("cover_tried"):
+            try:
+                self._dosart_get_cover(g, match["cover"])
+            except Exception as err:  # noqa: BLE001  - not a picture, or the net dropped: do not retry every scan
+                log.info("dosart %s: cover failed (%s)", g["id"], err)
+            e["cover_tried"] = True
+            _write_json(self._dosart_file(), self._dosart)
+        art = self._dosart_cover(g["id"])
+        for x in (g, self.by_id(g["id"])):
+            if x and art and not x.get("cover_file"):        # also the CURRENT entry
+                x["cover_file"] = art
         try:
             d = json.loads(self._page_file(g).read_text())
         except (OSError, ValueError):
             d = {}
-        if d.get("gog_id") != match["id"]:
+        if d.get("gog_id") != match["id"] and not e.get("text_tried"):
             from .stores.gog import GogStore
             try:
-                paras, shots = GogStore().details(match["id"])
-            except net.NotFound:
-                paras, shots = [], []
-            n = self._save_shots(g, shots[:MAX_SHOTS])
-            first = (match.get("genres") or [""])[0]
-            genre = _GOG_GENRES.get(first, first)
-            _write_json(self._page_file(g), {
-                "fetched": _now().isoformat(timespec="seconds"), "description": paras, "comments": [],
-                "comment_count": 0, "shots": n, "inputs": ["Keyboard", "Mouse"],
-                "genre": [genre] if genre else [], "source": "GOG" if paras else None, "gog_id": match["id"]})
-            log.info("dosart %s: %d paras, %d shots", g["id"], len(paras), n)
-        g.pop("details_at", None)
-        self._apply_page(g)
+                try:
+                    paras, shots = GogStore().details(match["id"])
+                except net.NotFound:
+                    paras, shots = [], []
+                if match.get("fallback"):          # found without its sequel number: art yes, text no
+                    paras = []
+                n = self._save_shots(g, shots[:MAX_SHOTS])
+                genre = _gog_genre(match.get("genres"))
+                _write_json(self._page_file(g), {
+                    "fetched": _now().isoformat(timespec="seconds"), "description": paras, "comments": [],
+                    "comment_count": 0, "shots": n, "inputs": ["Keyboard", "Mouse"],
+                    "genre": [genre] if genre else [], "source": "GOG" if paras else None,
+                    "gog_id": match["id"]})
+                log.info("dosart %s: %d paras, %d shots", g["id"], len(paras), n)
+            except Exception as err:  # noqa: BLE001  - remembered: not asked again on every scan
+                log.info("dosart %s: text failed (%s)", g["id"], err)
+            e["text_tried"] = True
+            _write_json(self._dosart_file(), self._dosart)
+        for x in {id(g): g, id(self.by_id(g["id"])): self.by_id(g["id"])}.values():
+            if x:
+                x.pop("details_at", None)
+                self._apply_page(x)
 
     def _dosart_get_cover(self, g, url):
+        """Download GOG's cover into our own dosart folder. Raises when it fails or is no picture."""
         d = self._dosart_dir()
         d.mkdir(parents=True, exist_ok=True)
         ext = Path(url.split("?")[0]).suffix.lower()
@@ -709,13 +743,9 @@ class Library:
             f.write_bytes(net.get(url, timeout=20))
             import pygame as pg
             pg.image.load(str(f))                        # not a picture (an error page)? then none
-        except net.Offline:
+        except BaseException:
             f.unlink(missing_ok=True)
             raise
-        except Exception as err:  # noqa: BLE001
-            log.info("dosart %s: cover unusable (%s)", g["id"], err)
-            f.unlink(missing_ok=True)
-            return
         small = shrink_cover(f)
         if not g.get("cover_file"):
             g["cover_file"] = str(small)

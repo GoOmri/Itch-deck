@@ -380,3 +380,119 @@ def test_tall_art_is_shown_whole_not_cut(tmp_path):
     assert img.get_at((5, 125))[0] < 200           # dark blurred sides, not more red
     wide = W.cover(t, {"id": "x2", "title": "X", "store": "itch", "cover_file": str(f)}, (315, 250))
     assert wide.get_at((5, 125))[0] > 240          # other stores: filled as before
+
+
+# --- v0.9.27 fixes (reviewer + designer) -------------------------------------------------------------
+REAL_DOOM = [
+    P("101", "DOOM + DOOM II", 2024, "pack"), P("102", "DOOM", 2016), P("103", "DOOM 3", 2012, "pack"),
+    P("104", "DOOM Eternal", 2020), P("105", "DOOM 64", 2020, "pack"), P("106", "DOOM 3: Phobos", 2005),
+]
+
+
+def test_real_doom_answer_picks_the_pack_not_the_2016_game():
+    for name in ("Doom", "Doom (1993)", "Doom II", "DOOM2", "Doom_1.9_shareware"):
+        assert found(name, REAL_DOOM) == "101", name
+    assert found("Doom 3", REAL_DOOM) == "103"          # a pack that really is Doom 3
+    assert found("Doom 64", REAL_DOOM) == "105"
+
+
+def test_a_pack_must_contain_the_folders_number():
+    pack_only = [P("101", "DOOM + DOOM II", 2024, "pack")]
+    assert found("Doom 3", pack_only) is None
+    assert found("Doom 64", pack_only) is None
+    assert found("Doom", pack_only) == "101" and found("Doom II", pack_only) == "101"
+    assert found("Keen 3") == "10"                      # "Complete Pack" lists no numbers: any episode fits
+
+
+def test_a_pack_is_not_a_way_around_the_one_common_word_rule():
+    cat = [P("201", "Dave the Diver Bundle", 2023, "pack"), P("202", "Golf Classics Collection", 1995, "pack")]
+    assert found("Dave", cat) is None
+    assert found("Diver", cat) is None
+    assert found("Golf", cat) is None
+    assert found("Golf Classics", cat) == "202"          # more than one word: fine
+
+
+def test_genres_in_the_real_shape_and_missing():
+    prod = dict(P("1", "DOOM (1993)", 1993), genres=[{"name": "Shooter", "slug": "shooter"}])
+    assert dosart.summary(prod)["genres"] == ["Shooter"]
+    assert library._gog_genre(["Role-playing"]) == "Role Playing"
+    assert library._gog_genre(None) == "" and library._gog_genre([{"slug": "x"}]) == ""
+    assert dosart.summary(P("1", "X", 1990))["genres"] == []
+
+
+def test_a_rescan_during_the_cover_download_still_gets_the_cover(tmp_path, monkeypatch):
+    no_sleep(monkeypatch)
+    st = Net(monkeypatch, tmp_path)
+    lib, e = lib_with(tmp_path)
+    real_get = st.get
+
+    def get_and_rescan(url, key=None, timeout=20, **k):
+        if "_v.jpg" in url:
+            lib.set_dos_games([e])                       # a scan builds NEW entries in the middle of the download
+        return real_get(url, key, timeout, **k)
+    monkeypatch.setattr(net, "get", get_and_rescan)
+    run_jobs(lib)
+    assert lib.by_id(e["id"])["cover_file"]
+
+
+def test_a_broken_cover_or_text_is_tried_once_not_on_every_scan(tmp_path, monkeypatch):
+    no_sleep(monkeypatch)
+    st = Net(monkeypatch, tmp_path)
+    st.pic = b"not a picture"
+    real = st.get_json
+
+    def get_json(url, key=None, timeout=20):
+        if url.startswith("https://api.gog.com/"):
+            st.calls.append(url)
+            raise net.Offline("HTTP 500")
+        return real(url, key, timeout)
+    monkeypatch.setattr(net, "get_json", get_json)
+    lib, e = lib_with(tmp_path)
+    run_jobs(lib)
+    n = len(st.calls)
+    assert n >= 3                                        # catalog, cover, text
+    for _ in range(3):
+        lib.set_dos_games([e])
+        run_jobs(lib)
+    assert len(st.calls) == n                            # done for 30 days, however it ended
+    lib2 = library.Library(None)                         # also after a restart
+    lib2.set_dos_games([e])
+    run_jobs(lib2)
+    assert len(st.calls) == n
+
+
+def test_the_title_is_always_the_folders_and_a_number_less_match_gives_art_only(tmp_path, monkeypatch):
+    no_sleep(monkeypatch)
+    cat = [P("301", "Wing Commander", 1990)]
+    m = dosart.find("Wing Commander 3", fake_fetch(cat))
+    assert m and m["fallback"] is True                   # found without its number
+    assert "fallback" not in dosart.find("Doom", fake_fetch(CATALOG))
+    Net(monkeypatch, tmp_path, cat)
+    lib, e = lib_with(tmp_path, "Wing Commander 3")
+    run_jobs(lib)
+    g = lib.by_id(e["id"])
+    assert g["title"] == "Wing Commander 3"              # never GOG's title
+    assert g["cover_file"] and not g["description"] and g["screens"] == 1    # art yes, GOG's text no
+    assert g.get("details_from") != "GOG"
+    lib2, e2 = lib_with(tmp_path / "b", "Keen 1")        # an ordinary match: the title stays the folder's too
+    run_jobs(lib2)
+    assert lib2.by_id(e2["id"])["title"] == "Keen 1"
+
+
+def test_title_card_long_names_stay_inside_the_tile():
+    pg.init()
+    pg.display.set_mode((64, 64))
+    from itch_deck import theme
+    from itch_deck.ui import widgets as W
+    t = theme.Theme(pg, (1280, 800))
+    size = (315, 250)
+    for title in ("W" * 60, " ".join(f"Word{i}" for i in range(20))):
+        img = W.title_card(t, {"id": "c" + title[:3], "title": title, "store": "dos"}, size)
+        assert img.get_size() == size
+        # nothing drawn (white text) in the outer 10 % on the left and right
+        for x in list(range(0, 31)) + list(range(285, 315)):
+            for y in range(0, 250, 5):
+                assert img.get_at((x, y))[:3] != (255, 255, 255), (title[:10], x, y)
+    f = t.font("Bold", max(12, int(t.u * 2.4)))
+    lines = W.wrap_lines(f, " ".join(f"Word{i}" for i in range(20)), int(size[0] * 0.8))
+    assert len(lines) > 5                                # so the card had to cut with an ellipsis

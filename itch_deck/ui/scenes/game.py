@@ -353,8 +353,9 @@ class Game(Scene):
                    "No more details for this game.")
             y = W.text(t, s, msg, t.m, y, t.f_body, color=t.dim).bottom
         elif not n and g.get("store") == "dos":
-            y = W.text(t, s, "A DOS game from your own folder. Put a cover.png in its folder to give it artwork.",
-                       t.m, y, t.f_body, color=t.dim).bottom
+            msg = ("A DOS game from your own folder." if g.get("cover_file") else      # it has art already
+                   "A DOS game from your own folder. Put a cover.png in its folder to give it artwork.")
+            y = W.text(t, s, msg, t.m, y, t.f_body, color=t.dim).bottom
         elif not n:
             msg = ("This game's itch.io page no longer exists." if g.get("page_missing") else
                    "Loading details…" if g.get("details_loading") or not self.offline

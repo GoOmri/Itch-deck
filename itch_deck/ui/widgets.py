@@ -328,15 +328,19 @@ def title_card(t, game, size):
         pg.draw.line(img, mix(top, bot, y / max(1, h - 1)), (0, y), (w, y))
     maxw = int(w * 0.80)
     title = " ".join(str(game["title"]).split()) or " "
-    px, lines = max(10, int(h * 0.15)), []
+    lo = max(12, int(t.u * 2.4))                  # never smaller than the theme's meta text: readable on a TV
+    px = max(lo, int(h * 0.15))
     while True:
         f = t.font("Bold", px)
         lines = wrap_lines(f, title, maxw)
-        fits = all(f.size(ln)[0] <= maxw for ln in lines) and len(lines) * f.get_linesize() <= h * 0.62
-        if fits or px <= 10:
+        room = max(1, int(h * 0.62 // f.get_linesize()))
+        if (len(lines) <= room and all(f.size(ln)[0] <= maxw for ln in lines)) or px <= lo:
             break
         px -= 2
-    lines = lines[:5]
+    if len(lines) > room:                         # too much text: the last shown line ends with an ellipsis
+        lines = lines[:room]
+        lines[-1] = lines[-1] + " …"
+    lines = [fit(f, ln, maxw) for ln in lines]    # one very long word is cut too, nothing runs past the tile
     lh = f.get_linesize()
     y = (h - lh * len(lines)) // 2
     bar = pg.Rect(0, 0, max(8, int(w * 0.16)), max(2, h // 60))

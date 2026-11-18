@@ -133,7 +133,12 @@ def _title_score(qbw, cp, pack):
     if not q or not c:
         return 0
     if pack:
-        return 66 if set(q) <= set(c) else 0
+        if not set(q) <= set(c):
+            return 0
+        core = {w for w in c if w not in PACK_WORDS and w != "and"}
+        if len(q) < 2 and core != set(q):          # one common word ("Dave") in a bigger title ("Dave the Diver
+            return 40                              # Bundle", "Golf Classics Collection"): too weak, same as singles
+        return 66
     if q == c:
         return 100
     if c[:len(q)] == q:
@@ -143,6 +148,19 @@ def _title_score(qbw, cp, pack):
     if set(q) <= set(c):
         return 62 if len(q) >= 2 else 40       # one common word ("Dave") is too weak on its own
     return 0
+
+
+def pack_has(cp, n):
+    """Does a pack with this title contain sequel number n? "Commander Keen Complete Pack" (no numbers): any.
+    "DOOM + DOOM II": 1 and 2 (a base name that shows twice also stands for number 1). "DOOM 3": only 3.
+    Several numbers: everything between the smallest and the biggest ("Keen 4 - 6")."""
+    nums = {int(w) if w.isdigit() else ROMAN[w] for i, w in enumerate(cp["words"])
+            if i and ((w.isdigit() and len(w) <= 2) or w in ROMAN)}
+    if not nums:
+        return True
+    if len(cp["bw"]) > len(set(cp["bw"])):
+        nums.add(1)
+    return min(nums) <= n <= max(nums)
 
 
 def _score(q, prod, relaxed):
@@ -155,6 +173,8 @@ def _score(q, prod, relaxed):
     qnum = None if relaxed else q["num"]
     if not pack and (qnum or 1) != (cp["num"] or 1):   # a pack holds every episode; a single product must fit
         return None                                    # (no number = number 1: Doom is not Doom II)
+    if pack and not pack_has(cp, qnum or 1):           # Doom 3 / Doom 64 are not inside "DOOM + DOOM II"
+        return None
     best = max(_title_score(q["bw"], cp, pack),
                _title_score(q["bmain"], cp, pack) - 3 if q["bmain"] != q["bw"] else 0,
                _title_score(q["bhead"], cp, pack) - 3 if q["bhead"] != q["bw"] else 0)
@@ -170,7 +190,7 @@ def _score(q, prod, relaxed):
         elif d == 1:
             best += 12
         elif not pack:                             # a pack's date is the pack's, not the game's
-            best -= 25
+            best -= 45                             # a game more than a year off its year loses to a pack
     if (prod.get("productType") or "game").lower() == "game":
         best += 4                                  # a single game beats a pack
     return best
@@ -189,6 +209,11 @@ def choose(name, products, relaxed=False):
             continue
         # equal scores: the original (earlier) release first, then the lower id
         ranked.append((-sc, year_of(prod) or 9999, str(prod.get("id")), prod, sc))
+    if any(is_pack(r[3], parse(str(r[3].get("title")), False)) for r in ranked):
+        # A DOS folder is not a 2000s remake: when a pack fits, a single game released in 2000 or later is
+        # out (searching "doom" gives "DOOM (2016)" and the pack "DOOM + DOOM II" that holds the 1993 game).
+        ranked = [r for r in ranked if (year_of(r[3]) or 0) < 2000
+                  or is_pack(r[3], parse(str(r[3].get("title")), False))]
     if not ranked:
         return None
     ranked.sort(key=lambda r: r[:3])
@@ -252,6 +277,8 @@ def find(name, fetch):
             if isinstance(x, dict) and x.get("id") is not None:
                 seen.setdefault(str(x["id"]), x)
         hit = choose(p, list(seen.values()), relaxed=True)
-        if hit:
-            return summary(hit["prod"], hit["score"])
+        if hit:                                    # Omri 18 Nov: wrong art is OK here, but only the ART is used
+            m = summary(hit["prod"], hit["score"])     # (GOG's text would describe another game)
+            m["fallback"] = True
+            return m
     return None
