@@ -175,8 +175,8 @@ class PlayMixin:
         if len(self.inst.program_choices(g["id"])) > 1:
             self.confirm("That program closed straight away.", [msg], "Program to run",
                          lambda: self._program_picker(g["id"]), main=True)
-        else:
-            self.say("That program closed straight away. " + msg, error=True)
+        else:                                      # one program: Options has no Program to run row
+            self.say("That program closed straight away.", error=True)
 
     def _get_dosbox(self, g):
         """First DOS game: install DOSBox Staging (Flathub, once) while a splash says so."""

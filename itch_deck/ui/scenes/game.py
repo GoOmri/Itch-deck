@@ -94,7 +94,7 @@ class Game(Scene):
         if g.get("store") == "dos":                    # your own DOS game: files are never deleted
             if st == "installed":
                 return ["Remove from library", "Controls"] + (
-                    ["Program to run"] if g.get("programs", 1) > 1 else []) + ["Stay open when the game ends"]
+                    ["Program to run"] if g.get("programs", 1) > 1 else []) + ["Keep window open after the game"]
             return ["Remove from library"] if st == "missing" else []
         epic = g.get("store") == "epic" or (       # one build: no Change build. GOG: only when it
             g.get("store") == "gog" and not {"linux", "windows"} <= set(g["platforms"]))  # has both
@@ -112,8 +112,8 @@ class Game(Scene):
         """☰ / ⚙ Options. Controls shows its setting (◀ ▶ change it, like Sort & filter)."""
         if self.options():
             rows = [(o, self.g.get("controls_value", "") if o == "Controls" else
-                     self.g.get("stay_value", "Off") if o == "Stay open when the game ends" else "",
-                     "To read an error message" if o == "Stay open when the game ends" else "")
+                     self.g.get("stay_value", "Off") if o == "Keep window open after the game" else "",
+                     "Helps you read an error message" if o == "Keep window open after the game" else "")
                     for o in self.options()]
             self.overlay = ("menu", "Options", "", rows, max(0, min(focus, len(rows) - 1)))
 

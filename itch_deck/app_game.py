@@ -12,7 +12,7 @@ log = logging.getLogger("scritch")
 
 
 def t_id_in(cfg, gid):
-    """Is "Stay open when the game ends" switched on for this game (config "dos_stay_open", a list of ids)?"""
+    """Is "Keep window open after the game" switched on for this game (config "dos_stay_open", a list of ids)?"""
     return gid in (cfg.get("dos_stay_open") or [])
 
 
@@ -24,8 +24,8 @@ class GameMixin:
         if sc.overlay and sc.overlay[0] == "picker" and act == A:
             self._pick(sc)
             return
-        if sc.overlay and sc.overlay[0] == "menu" and act in (LEFT, RIGHT) and                 sc.overlay[3][sc.overlay[4]][0] == "Stay open when the game ends":    # left / right switch it like A
-            self.game_action(sc.g, "Stay open when the game ends")
+        if sc.overlay and sc.overlay[0] == "menu" and act in (LEFT, RIGHT) and                 sc.overlay[3][sc.overlay[4]][0] == "Keep window open after the game":    # left / right switch it like A
+            self.game_action(sc.g, "Keep window open after the game")
             return
         if sc.overlay and sc.overlay[0] == "menu" and act in (A, LEFT, RIGHT) and \
                 sc.overlay[3][sc.overlay[4]][0] == "Controls":           # ◀ ▶ like Sort & filter
@@ -96,7 +96,7 @@ class GameMixin:
                          "Remove", lambda: self._remove_dos(g), main=True)
         elif label == "Program to run":
             self._program_picker(gid)
-        elif label == "Stay open when the game ends":
+        elif label == "Keep window open after the game":
             ids = [i for i in (self.cfg.get("dos_stay_open") or []) if i != gid]
             if not t_id_in(self.cfg, gid):
                 ids.append(gid)

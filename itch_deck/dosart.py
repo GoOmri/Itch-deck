@@ -14,7 +14,7 @@ MIN_SCORE = 60                 # below this a match is too weak: no match at all
 ALGO = 3                       # bump when the matching changes: old "no match" answers are asked again
 
 TEXT_VER = 3                   # bump when the text cutting changes: saved texts are fetched and cut again once
-EPISODE_WORDS = {"episode", "ep", "chapter", "part"}
+EPISODE_WORDS = {"episode", "ep"}          # "Part II" / "Chapter 2" stay sequel numbers
 # shorthand folder names -> what the stores call the game (obvious ones only)
 ALIASES = {("dave",): ["dangerous", "dave"], ("wolf3d",): ["wolfenstein", "3d"],
            ("duke3d",): ["duke", "nukem", "3d"], ("keen",): ["commander", "keen"]}
@@ -426,41 +426,61 @@ def find(name, fetch):
 
 
 # --- Steam as a second source -------------------------------------------------------------------
-STEAM_NOT_THE_GAME = {"soundtrack", "dlc", "demo", "ost", "artbook", "wallpaper", "expansion", "upgrade"}
-STEAM_HEADER = "https://cdn.akamai.steamstatic.com/steam/apps/{id}/header.jpg"
+STEAM_SKIP_WORDS = {"soundtrack", "ost", "dlc", "demo", "artbook", "wallpaper", "expansion", "upgrade", "playtest",
+                    "beta"}
+STEAM_SKIP_PHRASES = ("sound track", "original sound", "season pass", "art book", "dedicated server",
+                      "expansion pass", "bundle of soundtracks")
+STEAM_HEADER = "https://cdn.akamai.steamstatic.com/steam/apps/{id}/header.jpg"     # only when details has none
+YEAR_OFF = 1                                   # a Steam year more than this far from the folder's: art only
+
+
+class SteamUnavailable(Exception):
+    """Steam did not answer (offline, HTTP 429...) and GOG had nothing: do not cache "no match", ask again later."""
+
+
+def _steam_skip(name):
+    norm = " " + " ".join(re.sub(r"[^a-z0-9]+", " ", str(name).lower()).split()) + " "
+    return any(f" {w} " in norm for w in STEAM_SKIP_WORDS) or any(f" {ph} " in norm for ph in STEAM_SKIP_PHRASES)
 
 
 def steam_choose(p, items):
-    """Best Steam search result for the folder name p, or None. Strong matches only: the same title, or the
-    folder title followed by a ":" / " - " subtitle ("Raptor" = "Raptor: Call of the Shadows"). The year is
-    ignored (remasters); a numbered folder never matches another number."""
-    best = None
+    """Best Steam search result for the folder name p as (score, item), or None. Strong matches only: the same
+    title, or the folder title followed by a ":" / " - " subtitle ("Raptor" = "Raptor: Call of the Shadows"). The
+    year is ignored here; a numbered folder never matches another number. Like GOG's rule, two different games
+    that fit are no match: a subtitle match needs exactly ONE such item ("Dune" has Awakening AND Spice Wars)."""
     q = _lead(p["bw"])
     if not q:
         return None
+    exact, sub, seen = [], [], set()
     for it in items or []:
-        if not isinstance(it, dict) or it.get("id") is None or (it.get("type") or "app") != "app":
+        if not isinstance(it, dict) or it.get("id") is None or (it.get("type") or "app") != "app" \
+                or str(it["id"]) in seen:
             continue
         cp = parse(str(it.get("name") or ""), noise=False)
-        if not cp["words"] or STEAM_NOT_THE_GAME & set(cp["words"]):
+        if not cp["words"] or _steam_skip(it.get("name")):
             continue
         if (p["num"] or 1) != (cp["num"] or 1):
             continue
         c = _lead(cp["bw"])
         if q == c:
-            sc = 100
+            exact.append(it)
         elif c[:len(q)] == q and q == _lead(cp["bmain"]):
-            sc = 85
+            sub.append(it)
         else:
             continue
-        if best is None or sc > best[0]:
-            best = (sc, it)
-    return best
+        seen.add(str(it["id"]))
+    if exact:
+        return (100, exact[0]) if len(exact) == 1 else None
+    if len(sub) == 1:
+        return (85, sub[0])
+    return None
 
 
-def find_steam(name, search):
-    """Same folder name on Steam. search(term) -> the "items" list of Steam's store search. Returns a summary
-    (source "steam", the wide header picture as cover) or None. Errors (Offline) are not caught."""
+def find_steam(name, search, details=None):
+    """Same folder name on Steam. search(term) -> the "items" list of Steam's store search; details(appid) ->
+    steam.details() (release year, the real header image). Returns a summary (source "steam") or None. When the
+    folder has a year and Steam's is more than a year off (a remake), the match is "fallback": art only.
+    Errors (Offline) are not caught."""
     p = parse(name)
     if not p["words"]:
         return None
@@ -475,21 +495,41 @@ def find_steam(name, search):
             hit = steam_choose(cp, seen)
             if hit:
                 it = hit[1]
-                return {"id": str(it["id"]), "title": str(it.get("name") or ""), "slug": "", "year": None,
-                        "type": "game", "cover": STEAM_HEADER.format(id=it["id"]), "cover_tall": None,
-                        "genres": [], "score": hit[0], "source": "steam"}
+                info = (details(it["id"]) if details else None) or {}
+                m = {"id": str(it["id"]), "title": str(it.get("name") or ""), "slug": "", "year": info.get("year"),
+                     "type": "game", "cover": info.get("header") or STEAM_HEADER.format(id=it["id"]),
+                     "cover_tall": None, "genres": [], "score": hit[0], "source": "steam"}
+                if cp["year"] and info.get("year") and abs(info["year"] - cp["year"]) > YEAR_OFF:
+                    m["fallback"] = True           # a remake or a later game of that name: art only, no text
+                return m
     return None
 
 
-def find_any(name, fetch_gog, search_steam):
+STEAM_STATE = {"down": False}                  # set after a 429 / offline answer: no more Steam calls this run
+
+
+def find_any(name, fetch_gog, search_steam, details_steam=None):
     """GOG first; a number-dropped GOG match (art only) loses to a strong Steam match; no GOG match: Steam.
-    Result carries "source": "gog" or "steam"."""
+    Result carries "source": "gog" or "steam". A Steam failure never throws away a GOG result; with no GOG result
+    it raises SteamUnavailable (nothing is cached, asked again on the next start)."""
     m = find(name, fetch_gog)
     if m and not m.get("fallback"):
         m["source"] = "gog"
         return m
-    st = find_steam(name, search_steam) if search_steam else None
-    if st:
+    st = None
+    if search_steam:
+        if STEAM_STATE["down"]:
+            if m is None:
+                raise SteamUnavailable("Steam not answering")
+        else:
+            try:
+                st = find_steam(name, search_steam, details_steam)
+            except Exception as e:  # noqa: BLE001
+                if type(e).__name__ == "Offline" or "429" in str(e):
+                    STEAM_STATE["down"] = True
+                if m is None:
+                    raise SteamUnavailable(str(e)) from None
+    if st and not (st.get("fallback") and m):      # a Steam art-only match does not beat a GOG art-only one
         return st
     if m:
         m["source"] = "gog"

@@ -30,7 +30,7 @@ def test_a_long_list_shows_chevrons_and_a_bar_and_a_short_one_does_not():
         s = pg.Surface(size)
         s.fill((0, 0, 0))
         r = W.menu(t, s, "Choose the program", "Pick one.", items, 12)
-        cx = r.right - t.u
+        cx = r.right - int(t.u * 1.5)
         strip = [s.get_at((cx, y))[:3] for y in range(r.y, r.bottom)]
         assert strip.count(t.dim) > 10 and t.line in strip              # thumb (dim) and track (line)
         W.forget_menu("Short")
@@ -106,14 +106,14 @@ def test_the_options_row_toggles_in_the_config_and_play_uses_it(tmp_path, monkey
     monkeypatch.setattr("itch_deck.config.save", lambda cfg: None)
     a.go_game(g)
     a.open_options(a.scene)
-    row = next(r for r in a.scene.overlay[3] if r[0] == "Stay open when the game ends")
-    assert row[1] == "Off" and row[2] == "To read an error message"
-    a.game_action(g, "Stay open when the game ends")
+    row = next(r for r in a.scene.overlay[3] if r[0] == "Keep window open after the game")
+    assert row[1] == "Off" and row[2] == "Helps you read an error message"
+    a.game_action(g, "Keep window open after the game")
     assert a.cfg["dos_stay_open"] == [g["id"]]
-    assert next(r for r in a.scene.overlay[3] if r[0].startswith("Stay open"))[1] == "On"
+    assert next(r for r in a.scene.overlay[3] if r[0].startswith("Keep window"))[1] == "On"
     a.play(g)
     assert "exit" not in seen[-1]
-    a.game_action(g, "Stay open when the game ends")
+    a.game_action(g, "Keep window open after the game")
     assert a.cfg["dos_stay_open"] == []
     a.go_game(g)
     a.play(g)

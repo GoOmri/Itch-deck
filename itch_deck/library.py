@@ -75,10 +75,7 @@ def dosart_key(m):
     return f"{m.get('source') or 'gog'}:{m['id']}"
 
 
-def _steam_search(term):
-    from urllib.parse import quote
-    from .stores import steam
-    return (net.get_json(steam.SEARCH.format(q=quote(term)), timeout=20) or {}).get("items") or []
+NET_PAUSE_S = 1.5            # between two GOG (or two Steam) questions of the art jobs: no burst for 20 games
 
 
 def _gog_genre(genres):
@@ -157,6 +154,8 @@ class Library:
         self._q = queue.PriorityQueue()
         self._seq = itertools.count()
         self._dosart_force = set()
+        self._dosart_later = set()      # asked this run, Steam was down: not again until the next start
+        self._paced_at = {}
         self._queued = set()
         self._worker = None
         self.installs, self.live = {}, {}   # set by Installer: install index, in-progress fields
@@ -638,6 +637,25 @@ class Library:
             return str(f)
         return None
 
+    def _paced(self, host, fn, *a, **k):
+        """Call fn after at least NET_PAUSE_S since the last call to the same host."""
+        wait = NET_PAUSE_S - (time.monotonic() - self._paced_at.get(host, -1e9))
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            return fn(*a, **k)
+        finally:
+            self._paced_at[host] = time.monotonic()
+
+    def _steam_search(self, term):
+        from urllib.parse import quote
+        from .stores import steam
+        return (self._paced("steam", net.get_json, steam.SEARCH.format(q=quote(term)), timeout=20) or {}).get("items") or []
+
+    def _steam_details(self, appid):
+        from .stores import steam
+        return self._paced("steam", steam.details, appid)
+
     @staticmethod
     def _dosart_name(g):
         """What GOG is asked and what the cache key follows: the CLEAN title with the year of the folder name
@@ -678,7 +696,7 @@ class Library:
         """Ask GOG about every DOS game whose answer is missing, older than 30 days, or for another name.
         force (the Refresh box): ask again, but a game asked within the last day is left alone."""
         for g in self.games:
-            if g.get("store") != "dos" or g.get("hidden"):
+            if g.get("store") != "dos" or g.get("hidden") or g["id"] in self._dosart_later:
                 continue
             if force and self._dosart_fresh(g):
                 age = self._dosart_age(self._dosart[g["id"]])
@@ -697,7 +715,13 @@ class Library:
         if self._dosart_fresh(g) and not force:
             match = e.get("match")
         else:
-            match = dosart.find_any(self._dosart_name(g), lambda u: net.get_json(u, timeout=20), _steam_search)
+            try:
+                match = dosart.find_any(self._dosart_name(g), lambda u: self._paced("gog", net.get_json, u, timeout=20),
+                                        self._steam_search, self._steam_details)
+            except dosart.SteamUnavailable as err:     # GOG had nothing and Steam did not answer: ask again next start
+                log.info("dosart %s: Steam not answering (%s), later", g["id"], err)
+                self._dosart_later.add(g["id"])
+                return
             prev = (e or {}).get("match")
             if prev and (not match or dosart_key(prev) != dosart_key(match)):
                 self._dosart_forget(g)                 # another game now: the old art and text go

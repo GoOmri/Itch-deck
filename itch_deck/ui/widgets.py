@@ -1281,7 +1281,7 @@ def menu(t, s, title, sub, items, focus, arrows=False):
          items[first:first + show], focus - first, row_h, key=("menu", title), arrows=arrows)
     if n > show:                                            # a long list: chevrons + a thin bar show there is more
         top, bottom = r.y + pad + head, r.y + pad + head + show * step - t.u // 2
-        cx, ch = r.right - t.u, max(4, int(t.u * 0.7))
+        cx, ch = r.right - int(t.u * 1.5), max(4, int(t.u * 0.7))
         for up, y, on in ((True, top + ch, first > 0), (False, bottom - ch, first + show < n)):
             if on:
                 d = -1 if up else 1

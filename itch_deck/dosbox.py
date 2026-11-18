@@ -171,7 +171,7 @@ def launch_own(info, base_cmd, once=None, stay=False):
     cmds += [f"cd {p}" for p in parts[:-1]]
     if parts:
         cmds.append(parts[-1])
-    if not stay:                                   # "Stay open when the game ends": DOSBox stays at the prompt to read
+    if not stay:                                   # "Keep window open after the game": DOSBox stays at the prompt to read
         cmds.append("exit")                        # what the program printed (leave with the View + Menu shortcut)
     args = [x for c in cmds for x in ("-c", c)]
     log.info("dosbox: own game %s: %s", folder.name, cmds)
