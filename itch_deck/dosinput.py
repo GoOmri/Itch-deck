@@ -25,24 +25,36 @@ MAX_DEPTH = 2
 MAX_LINES = 8000
 MIN_CONF = 0.5                      # a hit below this is ignored
 LAYOUT_CONF = 0.6                   # a role counts toward "found a layout" at this confidence
-MIN_ROLES = 2                       # distinct actions needed for a layout from the files
+MIN_ROLES = 2                       # distinct REAL game actions needed for a layout from the files
+MAX_FILES = 40                      # candidate text files looked at (slow SD cards): the most readme-like first
+SNIFF = 4096                        # bytes read first to decide text or binary
+REAL_ROLES = ("fire", "jump", "use", "pogo", "run", "strafe", "weapon_next", "weapon_prev", "crouch")
 DOC_EXT = (".txt", ".doc", ".1st", ".nfo", ".me", ".man", ".hlp", ".inf", ".asc")
 DOC_START = ("readme", "read.me", "manual", "help", "instruct", "controls", "keys", "howto", "how2", "guide", "info")
 SKIP_EXT = (".exe", ".com", ".bat", ".dll", ".bin", ".dat", ".zip", ".arj", ".lzh", ".gif", ".pcx", ".bmp", ".wav",
             ".voc", ".mid", ".mod", ".cfg", ".ovl", ".gfx", ".snd", ".tmp", ".sav", ".grp", ".wad", ".pak")
 
 # --- reading ---------------------------------------------------------------------------------------------------
+RANK_WORDS = ("readme", "manual", "control", "keys", "help", "instruct")      # most likely first
+
+
 def find_docs(folder):
     """Text files in the game folder (depth <= 2), the most likely ones first. Read-only."""
     folder = Path(folder)
     found = []
     try:
         for dirpath, dirs, files in os.walk(folder, followlinks=False):
-            depth = len(Path(dirpath).relative_to(folder).parts)
+            rel_dir = Path(dirpath).relative_to(folder)
+            depth = len(rel_dir.parts)
             if depth >= MAX_DEPTH:
                 dirs[:] = []
+            dirs[:] = [d for d in dirs if "dosbox" not in d.lower()]        # DOSBox's own manual is not the game's
+            if "dosbox" in str(rel_dir).lower():
+                continue
             for f in files:
                 low = f.lower()
+                if "dosbox" in low:
+                    continue
                 ext = os.path.splitext(low)[1]
                 if ext in SKIP_EXT:
                     continue
@@ -54,12 +66,12 @@ def find_docs(folder):
                         st = p.stat()
                     except OSError:
                         continue
-                    best = low.startswith(DOC_START) or any(w in low for w in ("readme", "manual", "control", "keys"))
-                    found.append((0 if best else 1, depth, low, p, st.st_size, int(st.st_mtime)))
+                    rank = next((i for i, w in enumerate(RANK_WORDS) if w in low), len(RANK_WORDS))
+                    found.append((rank, depth, low, p, st.st_size, int(st.st_mtime)))
     except OSError:
         pass
     found.sort(key=lambda r: r[:3])
-    return [(r[3], r[4], r[5]) for r in found]
+    return [(r[3], r[4], r[5]) for r in found[:MAX_FILES]]
 
 
 def signature(folder):
@@ -68,18 +80,26 @@ def signature(folder):
     return hashlib.sha1("\n".join(parts).encode("utf-8", "replace")).hexdigest()[:16]
 
 
-def read_text(path, cap=MAX_FILE):
+def read_text(path, cap=MAX_FILE, counter=None):
     """The file as ASCII-ish text (box drawing and other high characters become spaces), or None when it is not
-    plain text. cp437 first (DOS), which also reads latin-1 files well enough for key words."""
+    plain text. Only the first SNIFF bytes are read to decide text or binary; the rest only for text. Every byte
+    read is added to counter[0] (the scan's 1 MB budget), binary files included. cp437 first (DOS)."""
     try:
         with open(path, "rb") as f:
-            data = f.read(cap)
+            data = f.read(SNIFF)
+            if counter is not None:
+                counter[0] += len(data)
+            if not data or b"\x00" in data:
+                return None
+            ctrl = sum(1 for b in data if b < 32 and b not in (9, 10, 13, 12, 26, 27) or b == 127)
+            if ctrl > 0.05 * len(data):
+                return None
+            if len(data) == SNIFF and cap > SNIFF:
+                more = f.read(cap - SNIFF)
+                if counter is not None:
+                    counter[0] += len(more)
+                data += more
     except OSError:
-        return None
-    if not data or b"\x00" in data[:4096]:
-        return None
-    ctrl = sum(1 for b in data[:20000] if b < 32 and b not in (9, 10, 13, 12, 26, 27) or b == 127)
-    if ctrl > 0.05 * min(len(data), 20000):
         return None
     try:
         text = data.decode("cp437")
@@ -96,7 +116,8 @@ _KEYTOK = rf"(?:{_NAMED}|[A-Za-z0-9])"
 _SEP = r"(?:=>|->|=|:|\.{2,}|--|-|–|—)"
 _NOT_CONTROLS = re.compile(r"(?i)\b(cheat|code|god ?mode|invincib|iddqd|idkfa|password|any key|install|setup|registration|"
                            r"order|price|copy|diskette|floppy|memory|ram\b|sound ?blaster|config|modem|"
-                           r"save game|load game|type)\b")
+                           r"save game|load game|type)\b|"
+                           r"dosbox|emulat|full ?screen|keymapper|\bcycles\b|alt[- +]?enter|alt[- +]?pause|ctrl[- +]?f\d")
 CLAUSE_SPLIT = re.compile(r"\s*[,;|]\s*|\s+and\s+")
 
 
@@ -221,14 +242,19 @@ BUTTON_ORDER = ("a", "b", "x", "y", "l1", "r1", "l2", "r2", "start", "back")
 
 
 def to_layout(hits, wasd=False):
-    """Roles -> buttons by the fixed priority. Returns {"map", "hints", "wasd", "actions", "layout"} or None when
-    fewer than MIN_ROLES distinct actions were found with decent confidence."""
+    """The buttons the game's own text names, as an OVERLAY for dos_controls.plan: {"map": {button: key}, "roles":
+    {button: role}, "hints", "wasd", "actions", "layout"}, or None when fewer than MIN_ROLES REAL game actions (fire,
+    jump, use, pogo, run, strafe, weapon, crouch) were found. Menu, pause, quit and confirm keys are never taken from
+    a text: Esc always stays on Start. Roles go to buttons by a fixed priority."""
     best = {}
     for role, key, conf in hits:
+        if role in ("menu", "confirm"):
+            continue
         if role not in best or conf > best[role][1]:
             best[role] = (key, conf)
     good = {r: v for r, v in best.items() if v[1] >= LAYOUT_CONF}
-    if len(good) < MIN_ROLES:
+    real = [r for r in good if r in REAL_ROLES]
+    if len(real) < MIN_ROLES:
         return None
     if "fire" not in good and "jump" in good:        # no fire: jump takes A
         order = ("jump",) + tuple(r for r in ROLE_ORDER if r != "jump")
@@ -242,20 +268,17 @@ def to_layout(hits, wasd=False):
         if role == "jump" and "fire" not in good:
             prefs = ("a", "b", "x")
         for b in prefs:
-            if b not in used:
+            if b not in used and b not in ("start", "y"):       # Start stays Esc, Y stays Enter
                 used.add(b)
                 bmap[b] = good[role][0]
                 roles[b] = role
                 break
-    if "start" not in bmap:
-        bmap["start"], roles["start"] = "esc", "menu"          # a menu button always
-    if "y" not in bmap:
-        bmap["y"], roles["y"] = "enter", "confirm"
     hints = [[b.upper(), WORDS[roles[b]]] for b in BUTTON_ORDER if b in bmap]
     if wasd:
         bmap.update({"up": "w", "left": "a", "down": "s", "right": "d"})
         hints.insert(0, ["DPAD", "Move (W A S D)"])
-    return {"map": bmap, "hints": hints, "wasd": bool(wasd), "actions": len(good), "layout": "keys"}
+    return {"map": bmap, "roles": roles, "hints": hints, "wasd": bool(wasd), "actions": len(real),
+            "layout": "keys+mouse"}
 
 
 def scan(folder):
@@ -265,19 +288,19 @@ def scan(folder):
     out = {"sig": ""}
     try:
         out["sig"] = signature(folder)
-        total, per_file = 0, []
+        read, per_file = [0], []
         alltext = []
         for p, size, _mt in find_docs(folder):
-            if total >= MAX_TOTAL:
+            if read[0] >= MAX_TOTAL:
                 break
-            text = read_text(p)
+            text = read_text(p, counter=read)
             if text is None:
                 continue
-            total += min(size, MAX_FILE)
             hits = extract(text)
             if hits:
                 per_file.append((len({h[0] for h in hits}), p.name, hits))
             alltext.append(text)
+        out["read"] = read[0]
         if not per_file:
             return out
         merged = [h for _n, _name, hs in per_file for h in hs]

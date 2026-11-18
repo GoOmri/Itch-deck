@@ -403,6 +403,14 @@ def _shots(t, version):
             "menu", "Options", "", [("Remove from library", "", ""), ("Controls", "Auto \u00b7 Keys", ""),
                                     ("Program to run", "", ""),
                                     ("Keep window open after the game", "Off", "Helps you read an error message")], 3))),
+        ("15zl_game_dos_options_controls", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed",
+                                                    dos=True, programs=2, author="", platforms={"linux"},
+                                                    controls_value="Auto · Keys"), pos=(1, 3)), (
+            "menu", "Options", "", [("Remove from library", "", ""),
+                                    ("Controls", "Auto · Keys", "A Fire  ·  B Open doors  ·  X Run"),
+                                    ("Program to run", "", ""),
+                                    ("Keep window open after the game", "Off", "Helps you read an error message")],
+            1))),
         ("15zf_game_dos_closed_at_once", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed",
                                                                    dos=True, programs=2, author="",
                                                                    platforms={"linux"}), pos=(1, 3)), (

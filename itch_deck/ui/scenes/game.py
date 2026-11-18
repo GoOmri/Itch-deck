@@ -382,21 +382,20 @@ class Game(Scene):
         y = W.text(t, s, "Controls", t.m, y + t.lg, t.f_h2).bottom + t.sm
         lh, colw = int(t.u * 3.8), (t.w - 2 * t.m) // 2
         words = {"DPAD": "D-pad", "RSTICK": "Right stick"}
-        slot = max((t.f_small.size(words[b])[0] if b in words else W.glyph(t, pg.Surface((1, 1)), b, 0, 0))
+        slot = max((t.f_body.size(words[b])[0] if b in words else W.glyph(t, pg.Surface((1, 1)), b, 0, 0))
                    for b, _x in hints)                                   # one icon column, so the words line up
         for i, (btn, action) in enumerate(hints):
             x, cy = t.m + (i % 2) * colw, y + (i // 2) * lh + lh // 2
             if btn in words:
-                W.text(t, s, words[btn], x, cy, t.f_small, color=t.dim, anchor="midleft")
+                W.text(t, s, words[btn], x, cy, t.f_body, anchor="midleft")
             else:
                 W.glyph(t, s, btn, x, cy)
             W.text(t, s, action, x + slot + t.sm, cy, t.f_body, color=t.text_c, anchor="midleft",
                    maxw=colw - slot - t.sm - t.md)
         y += -(-len(hints) // 2) * lh
-        for line in (g.get("dos_source") or "",
-                     "" if g.get("dos_verified", True) else "Controls are a guess. Tell us if one is wrong."):
-            if line:
-                y = W.text(t, s, line, t.m, y + t.xs, t.f_small, color=t.dim).bottom
+        line = g.get("dos_source") or ""
+        if line:                                                         # where the keys came from, one dim line
+            y = W.text(t, s, line, t.m, y + t.sm, t.f_small, color=t.dim, maxw=t.w - 2 * t.m).bottom
         return y
 
     def _comments(self, s, y):

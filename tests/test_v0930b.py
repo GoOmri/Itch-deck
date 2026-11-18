@@ -101,13 +101,14 @@ def test_wasd_games_get_their_sticks_on_those_keys():
 def test_roles_go_to_buttons_by_the_fixed_priority():
     lay = DI.to_layout(DI.extract(KEEN))
     assert lay["map"]["a"] == "space" and lay["map"]["b"] == "ctrl" and lay["map"]["x"] == "alt"     # fire A, jump B, pogo X
-    assert lay["map"]["start"] == "esc" and lay["map"]["y"] == "enter"                               # menu and confirm kept
+    assert "start" not in lay["map"] and "y" not in lay["map"]                  # Esc on Start / Enter on Y stay from the base
     lay = DI.to_layout(DI.extract(DOOMISH))
     m = lay["map"]
-    assert m["a"] == "ctrl" and m["x"] == "space" and m["l1"] == "shift" and m["y"] == "enter" and m["l2"] == "alt"
+    assert m["a"] == "ctrl" and m["x"] == "space" and m["l1"] == "shift" and "y" not in m and m["l2"] == "alt"
     assert m["r2"] == "tab"
     no_fire = DI.to_layout([("jump", "ctrl", 0.9), ("use", "space", 0.9)])
     assert no_fire["map"]["a"] == "ctrl"                                      # no fire: jump takes A
+    assert DI.to_layout([("fire", "ctrl", 0.9), ("menu", "esc", 0.9), ("confirm", "enter", 0.9)]) is None   # menu is no action
     two = DI.to_layout([("weapon_next", "period", 0.9), ("weapon_prev", "comma", 0.9), ("run", "shift", 0.9)])
     assert two["map"]["r1"] == "period" and two["map"]["l2"] == "comma" and two["map"]["l1"] == "shift"   # L1 taken: L2
     assert DI.to_layout([("fire", "ctrl", 0.9)]) is None                      # one action is not a layout
@@ -191,12 +192,12 @@ def test_source_order_verified_entry_then_files_then_untested_entry_then_default
     found["source"] = "README.TXT"
     doom = {"title": "Doom"}
     p = DC.plan(doom, "auto", found)                                          # the entry is NOT verified: the files win
-    assert p["source"] == "files" and p["keymap"]["b"] == "ctrl" and p["source_text"] == "From the game's own files"
+    assert p["source"] == "files" and p["keymap"]["b"] == "ctrl" and p["source_text"] == "From the game's own files. A key may be wrong."
     assert p["verified"] is False
     p = DC.plan(doom, "auto", None)
-    assert p["source"] == "list" and p["source_text"] == "From our list (not tested)" and p["verified"] is False
+    assert p["source"] == "list" and p["source_text"] == "From our list. Not tested, so a key may be wrong." and p["verified"] is False
     p = DC.plan({"title": "Unknown Game"}, "auto", None)
-    assert p["source"] == "default" and p["source_text"] == "" and p["verified"] is False
+    assert p["source"] == "default" and p["source_text"] == "Controls are a guess. Some keys may be wrong." and p["verified"] is False
     assert DC.plan({"title": "Unknown Game"}, "auto", found)["source"] == "files"
     DC.reset()
     entries = DC.load()
@@ -204,7 +205,7 @@ def test_source_order_verified_entry_then_files_then_untested_entry_then_default
         if e["id"] == "doom":
             e["verified"] = True                                              # once Omri has tested it
     p = DC.plan(doom, "auto", found)
-    assert p["source"] == "verified" and p["source_text"] == "From our list" and p["verified"] is True
+    assert p["source"] == "verified" and p["source_text"] == "" and p["verified"] is True
     assert p["keymap"]["a"] == "ctrl" and p["keymap"]["b"] == "space"
     DC.reset()
     assert DC.plan(doom, "auto", {"map": {}, "hints": []})["source"] == "list"   # a broken result is ignored
@@ -279,7 +280,7 @@ def test_the_controls_block_draws_icons_for_the_pad_in_use_and_no_button_words(t
     plan = DC.plan({"title": "Doom"})
     g = {"id": "d1", "title": "Doom", "store": "dos", "dos": True, "state": "installed", "platforms": {"linux"},
          "size_mb": 1, "author": "", "description": ["Text."], "dos_hints": plan["hints"], "dos_verified": False,
-         "dos_source": "From our list (not tested)"}
+         "dos_source": "From our list. Not tested, so a key may be wrong."}
     seen = {}
     for kind in ("deck", "ps"):
         pads.set_current(kind)
@@ -306,6 +307,6 @@ def test_the_controls_block_draws_icons_for_the_pad_in_use_and_no_button_words(t
         buttons = [b for b, k in drawn if (b in ("A", "B", "X", "Y", "L1", "R1", "L2", "R2", "START", "BACK"))]
         assert {"A", "B", "X", "Y", "START"} <= set(buttons) and all(k == kind for _b, k in drawn), kind
         assert not any(w in " ".join(texts) for w in ("Cross", "Circle", "Square", "Triangle", "Options")), kind
-        assert "From our list (not tested)" in texts and "Controls are a guess. Tell us if one is wrong." in texts
+        assert "From our list. Not tested, so a key may be wrong." in texts and not any("Tell us" in x for x in texts)
         seen[kind] = sc
     assert seen["deck"] is not seen["ps"]
