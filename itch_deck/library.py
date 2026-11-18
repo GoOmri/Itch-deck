@@ -460,6 +460,11 @@ class Library:
             d = json.loads(self._page_file(g).read_text())
         except (OSError, ValueError):
             return False
+        if d.get("missing"):                  # v0.9.25: gone from itch (404): ask again after a week, not on
+            try:                              # every refresh ("Game details 1/5" each time, Omri)
+                return _now() - dt.datetime.fromisoformat(d.get("fetched", "")) < dt.timedelta(days=7)
+            except (TypeError, ValueError):
+                return False
         if g.get("store") == "epic" and "steam_genres" not in d:   # v0.7.9: first Steam label
             return False                                           # (often "Indie"): refetch once
         if g.get("store") in ("epic", "gog") and "pad" not in d:   # v0.9.3: controller support

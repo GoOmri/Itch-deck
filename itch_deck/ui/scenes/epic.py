@@ -48,12 +48,17 @@ class EpicConnect(Setup):
             steps = self.STEPS
             side = min(int(t.h * self.QR_SIZE), int(w * self.QR_SIZE))
             top = y
-            y = self._steps(s, steps, x, y, w - side - t.lg)
-            y = max(y, self._qr(s, x + w - side, top, side).bottom) + t.sm
+            col = w - side - t.lg
+            y_steps = self._steps(s, steps, x, y, col)
+            self.extra(s, x, y_steps + t.sm, col)          # under the steps, beside the QR code
+            y = max(y_steps, self._qr(s, x + w - side, top, side).bottom) + t.sm
         err, msg = self.STATUS.get(self.status, self.STATUS["prep"])
         if self.status == "prep" and self.progress:
             msg = f"Getting ready… {int(self.progress * 100)}%"
         W.notice(t, s, x, y, w, msg, kind="error" if err else "busy")
+
+    def extra(self, s, x, y, w):
+        """Anything under the steps (Send logs: the Save hint). x, y, width of the steps column."""
 
 
 class GogConnect(EpicConnect):
@@ -70,7 +75,7 @@ class LogsShare(EpicConnect):
     """Settings -> Help -> Send logs: a QR code for the phone page that shows the cleaned end of the
     log (to copy into a GitHub issue); A also saves the full cleaned zip into Documents."""
     TITLE = "Send your logs"
-    SUB = "Scan the code, or press A to save the logs as a zip in Documents."
+    SUB = "Share your logs from your phone, or keep a copy here."
     QR_SIZE = 0.42            # bigger: easier to scan from the couch (Omri, Deck test 17 Nov)
     STEPS = [("Scan the QR code", "Use your phone's camera."),
              ("Read the text", "Secrets and names are hidden."),
@@ -81,3 +86,10 @@ class LogsShare(EpicConnect):
 
     def hints(self):
         return [("A", "Save a copy"), ("B", "Back")]
+
+    def extra(self, s, x, y, w):
+        """v0.9.25 (Omri, Deck test): the grey line at the top was missed. The Save hint sits under the
+        steps instead, in a box (no Wi-Fi: the status line already says it)."""
+        if self.status != "nonet":
+            W.notice(self.t, s, x, y, w, "Press A to save a copy on this Deck",
+                     "A zip goes into your Documents folder.", kind="info")

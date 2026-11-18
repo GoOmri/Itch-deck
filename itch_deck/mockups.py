@@ -258,17 +258,17 @@ def _shots(t, version):
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "Auto · Pad", ""), ("Saves", "", "")], 0))),
         ("15x_game_options_add_steam", with_overlay(with_steam(game("Moss & Rivets")), (
-            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
-                                    ("Controls", "Auto \u00b7 Pad", ""), ("Saves", "", ""),
-                                    ("Add to Steam", "", "")], 4))),
+            "menu", "Options", "", [("Uninstall", "", ""), ("Controls", "Auto · Pad", ""),
+                                    ("More", "", "")], 2))),                  # v0.9.25: the long list is short
+        ("15xm_game_options_more", with_overlay(with_steam(game("Moss & Rivets")), (
+            "menu", "More", "", [("Change build", "", ""), ("Saves", "", ""),
+                                 ("Move to internal storage", "", ""), ("Add to Steam", "", "")], 3))),
         ("15y_game_options_remove_steam", with_overlay(with_steam(game("Moss & Rivets"), True), (
-            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
-                                    ("Controls", "Auto \u00b7 Pad", ""), ("Saves", "", ""),
-                                    ("Remove from Steam", "", "")], 4))),
+            "menu", "More", "", [("Change build", "", ""), ("Saves", "", ""),
+                                 ("Remove from Steam", "", "")], 2))),
         ("15n_game_options_move", with_overlay(game("Moss & Rivets"), (
-            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
-                                    ("Controls", "Auto · Pad", ""), ("Saves", "", ""),
-                                    ("Move to internal storage", "", "")], 4))),
+            "menu", "More", "", [("Change build", "", ""), ("Saves", "", ""),
+                                 ("Move to internal storage", "", "")], 2))),
         ("15o_game_move_confirm", with_overlay(game("Moss & Rivets"), (
             "confirm", "Move Moss & Rivets to internal storage?",
             ["The game and its saves move together.", "You can play again when it's done."],

@@ -50,6 +50,7 @@ class StorageMixin:
             if self.inst.uninstall(gid):
                 done += 1
                 gone.add(gid)
+                self._drop_steam_tile(gid)                        # v0.9.25: no tile left for a deleted game
                 freed += (by_id.get(gid) or {}).get("size_mb", 0)
             else:
                 failed += 1                                       # e.g. the SD card is out

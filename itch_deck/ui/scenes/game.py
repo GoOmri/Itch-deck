@@ -106,12 +106,25 @@ class Game(Scene):
             return []
         return [] if epic else ["Change build"]
 
-    def open_options(self, focus=0):
-        """☰ / ⚙ Options. Controls shows its setting (◀ ▶ change it, like Sort & filter)."""
+    RARE = ("Change build", "Saves", "Program to run", "Add to Steam", "Remove from Steam")
+
+    def menu_split(self):
+        """(rows shown in Options, rows behind "More"). A long list (an installed itch game has six) keeps
+        the everyday ones and tucks the rest under one "More" row (Omri, Deck test 17 Nov)."""
+        rows = self.options()
+        rare = [r for r in rows if r in self.RARE or r.startswith("Move to ")]
+        if len(rows) <= 4 or len(rare) < 2:
+            return rows, []
+        return [r for r in rows if r not in rare] + ["More"], rare
+
+    def open_options(self, focus=0, more=False):
+        """☰ / ⚙ Options. Controls shows its setting (◀ ▶ change it, like Sort & filter).
+        more=True: the list behind the "More" row."""
         if self.options():
-            rows = [(o, self.g.get("controls_value", "") if o == "Controls" else "", "")
-                    for o in self.options()]
-            self.overlay = ("menu", "Options", "", rows, max(0, min(focus, len(rows) - 1)))
+            head, rare = self.menu_split()
+            labels, title = (rare, "More") if more and rare else (head, "Options")
+            rows = [(o, self.g.get("controls_value", "") if o == "Controls" else "", "") for o in labels]
+            self.overlay = ("menu", title, "", rows, max(0, min(focus, len(rows) - 1)))
 
     def handle(self, act):
         n, shots = len(self.actions()), self.g.get("screens", 0)
@@ -121,7 +134,10 @@ class Game(Scene):
                 focus = max(0, min(len(items) - 1, focus + (1 if act == DOWN else -1)))
                 self.overlay = (kind, title, sub, items, focus)
             elif act == B:
-                self.overlay = None
+                if kind == "menu" and title == "More":               # back to Options, on its More row
+                    self.open_options(len(self.menu_split()[0]) - 1)
+                else:
+                    self.overlay = None
             return
         if self.overlay and self.overlay[0] == "viewer":
             if act in (LEFT, RIGHT):

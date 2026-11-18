@@ -27,7 +27,7 @@ from .app_dos import DosMixin
 from .app_storage import StorageMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.24"
+VERSION = "0.9.25"
 
 
 def setup_logging():
@@ -749,6 +749,8 @@ def selftest(screenshot=None):
     config.install_choices = lambda: [("SD card", d.parent), ("Internal storage", other)]
     try:
         app.open_options(app.scene)
+        if "More" in [r[0] for r in app.scene.overlay[3]]:           # v0.9.25: a long list tucks Move under More
+            app.scene.open_options(more=True)
         labels = [r[0] for r in app.scene.overlay[3]]
         assert "Move to internal storage" in labels, labels
         app.scene.overlay = (*app.scene.overlay[:4], labels.index("Move to internal storage"))

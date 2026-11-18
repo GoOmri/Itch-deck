@@ -27,6 +27,9 @@ class GameMixin:
             return
         if sc.overlay and sc.overlay[0] == "menu" and act == A:      # ☰ Options
             label = sc.overlay[3][sc.overlay[4]][0]
+            if label == "More":                                      # v0.9.25: the less used rows
+                sc.open_options(more=True)
+                return
             sc.overlay = None
             self.game_action(sc.g, label)
             return
@@ -311,13 +314,24 @@ class GameMixin:
             self.say(words.with_code("Couldn't add it to Steam." if add else "Couldn't remove it from Steam.",
                                      code), error=True)
 
+    def _drop_steam_tile(self, gid):
+        """v0.9.25 (Omri, Deck test): an uninstalled game must not stay in Steam. True when a tile was
+        removed (Steam shows it gone after its next restart). Never raises."""
+        try:
+            from . import steam_games
+            return bool(steam_games.is_added(gid) and steam_games.remove(gid))
+        except Exception as e:  # noqa: BLE001 - a Steam file problem must not break an uninstall
+            log.info("steam: couldn't drop the tile of %s: %s: %s", gid, type(e).__name__, e)
+            return False
+
     def _uninstall(self, g):
         if not self.inst.uninstall(g["id"]):
             self.say("SD card missing.", error=True)
             return
         self.scene.focus = 0
+        tile = self._drop_steam_tile(g["id"])
         self.say(f"{g['title']} was removed." if g.get("store") == "dos"
-                 else f"{g['title']} was uninstalled.")
+                 else f"{g['title']} was uninstalled." + (" Its Steam tile goes after a Steam restart." if tile else ""))
 
     def controls_of(self, g):
         """(setting, effective): setting auto|gamepad|mouse|keys; auto follows itch's Inputs."""
