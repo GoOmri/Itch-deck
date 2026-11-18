@@ -155,7 +155,7 @@ def is_own_dos(info):
     return info.get("store") == "dos"
 
 
-def launch_own(info, base_cmd, once=None):
+def launch_own(info, base_cmd, once=None, stay=False):
     """(exe, args, cwd) for runner.run: DOSBox Staging with the game's folder as drive C, a disc image as
     drive D when the folder has one, then the chosen program. The game's saves stay in its folder.
     Sub folders are entered with cd (DOS games use short 8.3 names)."""
@@ -171,7 +171,8 @@ def launch_own(info, base_cmd, once=None):
     cmds += [f"cd {p}" for p in parts[:-1]]
     if parts:
         cmds.append(parts[-1])
-    cmds.append("exit")
+    if not stay:                                   # "Keep window open after the game": DOSBox stays at the prompt to read
+        cmds.append("exit")                        # what the program printed (leave with the View + Menu shortcut)
     args = [x for c in cmds for x in ("-c", c)]
     log.info("dosbox: own game %s: %s", folder.name, cmds)
     exe, pre = Path(base_cmd[0]), list(base_cmd[1:])

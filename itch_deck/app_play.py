@@ -8,6 +8,8 @@ from pathlib import Path
 from . import backups, dosbox, mouse, paths, proton, runner, words
 from .installer import slug_of
 
+QUICK_CLOSE_S = 3.5       # an own DOS program that ends within this (exit 0) "closed straight away"
+
 log = logging.getLogger("scritch")
 
 
@@ -27,6 +29,7 @@ class PlayMixin:
         umu = env = hold = None
         sub = None
         dos = None
+        setup_run = None
         if dosbox.is_dosbox_game(info):          # GOG DOS game: native DOSBox Staging (v0.9.7)
             if info.get("setup_steps") and self._gog_needs_setup(info):
                 # GOG's setup tool (ISI) writes the game's DOSBox settings files (Heroic runs it
@@ -46,7 +49,8 @@ class PlayMixin:
             if not base:
                 self.say("DOSBox isn't available. Check Wi-Fi and try again.", error=True)
                 return
-            dos = dosbox.launch_own(info, base, once=self.inst.take_once(g["id"]))
+            setup_run = self.inst.take_once(g["id"])           # a setup program picked in the list: this Play only
+            dos = dosbox.launch_own(info, base, once=setup_run, stay=g["id"] in (self.cfg.get("dos_stay_open") or []))
         if info.get("platform") == "windows" and not dos:
             umu, pdir = proton.umu_path(), proton.proton_dir(self.cfg)
             if not pdir:
@@ -134,6 +138,16 @@ class PlayMixin:
         if combo.fired:                      # closed with the shortcut: not a crash
             self.say(f"{g['title']} closed.")
             return
+        if setup_run:                              # the run-once setup program closed: the next Play is the game
+            log.info("play: %s setup %s closed (exit %s after %.0fs)", g["id"], setup_run, rc, secs)
+            self.say("Setup closed. The next Play starts the game.")
+            return
+        if dosbox.is_own_dos(info) and rc == 0 and secs < QUICK_CLOSE_S:
+            # the program ended at once (Omri's Indiana Jones: INDY.EXE after 1 s): the log keeps the P01 line, the
+            # player gets a next step instead of a bare code
+            words.log_code("P01", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
+            self._closed_at_once(g)
+            return
         if mm and mm.error and not runner.crashed(rc, secs):
             mode = "Keys" if mm.mapper.layout == "keys" else "Mouse"
             words.log_code("P02", f"{g['id']}: {mode} mode off: {mm.error}")
@@ -153,6 +167,16 @@ class PlayMixin:
             else:
                 words.log_code("P01", f"{g['id']} ({g['title']}) closed after {secs:.0f} s, exit {rc}")
                 self.say(words.with_code(f"{g['title']} couldn't start.", "P01"), error=True)
+
+    def _closed_at_once(self, g):
+        """Own DOS game whose program ended within a few seconds: say what to try; with more than one program a
+        button opens the Program to run list."""
+        msg = "Try another one under Options, Program to run."
+        if len(self.inst.program_choices(g["id"])) > 1:
+            self.confirm("That program closed straight away.", [msg], "Program to run",
+                         lambda: self._program_picker(g["id"]), main=True)
+        else:                                      # one program: Options has no Program to run row
+            self.say("That program closed straight away.", error=True)
 
     def _get_dosbox(self, g):
         """First DOS game: install DOSBox Staging (Flathub, once) while a splash says so."""

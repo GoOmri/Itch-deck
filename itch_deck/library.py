@@ -70,6 +70,14 @@ _GOG_GENRES = {"Role-playing": "Role Playing", "Rpg": "Role Playing", "RPG": "Ro
                "Sports": "Sports", "Puzzle": "Puzzle", "Platformer": "Platformer"}
 
 
+def dosart_key(m):
+    """"gog:2070676386" / "steam:225140": the source is part of the id (a GOG id and a Steam id may be equal)."""
+    return f"{m.get('source') or 'gog'}:{m['id']}"
+
+
+NET_PAUSE_S = 1.5            # between two GOG (or two Steam) questions of the art jobs: no burst for 20 games
+
+
 def _gog_genre(genres):
     """GOG's "genres" is a list of {"name": "Shooter", "slug": "shooter"} (a plain list of names is fine too);
     first one in itch's words, "" when there is none."""
@@ -146,6 +154,8 @@ class Library:
         self._q = queue.PriorityQueue()
         self._seq = itertools.count()
         self._dosart_force = set()
+        self._dosart_later = set()      # asked this run, Steam was down: not again until the next start
+        self._paced_at = {}
         self._queued = set()
         self._worker = None
         self.installs, self.live = {}, {}   # set by Installer: install index, in-progress fields
@@ -627,6 +637,25 @@ class Library:
             return str(f)
         return None
 
+    def _paced(self, host, fn, *a, **k):
+        """Call fn after at least NET_PAUSE_S since the last call to the same host."""
+        wait = NET_PAUSE_S - (time.monotonic() - self._paced_at.get(host, -1e9))
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            return fn(*a, **k)
+        finally:
+            self._paced_at[host] = time.monotonic()
+
+    def _steam_search(self, term):
+        from urllib.parse import quote
+        from .stores import steam
+        return (self._paced("steam", net.get_json, steam.SEARCH.format(q=quote(term)), timeout=20) or {}).get("items") or []
+
+    def _steam_details(self, appid):
+        from .stores import steam
+        return self._paced("steam", steam.details, appid)
+
     @staticmethod
     def _dosart_name(g):
         """What GOG is asked and what the cache key follows: the CLEAN title with the year of the folder name
@@ -658,7 +687,8 @@ class Library:
             d = json.loads(self._page_file(g).read_text())
         except (OSError, ValueError):
             d = {}
-        text_ok = d.get("gog_id") == m["id"] or bool(e.get("text_tried"))      # a failed try counts as done
+        text_ok = (d.get("gog_id") == dosart_key(m) and d.get("text_ver") == dosart.TEXT_VER) \
+            or e.get("text_tried") == dosart.TEXT_VER                          # a failed try counts as done
         cover_ok = bool(g.get("cover_file")) or not m.get("cover") or bool(e.get("cover_tried"))
         return text_ok and cover_ok
 
@@ -666,7 +696,7 @@ class Library:
         """Ask GOG about every DOS game whose answer is missing, older than 30 days, or for another name.
         force (the Refresh box): ask again, but a game asked within the last day is left alone."""
         for g in self.games:
-            if g.get("store") != "dos" or g.get("hidden"):
+            if g.get("store") != "dos" or g.get("hidden") or g["id"] in self._dosart_later:
                 continue
             if force and self._dosart_fresh(g):
                 age = self._dosart_age(self._dosart[g["id"]])
@@ -685,17 +715,24 @@ class Library:
         if self._dosart_fresh(g) and not force:
             match = e.get("match")
         else:
-            match = dosart.find(self._dosart_name(g), lambda u: net.get_json(u, timeout=20))
+            try:
+                match = dosart.find_any(self._dosart_name(g), lambda u: self._paced("gog", net.get_json, u, timeout=20),
+                                        self._steam_search, self._steam_details)
+            except dosart.SteamUnavailable as err:     # GOG had nothing and Steam did not answer: ask again next start
+                log.info("dosart %s: Steam not answering (%s), later", g["id"], err)
+                self._dosart_later.add(g["id"])
+                return
             prev = (e or {}).get("match")
-            if prev and (not match or prev.get("id") != match["id"]):
+            if prev and (not match or dosart_key(prev) != dosart_key(match)):
                 self._dosart_forget(g)                 # another game now: the old art and text go
             elif prev and match and prev.get("cover") != match.get("cover"):
                 self._dosart_drop_cover(g)             # same game, another picture (v0.9.28: wide, was tall)
             self._dosart[g["id"]] = {"key": self._dosart_name(g), "algo": dosart.ALGO, "match": match,
                                      "at": _now().isoformat(timespec="seconds")}
             _write_json(self._dosart_file(), self._dosart)
-            log.info("dosart %s: %s", g["id"], "%s (%s, score %s)" % (match["title"], match["id"], match["score"])
-                     if match else "no match, title card")
+            log.info("dosart %s: %s", g["id"], "%s (%s %s, score %s%s)" % (
+                match["title"], match.get("source") or "gog", match["id"], match["score"],
+                ", art only" if match.get("fallback") else "") if match else "no match, title card")
         if not match:
             self._dosart_forget(g)
             return
@@ -717,11 +754,18 @@ class Library:
             d = json.loads(self._page_file(g).read_text())
         except (OSError, ValueError):
             d = {}
-        if d.get("gog_id") != match["id"] and not e.get("text_tried"):
-            from .stores.gog import GogStore
+        if (d.get("gog_id") != dosart_key(match) or d.get("text_ver") != dosart.TEXT_VER) and e.get("text_tried") != dosart.TEXT_VER:
+            steam_src = match.get("source") == "steam"
             try:
                 try:
-                    paras, shots = GogStore().details(match["id"])
+                    if steam_src:
+                        from .stores import steam
+                        info = steam.details(match["id"]) or {}
+                        paras, shots = (info.get("short") or info.get("paras") or []), info.get("shots") or []
+                        match = dict(match, genres=[info["genre"]] if info.get("genre") else [])
+                    else:
+                        from .stores.gog import GogStore
+                        paras, shots = GogStore().details(match["id"])
                 except net.NotFound:
                     paras, shots = [], []
                 paras = dosart.short_text(paras)   # one short paragraph, nothing about packs or bundles
@@ -732,12 +776,13 @@ class Library:
                 _write_json(self._page_file(g), {
                     "fetched": _now().isoformat(timespec="seconds"), "description": paras, "comments": [],
                     "comment_count": 0, "shots": n, "inputs": ["Keyboard", "Mouse"],
-                    "genre": [genre] if genre else [], "source": "GOG" if paras else None,
-                    "gog_id": match["id"]})
+                    "genre": [genre] if genre else [],
+                    "source": ("Steam" if steam_src else "GOG") if paras else None,
+                    "gog_id": dosart_key(match), "text_ver": dosart.TEXT_VER})
                 log.info("dosart %s: %d paras, %d shots", g["id"], len(paras), n)
             except Exception as err:  # noqa: BLE001  - remembered: not asked again on every scan
                 log.info("dosart %s: text failed (%s)", g["id"], err)
-            e["text_tried"] = True
+            e["text_tried"] = dosart.TEXT_VER
             _write_json(self._dosart_file(), self._dosart)
         for x in {id(g): g, id(self.by_id(g["id"])): self.by_id(g["id"])}.values():
             if x:

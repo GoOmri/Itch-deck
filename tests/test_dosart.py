@@ -117,7 +117,8 @@ def test_years_decide_and_weak_matches_give_nothing():
     two = [P("50", "Alone in the Dark", 1992), P("51", "Alone in the Dark", 2008)]
     assert found("Alone in the Dark", two) == "50"                    # earlier release first
     assert found("Alone in the Dark [1993]", two) == "50"             # +/-1 year is allowed
-    assert found("Dave") is None                                      # one common word: too weak
+    assert found("Dave") == "20"                                      # the shorthand dave = dangerous dave (v0.9.29)
+    assert found("Dave", [P("21", "Dave the Diver", 2023)]) is None   # one common word: too weak
     assert found("Dangerous Dave") == "20"
     assert found("Blood") == "30"
     assert found("Blood 2") == "31"
@@ -164,6 +165,8 @@ class Net:
         self.calls.append(url)
         if url.startswith("https://catalog.gog.com/"):
             return {"products": self.catalog}
+        if url.startswith("https://store.steampowered.com/api/storesearch"):
+            return {"items": []}
         if url.startswith("https://api.gog.com/products/"):
             return {"description": {"full": "<p>Billy Blaze saves the galaxy.</p><p>Pogo!</p>"},
                     "screenshots": [{"formatter_template_url": "https://img.test/s_{formatter}.jpg"}]}

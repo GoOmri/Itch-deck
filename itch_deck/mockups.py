@@ -382,6 +382,32 @@ def _shots(t, version):
               "Top folder") for i in range(12)]
             + [("A_VERY_LONG_PROGRAM_NAME_FOR_A_DOS_GAME_SETUP_TOOL_2.EXE", "Setup",
                 "GAMES/DEEP/FOLDERS/WITH/A/REALLY/LONG/PATH/INSIDE"), ("SHORT.EXE", "Setup", "Top folder")], 12))),
+        ("15ze_game_dos_options_stay", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
+                                              programs=2, author="", platforms={"linux"},
+                                              controls_value="Auto \u00b7 Keys"), pos=(1, 3)), (
+            "menu", "Options", "", [("Remove from library", "", ""), ("Controls", "Auto \u00b7 Keys", ""),
+                                    ("Program to run", "", ""),
+                                    ("Keep window open after the game", "Off", "Helps you read an error message")], 3))),
+        ("15zf_game_dos_closed_at_once", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed",
+                                                                   dos=True, programs=2, author="",
+                                                                   platforms={"linux"}), pos=(1, 3)), (
+            "confirm", "That program closed straight away.", ["Try another one under Options, Program to run."],
+            [("A", "Program to run"), ("B", "Cancel")], "main"))),
+        ("15zg_game_dos_programs_top", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed",
+                                                                 dos=True, programs=20, author="",
+                                                                 platforms={"linux"}), pos=(1, 3)), (
+            "picker", "Choose the program",
+            "Pick the program that starts the game. A setup program runs once, the next time you play.",
+            [(f"PROGRAM{i}.EXE", "In use" if i == 0 else "Setup" if i > 14 else "", "Top folder")
+             for i in range(20)], 4))),
+        ("15zh_game_dos_setup_closed", Game(t, dict(gog_games[0], store="dos", state="installed", dos=True, programs=2,
+                                                   author="", platforms={"linux"}, cover_file=None), pos=(1, 3),
+                                            toast="Setup closed. The next Play starts the game.")),
+        ("15zi_game_dos_from_steam", Game(t, dict(gog_games[0], store="dos", state="installed", dos=True, programs=1,
+                                                  author="", platforms={"linux"}, cover_file=None, title="Raptor",
+                                                  comments=None, comment_count=0, details_from="Steam",
+                                                  description=["Fly a fighter through a hostile sky and blast "
+                                                               "everything that moves."]), pos=(1, 3))),
         ("15w_game_dos_remove", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
                                              author="", platforms={"linux"}), pos=(1, 3)), (
             "confirm", "Remove Amber Atlas?",

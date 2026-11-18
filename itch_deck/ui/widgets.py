@@ -1279,6 +1279,21 @@ def menu(t, s, title, sub, items, focus, arrows=False):
     # rows sit inset by (pad - row padding) so their text lines up with the title
     rows(t, s, pg.Rect(r.x + pad - t.md, r.y + pad + head, r.w - 2 * (pad - t.md), 0),
          items[first:first + show], focus - first, row_h, key=("menu", title), arrows=arrows)
+    if n > show:                                            # a long list: chevrons + a thin bar show there is more
+        top, bottom = r.y + pad + head, r.y + pad + head + show * step - t.u // 2
+        cx, ch = r.right - int(t.u * 1.5), max(4, int(t.u * 0.7))
+        for up, y, on in ((True, top + ch, first > 0), (False, bottom - ch, first + show < n)):
+            if on:
+                d = -1 if up else 1
+                pg.draw.lines(s, t.dim, False, [(cx - ch, y - d * ch // 2), (cx, y + d * ch // 2),
+                                                (cx + ch, y - d * ch // 2)], max(2, t.u // 4))
+        bt, bb = top + ch * 3, bottom - ch * 3
+        if bb - bt > t.u * 2:
+            w = max(2, t.u // 3)
+            pg.draw.rect(s, t.line, (cx - w // 2, bt, w, bb - bt), border_radius=w // 2)
+            th = max(t.u * 2, (bb - bt) * show // n)
+            ty0 = bt + (bb - bt - th) * first // max(1, n - show)
+            pg.draw.rect(s, t.dim, (cx - w // 2, ty0, w, th), border_radius=w // 2)
     return r
 
 
