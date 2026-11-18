@@ -11,8 +11,13 @@ import urllib.parse
 CATALOG = ("https://catalog.gog.com/v1/catalog?limit=10&query=like%3A{q}&order=desc%3Ascore"
            "&productType=in%3Agame%2Cpack&page=1&countryCode=US&locale=en-US&currencyCode=USD")
 MIN_SCORE = 60                 # below this a match is too weak: no match at all
-ALGO = 2                       # bump when the matching changes: old "no match" answers are asked again
+ALGO = 3                       # bump when the matching changes: old "no match" answers are asked again
 
+TEXT_VER = 3                   # bump when the text cutting changes: saved texts are fetched and cut again once
+EPISODE_WORDS = {"episode", "ep", "chapter", "part"}
+# shorthand folder names -> what the stores call the game (obvious ones only)
+ALIASES = {("dave",): ["dangerous", "dave"], ("wolf3d",): ["wolfenstein", "3d"],
+           ("duke3d",): ["duke", "nukem", "3d"], ("keen",): ["commander", "keen"]}
 NOISE = {"shareware", "registered", "full", "retail", "cd", "dos", "cracked", "version", "ver", "cdrom"}
 ROMAN = {"ii": 2, "iii": 3, "iv": 4, "vi": 6, "vii": 7, "viii": 8, "ix": 9}
 PACK_WORDS = {"complete", "collection", "pack", "bundle", "trilogy", "anthology", "compilation"}
@@ -66,6 +71,8 @@ def parse(name, noise=True):
         if year is not None:
             words = [w for i, w in enumerate(words) if not (i > 0 and w == str(year))]
             main = [w for i, w in enumerate(main) if not (i > 0 and w == str(year))]
+    if noise:
+        words, main = _drop_episode(words), _drop_episode(main)
     num, bw = _number(words)
     _, bmain = _number(main)
     bhead = _head(words)
@@ -108,23 +115,46 @@ def display(name):
 
 
 PACK_TALK = re.compile(r"\b(?:packs?|bundles?|collections?|compilations?|includes?|including|included|both games|"
-                       r"all (?:three|four|five|\d+) games|two games|trilogy|bonus|episodes? (?:one|two|\d))\b|"
-                       r"\w+\s*\+\s*\w+", re.I)
+                       r"combined products?|all (?:three|four|five|\d+) games|two games|trilogy|bonus|"
+                       r"episodes? (?:one|two|\d))\b|\w+\s*\+\s*\w+", re.I)
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[\"'A-Z0-9(])")
+FILLER_START = re.compile(r"^\W*(?:owners? receives?|you(?:'ll)? (?:also )?(?:get|receive)|includes?|including|"
+                          r"key features|features|bonus|contents|what'?s (?:in|included)|this (?:pack|bundle)"
+                          r"|(?:the )?(?:pack|bundle|collection) (?:includes|contains))\b", re.I)
+BULLET = re.compile(r"^\s*(?:[-*\u2022\u25cf\u00b7]|\d+[.)])\s*\S")
+
+
+def _is_filler(line):
+    return line.rstrip().endswith(":") or bool(FILLER_START.search(line)) or bool(BULLET.match(line))
 
 
 def short_text(paras, limit=600):
-    """GOG's description cut down for a DOS game page: only the first paragraph that still says something after the
-    sentences about a pack / bundle / collection are dropped ("includes DOOM + DOOM II", "both games"...), at most
-    about `limit` characters, cut at the end of a sentence. [] when nothing is left."""
+    """A store description cut down for a DOS game page. Each paragraph is read LINE by LINE (GOG sends one block with
+    line breaks): the opening lines are kept and reading stops at the first filler line ("Owners Receive:", "Key
+    features", "Includes", "Bonus", a bullet list, anything ending with ":"). Sentences about a pack / bundle /
+    "combined product" / "A + B" are dropped. At most about `limit` characters, cut at the end of a sentence.
+    One paragraph is returned, or [] when nothing is left."""
     for para in paras or []:
-        sentences = [x.strip() for x in SENTENCE_RE.split(" ".join(str(para).split())) if x.strip()]
-        keep = [x for x in sentences if not PACK_TALK.search(x)]
-        out = ""
-        for x in keep:
-            if out and len(out) + 1 + len(x) > limit:
+        out, stopped = "", False
+        for line in str(para).split("\n"):
+            line = " ".join(line.split())
+            if not line:
+                continue
+            if _is_filler(line):
+                stopped = True
                 break
-            out = f"{out} {x}".strip()
+            for x in [y.strip() for y in SENTENCE_RE.split(line) if y.strip()]:
+                if PACK_TALK.search(x):
+                    continue
+                if out and len(out) + 1 > limit - 10:
+                    stopped = True
+                    break
+                if out and len(out) + 1 + len(x) > limit:
+                    stopped = True
+                    break
+                out = f"{out} {x}".strip()
+            if stopped:
+                break
         if len(out) > limit + 100:                   # one huge sentence: cut at a word
             out = out[:limit].rsplit(" ", 1)[0].rstrip(",;: ") + "\u2026"
         if out:
@@ -147,6 +177,15 @@ def fold_keep(s):
 def _drop_noise(words):
     out = [w for i, w in enumerate(words) if i == 0 or w not in NOISE]    # "Full Throttle" stays
     return out or words
+
+
+def _drop_episode(words):
+    """"bio menace episode 1" -> "bio menace" ("episode 1" is a part of the game, not a sequel)."""
+    for i, w in enumerate(words):
+        if i and w in EPISODE_WORDS and i + 1 < len(words) and (
+                (words[i + 1].isdigit() and len(words[i + 1]) <= 2) or words[i + 1] in ROMAN):
+            return words[:i] + words[i + 2:]
+    return list(words)
 
 
 def _head(words):
@@ -326,34 +365,132 @@ def summary(prod, score=None):
             "score": score}
 
 
-def find(name, fetch):
-    """Look a folder name up. fetch(url) -> GOG's JSON answer (dict with "products"); errors from it
-    (Offline) are NOT caught: the caller must not cache an unfinished lookup.
-    Returns summary dict or None. Order: the cleaned name and its alternative forms; only when none of them
-    fits, the name without its trailing sequel number (less exact, so last)."""
-    p = parse(name)
-    if not p["words"]:
+def _alias_parse(p):
+    """The folder name's shorthand written out ("dave2" -> "dangerous dave 2"), or None."""
+    full = ALIASES.get(tuple(p["bw"]))
+    if not full:
         return None
-    seen = {}
-    for q in queries(p):
+    text = " ".join(full + ([str(p["num"])] if p["num"] else []))
+    q = parse(text)
+    q["year"] = p["year"]
+    return q
+
+
+def _gather(fetch, queries_, seen):
+    for q in queries_:
         data = fetch(CATALOG.format(q=urllib.parse.quote(q, safe="")))
         prods = (data or {}).get("products") if isinstance(data, dict) else None
         for x in prods or []:
             if isinstance(x, dict) and x.get("id") is not None:
                 seen.setdefault(str(x["id"]), x)
-        hit = choose(p, list(seen.values()))
-        if hit:
-            return summary(hit["prod"], hit["score"])
-    if p["num"] and p["bw"]:                       # "Dave 2": GOG may only have "Dangerous Dave"
-        q = " ".join(p["bw"])
-        data = fetch(CATALOG.format(q=urllib.parse.quote(q, safe="")))
-        prods = data.get("products") if isinstance(data, dict) else None
-        for x in prods or []:
-            if isinstance(x, dict) and x.get("id") is not None:
-                seen.setdefault(str(x["id"]), x)
-        hit = choose(p, list(seen.values()), relaxed=True)
+
+
+def find(name, fetch):
+    """Look a folder name up on GOG. fetch(url) -> GOG's JSON answer (dict with "products"); errors from it
+    (Offline) are NOT caught: the caller must not cache an unfinished lookup. Returns summary dict or None.
+    Stage 1: the cleaned name and its forms (and the shorthand written out: dave -> dangerous dave).
+    Stage 2 (only if stage 1 found nothing): the series name cut BEFORE the number ("commander keen 3 keen must
+    die" -> "commander keen"): that match is marked "fallback" and gives art only, never the text."""
+    p = parse(name)
+    if not p["words"]:
+        return None
+    seen = {}
+    tries = [p] + [a for a in [_alias_parse(p)] if a]
+    asked = set()
+    for cp in tries:
+        for q in queries(cp):
+            if q in asked:
+                continue
+            asked.add(q)
+            _gather(fetch, [q], seen)
+            hit = choose(cp, list(seen.values()))
+            if hit:
+                return summary(hit["prod"], hit["score"])
+    for cp in tries:                               # stage 2: without the number
+        head = " ".join(cp["bhead"]) if cp["num"] else ""
+        if not head or head in asked:
+            continue
+        asked.add(head)
+        _gather(fetch, [head], seen)
+        q2 = parse(head)
+        q2["year"] = cp["year"]
+        usable = [x for x in seen.values()         # a pack with its own numbers must hold the folder's number
+                  if not is_pack(x, parse(str(x.get("title")), False)) or pack_has(parse(str(x.get("title")), False), cp["num"])]
+        hit = choose(q2, usable)
         if hit:                                    # Omri 18 Nov: wrong art is OK here, but only the ART is used
             m = summary(hit["prod"], hit["score"])     # (GOG's text would describe another game)
             m["fallback"] = True
+            m["source"] = "gog"
             return m
     return None
+
+
+# --- Steam as a second source -------------------------------------------------------------------
+STEAM_NOT_THE_GAME = {"soundtrack", "dlc", "demo", "ost", "artbook", "wallpaper", "expansion", "upgrade"}
+STEAM_HEADER = "https://cdn.akamai.steamstatic.com/steam/apps/{id}/header.jpg"
+
+
+def steam_choose(p, items):
+    """Best Steam search result for the folder name p, or None. Strong matches only: the same title, or the
+    folder title followed by a ":" / " - " subtitle ("Raptor" = "Raptor: Call of the Shadows"). The year is
+    ignored (remasters); a numbered folder never matches another number."""
+    best = None
+    q = _lead(p["bw"])
+    if not q:
+        return None
+    for it in items or []:
+        if not isinstance(it, dict) or it.get("id") is None or (it.get("type") or "app") != "app":
+            continue
+        cp = parse(str(it.get("name") or ""), noise=False)
+        if not cp["words"] or STEAM_NOT_THE_GAME & set(cp["words"]):
+            continue
+        if (p["num"] or 1) != (cp["num"] or 1):
+            continue
+        c = _lead(cp["bw"])
+        if q == c:
+            sc = 100
+        elif c[:len(q)] == q and q == _lead(cp["bmain"]):
+            sc = 85
+        else:
+            continue
+        if best is None or sc > best[0]:
+            best = (sc, it)
+    return best
+
+
+def find_steam(name, search):
+    """Same folder name on Steam. search(term) -> the "items" list of Steam's store search. Returns a summary
+    (source "steam", the wide header picture as cover) or None. Errors (Offline) are not caught."""
+    p = parse(name)
+    if not p["words"]:
+        return None
+    seen, asked = [], set()
+    tries = [p] + [a for a in [_alias_parse(p)] if a]
+    for cp in tries:
+        for q in queries(cp)[:3]:
+            if q in asked:
+                continue
+            asked.add(q)
+            seen += [x for x in (search(q) or []) if isinstance(x, dict)]
+            hit = steam_choose(cp, seen)
+            if hit:
+                it = hit[1]
+                return {"id": str(it["id"]), "title": str(it.get("name") or ""), "slug": "", "year": None,
+                        "type": "game", "cover": STEAM_HEADER.format(id=it["id"]), "cover_tall": None,
+                        "genres": [], "score": hit[0], "source": "steam"}
+    return None
+
+
+def find_any(name, fetch_gog, search_steam):
+    """GOG first; a number-dropped GOG match (art only) loses to a strong Steam match; no GOG match: Steam.
+    Result carries "source": "gog" or "steam"."""
+    m = find(name, fetch_gog)
+    if m and not m.get("fallback"):
+        m["source"] = "gog"
+        return m
+    st = find_steam(name, search_steam) if search_steam else None
+    if st:
+        return st
+    if m:
+        m["source"] = "gog"
+    return m

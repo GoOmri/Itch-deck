@@ -62,6 +62,7 @@ def details(appid):
     shots = [s.get("path_full") for s in d.get("screenshots") or [] if s.get("path_full")]
     genres = [x.get("description") for x in d.get("genres") or [] if x.get("description")]
     return {"paras": html_paras(d.get("about_the_game") or d.get("detailed_description") or ""),
+            "short": html_paras(d.get("short_description") or ""), "header": d.get("header_image"),
             "shots": shots, "genre": pick_genre(genres), "genres": genres, "pad": pad_from(d)}
 
 
