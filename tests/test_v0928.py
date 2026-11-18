@@ -15,7 +15,22 @@ if os.name == "nt":
     sys.modules.setdefault("fcntl", types.ModuleType("fcntl"))
 from itch_deck import dosgames, paths  # noqa: E402
 from itch_deck import installer as I  # noqa: E402
-from tests.test_dosgames import _Lib  # noqa: E402
+
+
+class _Lib:
+    """The little bit of Library the DOS scan talks to."""
+
+    def __init__(self):
+        self.games, self.installs, self.live, self.epic, self.dos = [], {}, {}, None, None
+
+    def apply_installs(self):
+        pass
+
+    def set_dos_games(self, entries):
+        self.dos = entries
+
+    def by_id(self, gid):
+        return None
 
 
 def make_game(d, exe="GAME.EXE", extra=()):
@@ -555,3 +570,95 @@ def test_where_the_second_b_goes():
         assert me.settings_back == opened_from
         app_settings.SettingsMixin._h_settings(me, B)                             # B in Settings (side bar)
         assert went[-1] == expect
+
+
+# --- 10: a failing press or frame must not kill the app, and must leave a trace ---------------------------------
+def test_a_failing_press_is_logged_and_the_app_carries_on(tmp_path, caplog):
+    import logging
+    from itch_deck import app as appmod
+    from itch_deck.input import B
+    paths.use_root(tmp_path / "home")
+    a = appmod.App(windowed=True)
+    a.lib._fetch_dosart = lambda *x, **k: None
+    assert appmod.App.strict is False
+    real = a.handle
+    calls = []
+
+    def bad(act):
+        calls.append(act)
+        if len(calls) == 1:
+            raise KeyError("boom")
+        return real(act)
+    a.handle = bad
+    with caplog.at_level(logging.ERROR, logger="scritch"):
+        a.run(max_frames=4, script={0: B, 1: B})
+    assert len(calls) == 2                                    # the second press was still handled
+    assert any("frame failed" in r.getMessage() and r.exc_info for r in caplog.records)   # with its traceback
+    assert a.scene.toast and "went wrong" in a.scene.toast
+
+
+def test_many_failures_in_a_row_go_back_to_the_library_and_strict_mode_raises(tmp_path):
+    import pytest
+    from itch_deck import app as appmod
+    paths.use_root(tmp_path / "home")
+    a = appmod.App(windowed=True)
+    went = []
+    a.go_library = lambda: went.append(1)
+    for _ in range(5):
+        try:
+            raise ValueError("x")
+        except ValueError:
+            a._frame_failed()
+    assert went == [1]
+    appmod.App.strict = True
+    try:
+        with pytest.raises(ValueError):
+            try:
+                raise ValueError("y")
+            except ValueError:
+                a._frame_failed()
+    finally:
+        appmod.App.strict = False
+
+
+def test_b_on_a_dos_game_page_and_in_its_program_list_do_not_raise(tmp_path, monkeypatch):
+    """Omri's Bio Menace report. Not reproduced here: B on the page, B in the Program to run list, B after a game
+    ran and closed, B on a hidden game's page all go back cleanly."""
+    from itch_deck import app as appmod, dosbox, runner
+    from itch_deck.input import A, B, START
+    paths.use_root(tmp_path / "home")
+    appmod.App.strict = True
+    try:
+        a = appmod.App(windowed=True)
+        a.lib._fetch_dosart = lambda *x, **k: None
+        dos = tmp_path / "dos"
+        make_game(dos / "Bio Menace", "BM1.EXE", ["TECHSUPP.EXE", "SETUP.EXE"])
+        a.inst.dos_roots = lambda: [dos]
+        a.inst.dos_root = lambda: dos
+        a.inst.sync_dos()
+        g = next(x for x in a.lib.games if x["store"] == "dos")
+        assert a.inst.index[g["id"]]["exe"] == "BM1.EXE"          # not the technical-support program
+        a.filt = "dos"
+        a.go_game(g)
+        a.handle(B)
+        assert a.kind == "library"
+        a.go_game(g)
+        a._program_picker(g["id"])
+        a.handle(B)
+        assert a.kind == "game" and not a.scene.overlay
+        a.handle(B)
+        assert a.kind == "library"
+        monkeypatch.setattr(dosbox, "native", lambda: ["dosbox"])
+        monkeypatch.setattr(runner, "run", lambda *x, **k: (0, 9.0))
+        a.go_game(g)
+        a.play(g)
+        a.update()
+        a.handle(B)
+        assert a.kind == "library"
+        a.go_game(g)
+        monkeypatch.setattr(runner, "run", lambda *x, **k: (1, 1.0))
+        a.play(g)
+        a.handle(B)
+        assert a.kind == "library"
+    finally:
+        appmod.App.strict = False

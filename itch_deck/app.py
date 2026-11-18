@@ -27,7 +27,7 @@ from .app_dos import DosMixin
 from .app_storage import StorageMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.27"
+VERSION = "0.9.28"
 
 
 def setup_logging():
@@ -471,24 +471,56 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         if self.autoplay:
             self._autoplay()
         while self.running:
-            for act in self.inp.poll():
-                if act == "QUIT_EVENT":
-                    self.running = False
+            try:                                  # v0.9.28: a failure in one press or frame is logged (with its
+                for act in self.inp.poll():       # traceback, in app.log) and the app goes on; it used to die
+                    if act == "QUIT_EVENT":       # without a trace
+                        self.running = False
+                    else:
+                        self.handle(act)
+                if script and frame in script:
+                    self.handle(script[frame])
+                self.update()
+                if self.fade_from is not None:
+                    self._transition()
                 else:
-                    self.handle(act)
-            if script and frame in script:
-                self.handle(script[frame])
-            self.update()
-            if self.fade_from is not None:
-                self._transition()
-            else:
-                self.scene.draw(self.screen)
+                    self.scene.draw(self.screen)
+                self._ok_frames = getattr(self, "_ok_frames", 0) + 1
+            except Exception:  # noqa: BLE001
+                self._frame_failed()
             self.pg.display.flip()
             clock.tick(60)
             frame += 1
             if max_frames and frame >= max_frames:
                 break
         self.pg.quit()
+
+def _frame_failed(self):
+    """A press or a frame raised: write the traceback to app.log, tell the player in plain words, and carry on. Many
+    failures in a row (the screen itself is broken) send the player back to the library; if even that fails, stop
+    with the real error."""
+    if getattr(self, "strict", False):            # the selftest and the tests want the real error
+        raise
+    log.exception("frame failed (scene %s)", getattr(self, "kind", "?"))
+    now = time.time()
+    recent = [t for t in getattr(self, "_fail_times", []) if now - t < 3] + [now]
+    self._fail_times = recent
+    self._ok_frames = 0
+    try:
+        self.say("Something went wrong. It is in the log.", error=True)
+    except Exception:  # noqa: BLE001
+        pass
+    if len(recent) >= 5:
+        self._fail_times = []
+        try:
+            self.go_library()
+        except Exception:  # noqa: BLE001
+            log.exception("going back to the library failed too")
+            raise
+
+
+App._frame_failed = _frame_failed
+App.strict = False
+
 
 def _selftest_epic(app):
     """Settings → Epic Games → Connect: QR page; the phone sends Epic's page -> stand-in legendary
@@ -605,6 +637,7 @@ def selftest(screenshot=None):
     paths.use_root(tempfile.mkdtemp(prefix="scritch-selftest-"))
     from . import library as library_mod
     library_mod.Library._fetch_dosart = lambda self, g, force=False: None      # never asks GOG in a test
+    App.strict = True                                                          # a failing step must fail the test
     app = App(windowed=True)
     assert app.kind == "setup"
     # v0.7 phone login: the phone sends a key -> checked -> library; the page closes soon after
@@ -809,6 +842,9 @@ def main(argv=None):
         logging.shutdown()
         return 0
     exit_on_signals()
+    sys.excepthook = lambda et, ev, tb: log.error("uncaught error", exc_info=(et, ev, tb))
+    threading.excepthook = lambda args: log.error("error in thread %s", getattr(args.thread, "name", "?"),
+                                                   exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
     app = App(windowed=a.windowed, autoplay=a.play)
     _APP[0] = app
     app.run()

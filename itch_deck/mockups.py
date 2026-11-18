@@ -22,6 +22,19 @@ STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase", "pl
               "genre", "session")
 
 
+def _wide_art(i):
+    """A plain generated WIDE picture (about 16:9), like GOG's horizontal cover: it fills the DOS tile."""
+    import pygame as pg
+    ART_DIR.mkdir(parents=True, exist_ok=True)
+    f = ART_DIR / f"wide-{i}.png"
+    img = pg.Surface((640, 360))
+    img.fill(((60, 120, 90), (150, 70, 120), (60, 90, 170))[i % 3])
+    pg.draw.circle(img, (250, 220, 90), (320, 150), 80)
+    pg.draw.rect(img, (20, 20, 30), (60, 270, 520, 60), border_radius=10)
+    pg.image.save(img, str(f))
+    return str(f)
+
+
 def load_real(root, pick=None):
     """Omri's cached itch data (library.json, covers/, pages/, shots/ — never in the repo).
     Returns (games, one game for the game-page states: `pick` title/id, else random)."""
@@ -393,6 +406,10 @@ def _shots(t, version):
                                                       title=ti, cover_file=cf) for g, ti, cf in zip(
             gog_games, ("Commander Keen", "Doom II", "Dave"), (_tall_art(0), _tall_art(1), None))],
                                              filt="dos", focus=0, stores=("itch", "epic", "gog"))),
+        ("06p_library_dos_wide_art", Library(t, [dict(g, dos=True, store="dos", state="installed", id="dos-wide-" + g["id"],
+                                                      title=ti, cover_file=cf) for g, ti, cf in zip(
+            gog_games, ("Commander Keen 3", "Blood", "Dave2", "Doom"), (_wide_art(0), _wide_art(1), None, _tall_art(0)))],
+                                             filt="dos", focus=1, stores=("itch", "epic", "gog"))),
         ("15q_game_gog", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300),
                               pos=(2, len(gog_games)))),
         ("15r_game_gog_downloading", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300,
