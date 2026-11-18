@@ -1350,11 +1350,16 @@ def rows(t, s, rect, items, focus, row_h=None, key="rows", arrows=False):
         action, off = value == ACTION_ROW, value == OFF_ROW   # purple at rest, white when lit
         if action or off:
             value = ""
+        reserve = 0                                # room kept for the value on the right: a long label is cut, never overlaps
+        if isinstance(value, str) and value:
+            reserve = (t.f_hint.size(value.upper())[0] + t.u * 4 if value in ("Recommended", "Installed", "In use")
+                       else t.f_body.size(value)[0]) + t.md
         text(t, s, label, r.x + pad, ly, t.f_btn, anchor="midleft",
-             color=t.faint if off else t.accent if action and i != focus else t.text_c)
+             color=t.faint if off else t.accent if action and i != focus else t.text_c,
+             maxw=r.w - 2 * pad - reserve if reserve else None)
         if sub:
             text(t, s, sub, r.x + pad, ly + t.f_btn.get_height() * 0.55, t.f_small,
-                 color=t.dim, anchor="topleft", maxw=r.w * 0.6)
+                 color=t.dim, anchor="topleft", maxw=min(r.w * 0.6, r.w - 2 * pad - reserve) if reserve else r.w * 0.6)
         if isinstance(value, tuple):               # (info text, purple action button or None)
             info, btn = value
             x = r.right - pad

@@ -379,7 +379,9 @@ def _shots(t, version):
             "picker", "Choose the program",
             "Pick the program that starts the game. A setup program runs once, the next time you play.",
             [(f"BLOOD{i}.EXE" if i < 9 else f"SETUP{i}.EXE", "In use" if i == 0 else "Setup" if i >= 9 else "",
-              "Top folder") for i in range(14)], 11))),
+              "Top folder") for i in range(12)]
+            + [("A_VERY_LONG_PROGRAM_NAME_FOR_A_DOS_GAME_SETUP_TOOL_2.EXE", "Setup",
+                "GAMES/DEEP/FOLDERS/WITH/A/REALLY/LONG/PATH/INSIDE"), ("SHORT.EXE", "Setup", "Top folder")], 12))),
         ("15w_game_dos_remove", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
                                              author="", platforms={"linux"}), pos=(1, 3)), (
             "confirm", "Remove Amber Atlas?",

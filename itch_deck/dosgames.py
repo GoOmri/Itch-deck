@@ -68,21 +68,22 @@ def game_id(name):
     return f"dos-{slug(name)[:40]}-{hashlib.sha1(name.encode('utf-8', 'replace')).hexdigest()[:6]}"
 
 
-def unique_id(name, folder, used):
+def unique_id(name, rel, used):
     """The id for a game folder. The first folder with a name keeps the old id (game_id(name)): hidden marks and
     saves follow it. A SECOND folder with the same name (a copy in another place or on the other drive) used to be
-    dropped silently, so a new game could "not show up"; now it gets its own id from its whole path. None when this
-    very folder was already listed."""
+    dropped silently, so a new game could "not show up"; now it gets its own id from its path INSIDE the dos folder
+    (rel, e.g. "DOS/doom"), never from the absolute path, so a changed mount name (the card's label) does not
+    change it. None when this very folder was already listed."""
     gid = game_id(name)
     if gid not in used:
-        used[gid] = str(folder)
+        used[gid] = rel
         return gid
-    if used[gid] == str(folder):
+    if used[gid] == rel:
         return None
-    gid = game_id(f"{name}|{folder}")
+    gid = game_id(f"{name}|{rel}")
     if gid in used:
         return None
-    used[gid] = str(folder)
+    used[gid] = rel
     return gid
 
 
@@ -362,7 +363,11 @@ def scan(root, choices=None, hide=None, used=None):
     used = {} if used is None else used         # id -> folder: the same name twice gets two tiles
 
     def add(f, progs, image, size):
-        gid = unique_id(f.name, f, used)
+        try:
+            rel = f.relative_to(root).as_posix()
+        except ValueError:
+            rel = f.name
+        gid = unique_id(f.name, rel, used)
         if gid is None:
             return
         title, year = dosart.display(f.name)    # the shown title is tidy; the folder and the id stay as they are

@@ -414,6 +414,7 @@ class Installer:
         self._cancel = set()
         self._thread = None
         self._lock = threading.Lock()
+        self.once = {}            # gid -> a setup program to run at the next Play (memory only, never saved)
         self.updating = set()     # gids queued as updates (same upload id may be reinstalled)
         self.moving = None        # gid being moved to the other drive (Move to SD card / internal)
         lib.installs, lib.live = self.index, {}
@@ -1096,13 +1097,17 @@ class Installer:
 
     def run_once(self, gid, rel):
         """A setup program picked in the list: it starts the NEXT time the game is played, once. The default
-        program does not change. (Kept in memory only; a rescan forgets it.)"""
+        program does not change. (Kept in memory only, in self.once; a rescan keeps it.)"""
         info = self.index.get(gid)
         if not info or info.get("store") != "dos" or rel not in info.get("setups", []):
             return False
-        info["exe_once"] = rel
+        self.once[gid] = rel                      # not in self.index: it can never reach installed.json
         log.info("install %s: %s runs once at the next Play", gid, rel)
         return True
+
+    def take_once(self, gid):
+        """The setup program to run now instead of the game (and forget it: the next Play is the game)."""
+        return self.once.pop(gid, None)
 
     def set_exe(self, gid, rel):
         """Program picker: run this file from now on (kept in install.json, so restarts and

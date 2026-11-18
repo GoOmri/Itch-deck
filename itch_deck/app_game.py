@@ -183,7 +183,7 @@ class GameMixin:
             sc.overlay, self.picker = None, None
             if self._prog_kinds[i] == "setup":
                 if self.inst.run_once(gid, self._progs[i]):
-                    self.say(f"{Path(self._progs[i]).name} starts once the next time you press Play.")
+                    self.say("It will run once the next time you play.")
             elif self.inst.set_exe(gid, self._progs[i]):
                 self.say(f"{Path(self._progs[i]).name} starts the game from now on.")
             return

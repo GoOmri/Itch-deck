@@ -155,12 +155,12 @@ def is_own_dos(info):
     return info.get("store") == "dos"
 
 
-def launch_own(info, base_cmd):
+def launch_own(info, base_cmd, once=None):
     """(exe, args, cwd) for runner.run: DOSBox Staging with the game's folder as drive C, a disc image as
     drive D when the folder has one, then the chosen program. The game's saves stay in its folder.
     Sub folders are entered with cd (DOS games use short 8.3 names)."""
     folder = Path(info["dir"])
-    once = info.pop("exe_once", None)              # a setup program picked in "Program to run": this Play only
+    # once: a setup program picked in "Program to run" runs instead of the game, this Play only (Installer.take_once)
     rel = (once or info.get("exe") or "").replace("\\", "/")
     parts = [p for p in rel.split("/") if p]
     cmds = [f'mount c "{folder}"']

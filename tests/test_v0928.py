@@ -420,9 +420,9 @@ def test_setup_programs_are_listed_marked_and_never_the_default(tmp_path, monkey
     assert inst.set_exe(gid, "SETUP.EXE") is False                          # a setup can not become the default
     assert inst.run_once(gid, "SETUP.EXE") and inst.index[gid]["exe"] == "BLOOD.EXE"
     from itch_deck import dosbox
-    exe, args, cwd = dosbox.launch_own(inst.index[gid], ["dosbox"])
+    exe, args, cwd = dosbox.launch_own(inst.index[gid], ["dosbox"], once=inst.take_once(gid))
     assert "SETUP.EXE" in args and "BLOOD.EXE" not in args
-    exe, args, cwd = dosbox.launch_own(inst.index[gid], ["dosbox"])         # once: the next Play is the game
+    exe, args, cwd = dosbox.launch_own(inst.index[gid], ["dosbox"], once=inst.take_once(gid))   # next Play: the game
     assert "BLOOD.EXE" in args and "SETUP.EXE" not in args
 
 
@@ -475,7 +475,7 @@ def test_picking_a_setup_runs_it_once_and_picking_a_program_changes_the_default(
     assert [i[1] for i in items] == ["In use", "", "Setup"] and "once" in sub
     app.scene.overlay = ("picker", title, sub, items, 2)                       # pick the setup
     mixin._pick(app, app.scene)
-    assert inst.index[gid]["exe"] == "BLOOD.EXE" and inst.index[gid]["exe_once"] == "SETUP.EXE"
+    assert inst.index[gid]["exe"] == "BLOOD.EXE" and inst.once[gid] == "SETUP.EXE"
     mixin._program_picker(app, gid)
     app.scene.overlay = ("picker", title, sub, items, 1)                       # pick the other program
     mixin._pick(app, app.scene)

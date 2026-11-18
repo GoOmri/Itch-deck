@@ -48,9 +48,9 @@ def parse(name, noise=True):
     s = re.sub(r"\((?:tm|r|c)\)", " ", s, flags=re.I)
     if noise:
         s = re.sub(r"\.(?:exe|com|bat|zip)\b", " ", s, flags=re.I)
-        s = re.sub(r"\bversion\s+v?\d+(?:\.\d+)*", " ", s, flags=re.I)
-        s = re.sub(r"\bv\d+(?:\.\d+)*\b", " ", s, flags=re.I)
-        s = re.sub(r"\b\d+(?:\.\d+)+\b", " ", s)             # 1.1, 1.0.2
+        s = re.sub(r"\bver(?:sion)?\.?\s*v?\d+(?:\.\d+)*[a-z]?\b", " ", s, flags=re.I)
+        s = re.sub(r"\bv\d+(?:\.\d+)*[a-z]?\b", " ", s, flags=re.I)
+        s = re.sub(r"\b\d+(?:\.\d+)+[a-z]?\b", " ", s)             # 1.1, 1.0.2
         s = re.sub(r"(?i)\b([a-z]{3,})(\d{1,2})\s*$", r"\1 \2", s.strip())    # Doom2 -> Doom 2, Keen4 -> Keen 4
     s = re.sub(r"(?<=\w)\.(?=\w)", " ", s)
     s = re.sub(r"\btm\b", " ", s, flags=re.I) if noise else s    # a bare "tm" ("R-Type" keeps its R)
@@ -87,9 +87,9 @@ def display(name):
     s = fold_keep(name).replace("_", " ")
     s = GROUP_RE.sub(" ", s)
     s = re.sub(r"\.(?:exe|com|bat|zip)\b", " ", s, flags=re.I)
-    s = re.sub(r"\bversion\s+v?\d+(?:\.\d+)*", " ", s, flags=re.I)
-    s = re.sub(r"\bv\d+(?:\.\d+)*\b", " ", s, flags=re.I)
-    s = re.sub(r"\b\d+(?:\.\d+)+\b", " ", s)
+    s = re.sub(r"\bver(?:sion)?\.?\s*v?\d+(?:\.\d+)*[a-z]?\b", " ", s, flags=re.I)
+    s = re.sub(r"\bv\d+(?:\.\d+)*[a-z]?\b", " ", s, flags=re.I)
+    s = re.sub(r"\b\d+(?:\.\d+)+[a-z]?\b", " ", s)
     s = re.sub(r"(?<=\w)\.(?=\w)", " ", s)
     toks = []
     for i, w in enumerate(s.split()):

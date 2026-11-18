@@ -7,6 +7,7 @@ import shutil
 import sys
 import threading
 import time
+import traceback
 from pathlib import Path
 
 from . import config, pads, paths, runner, theme, words
@@ -485,6 +486,8 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
                 else:
                     self.scene.draw(self.screen)
                 self._ok_frames = getattr(self, "_ok_frames", 0) + 1
+                if self._ok_frames >= 180:                # 3 s of good frames: the trouble is over
+                    self._trips, self._seen_errors = 0, {}
             except Exception:  # noqa: BLE001
                 self._frame_failed()
             self.pg.display.flip()
@@ -495,22 +498,44 @@ class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, 
         self.pg.quit()
 
 def _frame_failed(self):
-    """A press or a frame raised: write the traceback to app.log, tell the player in plain words, and carry on. Many
-    failures in a row (the screen itself is broken) send the player back to the library; if even that fails, stop
-    with the real error."""
+    """A press or a frame raised: write the traceback to app.log ONCE per distinct error (repeats are only counted,
+    one short line every few seconds), tell the player in plain words, and carry on. Five failures in 3 s send the
+    player back to the library; a third such trip, or 15 failures in 10 s, or a failing library, stops the app with
+    the real error (never a frozen screen)."""
     if getattr(self, "strict", False):            # the selftest and the tests want the real error
         raise
-    log.exception("frame failed (scene %s)", getattr(self, "kind", "?"))
+    et, ev, tb = sys.exc_info()
+    last = traceback.extract_tb(tb)[-1] if tb else None
+    key = (et.__name__ if et else "?", last.filename if last else "", last.lineno if last else 0)
     now = time.time()
-    recent = [t for t in getattr(self, "_fail_times", []) if now - t < 3] + [now]
-    self._fail_times = recent
+    seen = self.__dict__.setdefault("_seen_errors", {})
+    rec = seen.get(key)
+    if rec is None:
+        seen[key] = [0, now]
+        log.exception("frame failed (scene %s)", getattr(self, "kind", "?"))
+    else:
+        rec[0] += 1
+        if now - rec[1] >= 5:
+            log.error("same error again x%d (%s)", rec[0], key[0])
+            rec[0], rec[1] = 0, now
+    times = [t for t in getattr(self, "_fail_times", []) if now - t < 10] + [now]
+    self._fail_times = times
     self._ok_frames = 0
-    try:
-        self.say("Something went wrong. It is in the log.", error=True)
-    except Exception:  # noqa: BLE001
-        pass
-    if len(recent) >= 5:
+    if now - getattr(self, "_say_at", 0) >= 5:
+        self._say_at = now
+        try:
+            self.say("Something went wrong.", error=True)
+        except Exception:  # noqa: BLE001
+            pass
+    if len(times) >= 15:
+        log.error("too many failures in a row: stopping")
+        raise
+    if len([t for t in times if now - t < 3]) >= 5:
         self._fail_times = []
+        self._trips = getattr(self, "_trips", 0) + 1
+        if self._trips >= 3:
+            log.error("the screen keeps failing after going back to the library: stopping")
+            raise
         try:
             self.go_library()
         except Exception:  # noqa: BLE001
