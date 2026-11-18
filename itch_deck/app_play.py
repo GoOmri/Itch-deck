@@ -46,7 +46,7 @@ class PlayMixin:
             if not base:
                 self.say("DOSBox isn't available. Check Wi-Fi and try again.", error=True)
                 return
-            dos = dosbox.launch_own(info, base)
+            dos = dosbox.launch_own(info, base, once=self.inst.take_once(g["id"]))
         if info.get("platform") == "windows" and not dos:
             umu, pdir = proton.umu_path(), proton.proton_dir(self.cfg)
             if not pdir:

@@ -16,7 +16,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from . import paths
+from . import dosart, paths
 
 log = logging.getLogger("scritch")
 
@@ -68,6 +68,53 @@ def game_id(name):
     return f"dos-{slug(name)[:40]}-{hashlib.sha1(name.encode('utf-8', 'replace')).hexdigest()[:6]}"
 
 
+def unique_id(name, rel, used):
+    """The id for a game folder. The first folder with a name keeps the old id (game_id(name)): hidden marks and
+    saves follow it. A SECOND folder with the same name (a copy in another place or on the other drive) used to be
+    dropped silently, so a new game could "not show up"; now it gets its own id from its path INSIDE the dos folder
+    (rel, e.g. "DOS/doom"), never from the absolute path, so a changed mount name (the card's label) does not
+    change it. None when this very folder was already listed."""
+    gid = game_id(name)
+    if gid not in used:
+        used[gid] = rel
+        return gid
+    if used[gid] == rel:
+        return None
+    gid = game_id(f"{name}|{rel}")
+    if gid in used:
+        return None
+    used[gid] = rel
+    return gid
+
+
+def _tag_of(name):
+    """What a folder name says in its (...) / [...] groups apart from a year: "(Apogee Software)" -> "Apogee Software"."""
+    bits = [g[1:-1].strip() for g in dosart.GROUP_RE.findall(name)]
+    return ", ".join(b for b in bits if b and not dosart.YEAR_RE.fullmatch(b))
+
+
+def disambiguate(entries):
+    """Two games that would show the same title get a short difference: the year when they differ, else what the
+    folder name says in its brackets, else a number. Only the shown title changes (ids, folders, marks stay)."""
+    groups = {}
+    for e in entries:
+        groups.setdefault(e["title"].casefold(), []).append(e)
+    for same in groups.values():
+        if len(same) < 2:
+            continue
+        years = [e.get("year") for e in same if e.get("year")]
+        if len(set(years)) == len(years) and len(same) - len(years) <= 1:
+            for e in same:
+                if e.get("year"):                   # the one without a year keeps the plain title
+                    e["title"] = f"{e['title']} ({e['year']})"
+            continue
+        tags = [_tag_of(e["name"]) for e in same]
+        use_tags = all(tags) and len(set(tags)) == len(tags)
+        for n, e in enumerate(same):
+            e["title"] = f"{e['title']} ({tags[n] if use_tags else n + 1})"
+    return entries
+
+
 def title_of(name):
     """Folder name -> title: underscores to spaces, nothing else ("EOB_1" stays recognisable)."""
     t = re.sub(r"[_]+", " ", name).strip()
@@ -79,12 +126,16 @@ def is_helper(path):
     return any(w in low for w in SKIP_WORDS)
 
 
+SETUP_WORDS = ("setup", "install", "config", "setsound", "sndsetup", "soundset", "update", "patch", "fixit")
+SETUPS = {}                   # folder -> its setup programs, filled by survey() (read by scan(): one walk only)
+
+
 def survey(folder):
     """One walk of the game folder: (programs, disc image, size in bytes). Programs (.exe .com .bat, helpers
     left out) are relative with '/' separators, shallow first; the image is the first .cue (else .iso);
     only MAX_DEPTH folders down are looked at for both. Symlinks are not followed and not counted."""
     folder = Path(folder)
-    progs, images, size = [], [], 0
+    progs, images, size, setups = [], [], 0, []
     try:
         for dirpath, dirs, files in os.walk(folder, followlinks=False):
             rel_dir = Path(dirpath).relative_to(folder)
@@ -103,11 +154,15 @@ def survey(folder):
                 ext = Path(f).suffix.lower()
                 if ext in PROGRAM_EXTS and not is_helper(f):
                     progs.append(rel)
+                elif ext in PROGRAM_EXTS and any(w in Path(f).stem.lower() for w in SETUP_WORDS):
+                    setups.append(rel)                 # listed in "Program to run" as setup, never the default
                 elif ext in IMAGE_EXTS:
                     images.append(rel)
     except OSError:
         pass
     progs.sort(key=lambda r: (r.count("/"), r.lower()))
+    setups.sort(key=lambda r: (r.count("/"), r.lower()))
+    SETUPS[str(folder)] = setups
     images.sort(key=lambda r: (not r.lower().endswith(".cue"), r.count("/"), r.lower()))
     return progs, (images[0] if images else None), size
 
@@ -152,9 +207,25 @@ def tree_size(folder):
     return survey(folder)[2]
 
 
+# Programs that are about the game, not the game (a technical-support or order-form program started instead of Bio
+# Menace). Only the DEFAULT pick avoids them; they stay in the list. Whole words of the name, or the short 8.3 forms
+# DOS games use ("TECHSUPP", "ORDERING"); a real game like "Mouse Hunt", "Helpful Harry" or "Technoid" is not hit.
+SUPPORT_WORDS = {"trainer", "cheat", "cheats", "tech", "support", "help", "order", "ordering", "info", "readme",
+                 "vendor", "hint", "hints", "orderfrm", "orderform", "techsupp", "techsupport", "techhelp",
+                 "techinfo", "vendinfo", "orderinf", "orderinfo"}
+
+
+def is_support(rel):
+    """True for a program that only looks like support / order / cheat help (judged by its file name)."""
+    stem = Path(rel).stem.lower()
+    words = [w for w in re.split(r"[^a-z0-9]+", stem) if w]
+    return stem in SUPPORT_WORDS or (bool(words) and all(w in SUPPORT_WORDS for w in words))
+
+
 def pick_program(folder_name, progs, saved=None):
     """The program to run: the saved choice if it is still there, else the one that looks like the game
-    (a name equal to the folder's, a single .bat, or the only file); else the first (shallowest)."""
+    (a name equal to the folder's, a single .bat, or the only file); else the first (shallowest).
+    Support / order / cheat helpers (is_support) are only taken when nothing else is there."""
     if saved and saved in progs:
         return saved
     if not progs:
@@ -163,10 +234,11 @@ def pick_program(folder_name, progs, saved=None):
     for p in progs:
         if slug(Path(p).stem) == stem:
             return p
-    bats = [p for p in progs if p.lower().endswith(".bat") and "/" not in p]
+    real = [p for p in progs if not is_support(p)] or list(progs)
+    bats = [p for p in real if p.lower().endswith(".bat") and "/" not in p]
     if len(bats) == 1:
         return bats[0]
-    return progs[0]
+    return real[0]
 
 
 def cover_of(folder):
@@ -273,7 +345,7 @@ def unpack_zips(root, hide=None):
 
 
 # --- the scan ----------------------------------------------------------------------------------------
-def scan(root, choices=None, hide=None):
+def scan(root, choices=None, hide=None, used=None):
     """Every game folder in root (after unpacking zips): [{"name", "id", "title", "dir", "exe",
     "programs", "cover", "image", "size"}]. choices = {game id: chosen program}; hide = removed().
     Reads and unpacks files only; touches no shared state, so it may run in a thread."""
@@ -288,34 +360,47 @@ def scan(root, choices=None, hide=None):
                           and not p.name.endswith(".unpacking")), key=lambda p: p.name.lower())
     except OSError:
         return out
-    seen = set()
+    used = {} if used is None else used         # id -> folder: the same name twice gets two tiles
 
     def add(f, progs, image, size):
-        gid = game_id(f.name)
-        if gid in seen:                         # the same name twice (a game and a collection's game)
+        try:
+            rel = f.relative_to(root).as_posix()
+        except ValueError:
+            rel = f.name
+        gid = unique_id(f.name, rel, used)
+        if gid is None:
             return
-        seen.add(gid)
-        out.append({"name": f.name, "id": gid, "title": title_of(f.name), "dir": str(f),
+        title, year = dosart.display(f.name)    # the shown title is tidy; the folder and the id stay as they are
+        out.append({"name": f.name, "id": gid, "title": title, "year": year, "dir": str(f),
                     "exe": pick_program(f.name, progs, choices.get(gid)), "programs": progs,
+                    "setups": list(SETUPS.get(str(f), [])),
                     "cover": cover_of(f), "image": image, "size": size})
 
     for f in folders:
-        games = collection(f)                   # v0.9.25: DOS.zip with many games inside = many tiles
-        if not games and _hidden(f, hide):      # (a mark left by removing the old single "DOS" tile
-            continue                            # must not hide the games inside it)
-        if games:
-            log.info("dosgames: %s holds %d games, each gets its own tile", f.name, len(games))
-            for sub, (progs, image, size) in games.items():
-                if '"' in sub.name or _hidden(sub, hide):
-                    continue
-                add(sub, progs, image, size)
-            continue
-        if '"' in f.name:                       # DOSBox's mount command can't quote such a name
-            log.info("dosgames: %s skipped, the folder name has a double quote", f.name)
-            continue
-        progs, image, size = survey(f)
-        if not progs:
-            log.info("dosgames: %s has no .exe/.com/.bat, skipped", f.name)
-            continue
-        add(f, progs, image, size)
+        try:
+            _scan_folder(f, hide, add)
+        except Exception:  # noqa: BLE001  - one odd folder must not hide all the others
+            log.exception("dosgames: %s skipped", f.name)
     return out
+
+
+def _scan_folder(f, hide, add):
+    """One top-level folder of the dos folder: a collection gives a tile per game inside, else one tile."""
+    games = collection(f)                       # v0.9.25: DOS.zip with many games inside = many tiles
+    if not games and _hidden(f, hide):          # (a mark left by removing the old single "DOS" tile
+        return                                  # must not hide the games inside it)
+    if games:
+        log.info("dosgames: %s holds %d games, each gets its own tile", f.name, len(games))
+        for sub, (progs, image, size) in games.items():
+            if '"' in sub.name or _hidden(sub, hide):
+                continue
+            add(sub, progs, image, size)
+        return
+    if '"' in f.name:                           # DOSBox's mount command can't quote such a name
+        log.info("dosgames: %s skipped, the folder name has a double quote", f.name)
+        return
+    progs, image, size = survey(f)
+    if not progs:
+        log.info("dosgames: %s has no .exe/.com/.bat, skipped", f.name)
+        return
+    add(f, progs, image, size)

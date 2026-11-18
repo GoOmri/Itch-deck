@@ -1,4 +1,4 @@
-"""Manage games (Settings -> Storage -> Manage games): tick installed games and uninstall them together.
+"""Manage games (Settings -> Storage -> Manage games): select installed games and uninstall them together.
 See storagemgr.py. Mixed into App (app.py)."""
 import logging
 import time
@@ -32,8 +32,7 @@ class StorageMixin:
                 self.confirm(f"Uninstall {n} game{'' if n == 1 else 's'}?",
                              [f"Frees about {storagemgr.mb_text(mb)}.", "Windows saves are kept."],
                              "Uninstall", lambda: self._storage_uninstall(ids))
-            else:
-                self.say("Tick games with A first.")
+            # nothing selected: X does nothing (no message); its hint is only shown once something is selected
         else:
             before = sc.sort
             sc.handle(act)
@@ -56,7 +55,7 @@ class StorageMixin:
                 failed += 1                                       # e.g. the SD card is out
         log.info("storage: uninstalled %d, failed %d", done, failed)
         sc = self.scene
-        sc.selected -= gone                                       # the ones that failed stay ticked
+        sc.selected -= gone                                       # the ones that failed stay selected
         sc.set_items(storagemgr.entries(self.lib.games, self.inst.index))
         sc.drives = storagemgr.drives()
         if failed:

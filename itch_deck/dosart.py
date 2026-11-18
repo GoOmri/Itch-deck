@@ -11,7 +11,7 @@ import urllib.parse
 CATALOG = ("https://catalog.gog.com/v1/catalog?limit=10&query=like%3A{q}&order=desc%3Ascore"
            "&productType=in%3Agame%2Cpack&page=1&countryCode=US&locale=en-US&currencyCode=USD")
 MIN_SCORE = 60                 # below this a match is too weak: no match at all
-ALGO = 1                       # bump when the matching changes: old "no match" answers are asked again
+ALGO = 2                       # bump when the matching changes: old "no match" answers are asked again
 
 NOISE = {"shareware", "registered", "full", "retail", "cd", "dos", "cracked", "version", "ver", "cdrom"}
 ROMAN = {"ii": 2, "iii": 3, "iv": 4, "vi": 6, "vii": 7, "viii": 8, "ix": 9}
@@ -48,9 +48,9 @@ def parse(name, noise=True):
     s = re.sub(r"\((?:tm|r|c)\)", " ", s, flags=re.I)
     if noise:
         s = re.sub(r"\.(?:exe|com|bat|zip)\b", " ", s, flags=re.I)
-        s = re.sub(r"\bversion\s+v?\d+(?:\.\d+)*", " ", s, flags=re.I)
-        s = re.sub(r"\bv\d+(?:\.\d+)*\b", " ", s, flags=re.I)
-        s = re.sub(r"\b\d+(?:\.\d+)+\b", " ", s)             # 1.1, 1.0.2
+        s = re.sub(r"\bver(?:sion)?\.?\s*v?\d+(?:\.\d+)*[a-z]?\b", " ", s, flags=re.I)
+        s = re.sub(r"\bv\d+(?:\.\d+)*[a-z]?\b", " ", s, flags=re.I)
+        s = re.sub(r"\b\d+(?:\.\d+)+[a-z]?\b", " ", s)             # 1.1, 1.0.2
         s = re.sub(r"(?i)\b([a-z]{3,})(\d{1,2})\s*$", r"\1 \2", s.strip())    # Doom2 -> Doom 2, Keen4 -> Keen 4
     s = re.sub(r"(?<=\w)\.(?=\w)", " ", s)
     s = re.sub(r"\btm\b", " ", s, flags=re.I) if noise else s    # a bare "tm" ("R-Type" keeps its R)
@@ -69,8 +69,79 @@ def parse(name, noise=True):
     num, bw = _number(words)
     _, bmain = _number(main)
     bhead = _head(words)
-    return {"words": words, "main": main, "bw": bw, "bmain": bmain, "bhead": bhead, "year": year, "num": num,
+    headnum = None
+    for i, w in enumerate(words):
+        if i and ((w.isdigit() and len(w) <= 2) or w in ROMAN):
+            headnum = words[:i + 1] if i + 1 < len(words) else None    # "commander keen 3" of "... keen must die"
+            break
+    return {"words": words, "main": main, "bw": bw, "bmain": bmain, "bhead": bhead, "headnum": headnum, "year": year, "num": num,
             "text": " ".join(words)}
+
+
+def display(name):
+    """Folder name -> (the title a player sees, the year or None). "Commander Keen 3 Keen Must Die
+    (1990)(Apogee Software)" -> ("Commander Keen 3 Keen Must Die", 1990). Groups, version words, shareware /
+    registered / cd / dos ..., underscores and extra spaces go; subtitles, case and accents stay (a name that
+    is all lower case gets capitals). The folder itself and the game's id are never touched."""
+    year = parse(name)["year"]
+    s = fold_keep(name).replace("_", " ")
+    s = GROUP_RE.sub(" ", s)
+    s = re.sub(r"\.(?:exe|com|bat|zip)\b", " ", s, flags=re.I)
+    s = re.sub(r"\bver(?:sion)?\.?\s*v?\d+(?:\.\d+)*[a-z]?\b", " ", s, flags=re.I)
+    s = re.sub(r"\bv\d+(?:\.\d+)*[a-z]?\b", " ", s, flags=re.I)
+    s = re.sub(r"\b\d+(?:\.\d+)+[a-z]?\b", " ", s)
+    s = re.sub(r"(?<=\w)\.(?=\w)", " ", s)
+    toks = []
+    for i, w in enumerate(s.split()):
+        bare = re.sub(r"[^a-z0-9]", "", w.lower())
+        if bare == "tm" or (i and bare in NOISE):
+            continue
+        toks.append(w)
+    if year and len(toks) > 1 and toks[-1] == str(year):
+        toks.pop()
+    t = " ".join(toks).strip(" -:–—,.")
+    if not t:
+        t = " ".join(name.replace("_", " ").split()) or name
+    if t == t.lower():
+        t = " ".join(w[:1].upper() + w[1:] for w in t.split())
+    return t, year
+
+
+PACK_TALK = re.compile(r"\b(?:packs?|bundles?|collections?|compilations?|includes?|including|included|both games|"
+                       r"all (?:three|four|five|\d+) games|two games|trilogy|bonus|episodes? (?:one|two|\d))\b|"
+                       r"\w+\s*\+\s*\w+", re.I)
+SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[\"'A-Z0-9(])")
+
+
+def short_text(paras, limit=600):
+    """GOG's description cut down for a DOS game page: only the first paragraph that still says something after the
+    sentences about a pack / bundle / collection are dropped ("includes DOOM + DOOM II", "both games"...), at most
+    about `limit` characters, cut at the end of a sentence. [] when nothing is left."""
+    for para in paras or []:
+        sentences = [x.strip() for x in SENTENCE_RE.split(" ".join(str(para).split())) if x.strip()]
+        keep = [x for x in sentences if not PACK_TALK.search(x)]
+        out = ""
+        for x in keep:
+            if out and len(out) + 1 + len(x) > limit:
+                break
+            out = f"{out} {x}".strip()
+        if len(out) > limit + 100:                   # one huge sentence: cut at a word
+            out = out[:limit].rsplit(" ", 1)[0].rstrip(",;: ") + "\u2026"
+        if out:
+            return [out]
+    return []
+
+
+def search_name(name):
+    """What the GOG lookup is asked: the clean title with its year in brackets ("Blood (1997)")."""
+    t, y = display(name)
+    return f"{t} ({y})" if y else t
+
+
+def fold_keep(s):
+    """Signs like (TM) (R) (C) removed; accents stay (this is for showing)."""
+    s = (s or "").replace("™", " ").replace("®", " ").replace("©", " ")
+    return re.sub(r"\((?:tm|r|c)\)", " ", s, flags=re.I)
 
 
 def _drop_noise(words):
@@ -107,7 +178,7 @@ def queries(p):
     w = p["words"]
     full = " ".join(w)
     arabic = " ".join(str(ROMAN[x]) if x in ROMAN else x for x in w)
-    forms = [full, arabic, " ".join(p["main"]), " ".join(_lead(w)), " ".join(_lead(p["main"]))]
+    forms = [full, " ".join(p["headnum"] or []), arabic, " ".join(p["main"]), " ".join(_lead(w)), " ".join(_lead(p["main"]))]
     out = []
     for f in forms:
         if f and f not in out:
@@ -231,8 +302,11 @@ def choose(name, products, relaxed=False):
     return {"prod": top[3], "score": top[4]}
 
 
-def pick_cover(prod):
-    for k in ("coverVertical", "coverHorizontal"):
+def pick_cover(prod, wide=True):
+    """The cover for the library tile: GOG's WIDE picture (coverHorizontal; the tile is nearly 5:4, so it fills the
+    tile with a small crop) and only when there is none the tall one (shown whole over a blurred copy)."""
+    keys = ("coverHorizontal", "coverVertical") if wide else ("coverVertical", "coverHorizontal")
+    for k in keys:
         u = str((prod or {}).get(k) or "").strip()
         if u:
             return ("https:" + u) if u.startswith("//") else u
@@ -248,7 +322,8 @@ def summary(prod, score=None):
             genres.append(str(n))
     return {"id": str(prod["id"]), "title": str(prod.get("title") or ""), "slug": prod.get("slug") or "",
             "year": year_of(prod), "type": prod.get("productType") or "game",
-            "cover": pick_cover(prod), "genres": genres, "score": score}
+            "cover": pick_cover(prod), "cover_tall": pick_cover(prod, wide=False), "genres": genres,
+            "score": score}
 
 
 def find(name, fetch):

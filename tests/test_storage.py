@@ -1,4 +1,4 @@
-"""Manage games (v0.9.24, Omri 17 Nov): installed games by size, tick several, uninstall them together."""
+"""Manage games (v0.9.24, Omri 17 Nov): installed games by size, select several, uninstall them together."""
 import os
 import sys
 import types
@@ -135,8 +135,9 @@ def test_app_buttons_confirm_uninstall_and_remember_the_sort(monkeypatch):
     me, sc, _s, said, asked, went, calls = _app()
     app_storage.StorageMixin._h_storage(me, B)
     assert went == ["settings"]
-    app_storage.StorageMixin._h_storage(me, X)                           # nothing ticked
-    assert said[-1][0] == "Tick games with A first." and not asked
+    n_said = len(said)
+    app_storage.StorageMixin._h_storage(me, X)                           # nothing selected: X does nothing at all
+    assert len(said) == n_said and not asked
     sc.selected, sc.selected_mb = {"b", "a"}, (lambda: 5200)
     app_storage.StorageMixin._h_storage(me, X)
     (title, body, action, fn), kw = asked[0][0][:4], asked[0][1]

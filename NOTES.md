@@ -639,3 +639,43 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   "dosart <id>: <title> (<gog id>, score N)" or "dosart <id>: no match, title card".
 - Not done / ideas: wrong matches can be fixed only by renaming the folder; no per-game "pick another" yet (ask Omri).
 - v0.9.27 review fixes (same release): a rescan during a cover download no longer loses the cover (the CURRENT entry gets it); a broken cover or failed text is tried once per cache entry ("cover_tried"/"text_tried"), not on every scan; packs follow the same rules as games (one common word is too weak; the folder's sequel number must be inside the pack: Doom 3 / Doom 64 do not match "DOOM + DOOM II"; when a pack fits, a single game from 2000 or later (DOOM 2016) is dropped, and a game more than a year off the folder's year loses); the number-dropped last try (dosart.find, the `if p["num"] and p["bw"]` block near the end) KEEPS the folder's title and uses only GOG's art (no description: match["fallback"]); the DOS page line about cover.png only shows when there is no cover; title card font never below the theme meta size, ellipsis on the last line, long words cut; mockups 06o (tall art with blurred edge) added, 15zc has no Comments. Tests: 30 in test_dosart.py; 44 failed / 279 passed, same 44 failures as main.
+
+## v0.9.28 (18 Nov, branch v0928-dos-fixes; waits for "push v0.9.28") = DOS fixes from Omri's Deck test
+- SCAN BUG ("new folders and zips do not show"): NOT reproduced with a layout like his (dos/DOS/18 games + new top-level folders + new zips,
+  on two roots): the scan, the install index and the DOS tab all listed every game. Causes found and fixed, any of which would hide new games:
+  (1) a game folder with the SAME NAME as one already listed (e.g. the same games copied again, or inside DOS/ and at top level) was dropped
+  silently (the id comes from the folder name): now the first keeps its id, a second same-named folder gets its own id from its path (other
+  drive keeps the old "first drive wins" rule); (2) each drive is read in BOTH names, itch/dos and scritch/dos (games_dir() picks only one,
+  so files copied into the other were never read); (3) one folder that raised an error stopped the whole scan: now it is logged and skipped;
+  (4) own DOS games that were hidden (Remove) were not in the DOS tab's Hidden filter, so re-copied games that match an old removed name
+  looked "missing" (fix 2 below). app.log now has "dos: <folder> -> N games" per folder. If it still happens, send app.log.
+- Hidden own DOS games show in the DOS tab under Show > Hidden games (the filter and the tab now also test store == "dos").
+- DOS titles are tidy: "Commander Keen 3 Keen Must Die (1990)(Apogee Software)" -> "Commander Keen 3 Keen Must Die" (dosart.display; year
+  read first; subtitles stay). Same titles get the year, else the brackets text, else (2). Ids and folders do not change. The GOG search uses the
+  clean title + year, also tries "commander keen 3" (name before the subtitle); cache key = that clean name (ALGO 2: asked again once).
+- Art lookups first: dosart jobs have priority 0 (were 6, behind 500+ covers/pages); the page you open is -1. queue_dosart runs after every scan.
+- Wide GOG cover (coverHorizontal, ~16:9) is the tile art; it is cropped to fill the tile (small crop, no blurred bars). The tall one is kept in
+  the cache (cover_tall) and is the fallback; a tall picture is still shown whole over a blurred copy. Old tall art from v0.9.27 is replaced.
+  The folder's cover.png still wins. File shape used: whatever coverHorizontal is (jpg/webp), saved in data/dosart/<id>.*, shrunk to 720 px.
+- GOG text: only the first paragraph, cut at a sentence (about 600 characters), sentences about a pack/bundle/collection/"includes"/"both games"/
+  "A + B" dropped. A match found without its sequel number (the last try) still gives art only, no text, and never GOG's title.
+- Program to run: the list scrolls (max what fits above the footer, "3 / 18" at the top right, long sub text wraps). Setup/install/config
+  programs are listed with "Setup" at the right; picking one runs it ONCE at the next Play (default unchanged; kept in memory, a rescan forgets it).
+  The default program skips trainer/cheat/tech/support/help/order/info/readme/vendor/hint names (whole words and short DOS forms like TECHSUPP,
+  ORDERING; "Mouse Hunt", "Helpful Harry", "Technoid" are fine); saved choice and a name equal to the folder still win first.
+- Manage games: "Tick" -> "Select"; X with nothing selected does nothing (no message); Y keeps the focus on the same game and the list glides.
+- Crash safety (Omri: B crashes SCRiTCH on Bio Menace): NOT reproduced (B on the page, in the program list, after play, after a crash, on a hidden
+  game: all fine in a headless run). The real cause may be an error that left no trace: an exception in a press or frame used to end the app
+  without a line in app.log. Now run() logs "frame failed" with the traceback, shows "Something went wrong. It is in the log." and goes on (5 in
+  3 s -> back to the library); uncaught errors in the main program and in threads are logged too. Selftest/tests run strict (errors raise).
+- Answer for the checklist: Manage games -> B -> Settings (a NEW Settings page, on its category list) -> B -> the library if Settings was opened from
+  the library, or the game page of the focused game if it was opened from a game page.
+- Tests: tests/test_v0928.py (33). Windows: 44 failed / 312 passed, the same 44 failures as main (scratch/base3.txt); selftest stops at the same Epic
+  step as on main (Windows). Mockups 06n/06o/06p (title cards, tall and wide art), 15zd (program list), 236 render.
+- UNVERIFIED (no Deck, no real GOG): the real coverHorizontal shape and size; the scan bug on Omri's real folders; Bio Menace's real program names
+  (TECHSUPP is a guess); the crash itself; how the program list looks with a real 30-program game.
+- Check on the Deck: Refresh with new folders/zips on SD and internal: the DOS tab lists them (app.log "dos: ... -> N games" per folder); titles are
+  clean; "dosart <id>:" lines appear for all DOS games within a minute or two; tiles show a wide cover; GOG text is short; Program to run on Blood: a
+  Setup row runs once; Bio Menace starts the game; Manage games hints; B on a DOS page - if it crashes, app.log now says why.
+- v0.9.28 review fixes: the error catcher writes each distinct error's traceback ONCE (repeats only counted, a short line every 5 s), stops with the real error after 3 trips to the library or 15 failures in 10 s, says plainly "Something went wrong."; a failed apply_dos can no longer block later Refreshes; the "run setup once" flag is a memory-only dict on the Installer (never saved, a rescan keeps it, a restart forgets it); versions like v1.3d / ver 1.1 are dropped whole; a long program name is cut with an ellipsis before the "Setup" label; the pick toast says "It will run once the next time you play."
+- A second same-named folder's id now comes from its path INSIDE the dos folder (not the mount path), so a changed card label keeps it; it can still change if the first same-named folder is removed or a folder is moved (the first one holds the plain id).

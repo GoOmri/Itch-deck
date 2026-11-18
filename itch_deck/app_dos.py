@@ -46,8 +46,14 @@ class DosMixin:
         note, self.dos_note = self.dos_note, None
         if note is None:
             return
-        n = None if note["failed"] else self.inst.apply_dos(note["result"])
-        self.dos_busy = False
+        n = None
+        try:
+            if not note["failed"]:
+                n = self.inst.apply_dos(note["result"])
+        except Exception:  # noqa: BLE001  - a failed apply must never stop later Refreshes
+            log.exception("dos apply failed")
+        finally:
+            self.dos_busy = False
         if self.kind == "settings":
             self.scene.v["dos_row"] = self._dos_row()
         if note["tell"] and n:                   # the Refresh button: ask GOG for art again (once a day at most)

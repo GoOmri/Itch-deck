@@ -414,6 +414,7 @@ class Installer:
         self._cancel = set()
         self._thread = None
         self._lock = threading.Lock()
+        self.once = {}            # gid -> a setup program to run at the next Play (memory only, never saved)
         self.updating = set()     # gids queued as updates (same upload id may be reinstalled)
         self.moving = None        # gid being moved to the other drive (Move to SD card / internal)
         lib.installs, lib.live = self.index, {}
@@ -1082,6 +1083,32 @@ class Installer:
         out = [info["exe"]] + [a for a in info.get("alternatives", []) if a != info["exe"]]
         return [p for p in out if (files / p).is_file()]
 
+    def program_choices(self, gid):
+        """[(relative path, kind)] for the "Program to run" list: the one in use first, the other programs, then the
+        setup / install programs (kind "setup": run once, never the default)."""
+        info = self.index.get(gid)
+        if not info:
+            return []
+        out = [(p, "use" if i == 0 else "prog") for i, p in enumerate(self.programs(gid))]
+        if info.get("store") == "dos":
+            base = Path(info["dir"])
+            out += [(p, "setup") for p in info.get("setups", []) if (base / p).is_file()]
+        return out
+
+    def run_once(self, gid, rel):
+        """A setup program picked in the list: it starts the NEXT time the game is played, once. The default
+        program does not change. (Kept in memory only, in self.once; a rescan keeps it.)"""
+        info = self.index.get(gid)
+        if not info or info.get("store") != "dos" or rel not in info.get("setups", []):
+            return False
+        self.once[gid] = rel                      # not in self.index: it can never reach installed.json
+        log.info("install %s: %s runs once at the next Play", gid, rel)
+        return True
+
+    def take_once(self, gid):
+        """The setup program to run now instead of the game (and forget it: the next Play is the game)."""
+        return self.once.pop(gid, None)
+
     def set_exe(self, gid, rel):
         """Program picker: run this file from now on (kept in install.json, so restarts and
         updates keep it). The old choice stays in the list."""
@@ -1257,10 +1284,12 @@ class Installer:
         from . import dosgames
         first = self.dos_root()
         out = [first] if first.is_dir() else []
-        for _name, r in config.install_choices():
-            d = dosgames.dos_dir(r)
-            if d not in out and d.is_dir() and not config.card_missing(d):
-                out.append(d)
+        bases = [Path(self.root_fn()).parent] + [Path(r).parent for _n, r in config.install_choices()]
+        for base in bases:                          # on each drive BOTH names: "itch" and "scritch" (a player
+            for name in ("itch", "scritch"):        # may copy into the one games_dir() does not pick)
+                d = dosgames.dos_dir(base / name)
+                if d not in out and d.is_dir() and not config.card_missing(d):
+                    out.append(d)
         return out
 
     def scan_dos(self, create=False):
@@ -1283,7 +1312,10 @@ class Installer:
         entries = []
         for r in self.dos_roots():                  # the install location's folder first; it may not exist
             have = {e["id"] for e in entries}       # (the other drive's can still hold the games)
-            entries += [e for e in dosgames.scan(r, picked, hide={}) if e["id"] not in have]
+            got = dosgames.scan(r, picked, hide={})
+            entries += [e for e in got if e["id"] not in have]
+            log.info("dos: %s -> %d games (%d new to the list)", r, len(got), len([e for e in got if e["id"] not in have]))
+        dosgames.disambiguate(entries)
         return {"entries": entries}                 # hide={}: "removed" games are the app's hidden list now
 
     def apply_dos(self, result):
@@ -1306,6 +1338,7 @@ class Installer:
             self.index[gid] = {"game_id": gid, "title": e["title"], "store": "dos", "platform": "dos",
                                "dir": e["dir"], "exe": exe, "args": [], "cwd": "", "image": e["image"],
                                "alternatives": [p for p in e["programs"] if p != exe],
+                               "setups": [p for p in e.get("setups", []) if (Path(e["dir"]) / p).is_file()],
                                "exe_chosen": bool(keep), "size": e["size"],
                                "date": old.get("date") or dt.datetime.now().astimezone().isoformat(timespec="seconds")}
         for gid, i in list(self.index.items()):
@@ -1316,8 +1349,9 @@ class Installer:
         _write_json(paths.INSTALLS, self.index)
         covers = {e["id"]: e["cover"] for e in entries}
         listed = {e["id"]: e["title"] for e in entries}
+        folders = {e["id"]: e["name"] for e in entries}
         listed.update({gid: i["title"] for gid, i in self.index.items() if i.get("store") == "dos"})
-        self.lib.set_dos_games([{"id": gid, "title": title, "cover": covers.get(gid)}
+        self.lib.set_dos_games([{"id": gid, "title": title, "cover": covers.get(gid), "folder": folders.get(gid)}
                                 for gid, title in listed.items()])
         n = sum(1 for e in entries if e["id"] not in hidden)
         log.info("dos: %d games listed", n)

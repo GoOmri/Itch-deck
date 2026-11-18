@@ -203,7 +203,7 @@ def test_a_match_gives_cover_text_screens_and_is_cached(tmp_path, monkeypatch):
     g = lib.by_id(e["id"])
     run_jobs(lib)
     assert g["cover_file"] and str(paths.DATA / "dosart") in g["cover_file"]    # our own folder, not the player's
-    assert g["description"] == ["Billy Blaze saves the galaxy.", "Pogo!"]
+    assert g["description"] == ["Billy Blaze saves the galaxy."]        # v0.9.28: only the first paragraph
     assert g["details_from"] == "GOG" and g["screens"] == 1 and g["inputs"] == ["Keyboard", "Mouse"]
     n = len(st.catalog_calls())
     assert n >= 1

@@ -22,6 +22,19 @@ STATE_KEYS = ("state", "progress", "speed_mbs", "eta_s", "missing", "phase", "pl
               "genre", "session")
 
 
+def _wide_art(i):
+    """A plain generated WIDE picture (about 16:9), like GOG's horizontal cover: it fills the DOS tile."""
+    import pygame as pg
+    ART_DIR.mkdir(parents=True, exist_ok=True)
+    f = ART_DIR / f"wide-{i}.png"
+    img = pg.Surface((640, 360))
+    img.fill(((60, 120, 90), (150, 70, 120), (60, 90, 170))[i % 3])
+    pg.draw.circle(img, (250, 220, 90), (320, 150), 80)
+    pg.draw.rect(img, (20, 20, 30), (60, 270, 520, 60), border_radius=10)
+    pg.image.save(img, str(f))
+    return str(f)
+
+
 def load_real(root, pick=None):
     """Omri's cached itch data (library.json, covers/, pages/, shots/ — never in the repo).
     Returns (games, one game for the game-page states: `pick` title/id, else random)."""
@@ -361,6 +374,14 @@ def _shots(t, version):
                                               controls_value="Auto \u00b7 Keys"), pos=(1, 3)), (
             "menu", "Options", "", [("Remove from library", "", ""), ("Controls", "Auto \u00b7 Keys", ""),
                                     ("Program to run", "", "")], 0))),
+        ("15zd_game_dos_programs", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
+                                              programs=14, author="", platforms={"linux"}), pos=(1, 3)), (
+            "picker", "Choose the program",
+            "Pick the program that starts the game. A setup program runs once, the next time you play.",
+            [(f"BLOOD{i}.EXE" if i < 9 else f"SETUP{i}.EXE", "In use" if i == 0 else "Setup" if i >= 9 else "",
+              "Top folder") for i in range(12)]
+            + [("A_VERY_LONG_PROGRAM_NAME_FOR_A_DOS_GAME_SETUP_TOOL_2.EXE", "Setup",
+                "GAMES/DEEP/FOLDERS/WITH/A/REALLY/LONG/PATH/INSIDE"), ("SHORT.EXE", "Setup", "Top folder")], 12))),
         ("15w_game_dos_remove", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
                                              author="", platforms={"linux"}), pos=(1, 3)), (
             "confirm", "Remove Amber Atlas?",
@@ -387,6 +408,10 @@ def _shots(t, version):
                                                       title=ti, cover_file=cf) for g, ti, cf in zip(
             gog_games, ("Commander Keen", "Doom II", "Dave"), (_tall_art(0), _tall_art(1), None))],
                                              filt="dos", focus=0, stores=("itch", "epic", "gog"))),
+        ("06p_library_dos_wide_art", Library(t, [dict(g, dos=True, store="dos", state="installed", id="dos-wide-" + g["id"],
+                                                      title=ti, cover_file=cf) for g, ti, cf in zip(
+            gog_games, ("Commander Keen 3", "Blood", "Dave2", "Doom"), (_wide_art(0), _wide_art(1), None, _tall_art(0)))],
+                                             filt="dos", focus=1, stores=("itch", "epic", "gog"))),
         ("15q_game_gog", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300),
                               pos=(2, len(gog_games)))),
         ("15r_game_gog_downloading", Game(t, dict(gog_games[1], platforms={"windows"}, size_mb=2_300,
