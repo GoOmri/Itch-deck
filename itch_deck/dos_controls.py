@@ -136,37 +136,15 @@ def hint_text(hints, name_of, limit=None):
     return "  ·  ".join(items)
 
 
-SOURCE_TEXT = {"files": "From the game's own files. A key may be wrong.",
-               "list": "From our list. Not tested, so a key may be wrong.",
+SOURCE_TEXT = {"list": "From our list. Not tested, so a key may be wrong.",
                "verified": "", "default": "Controls are a guess. Some keys may be wrong."}
-HINT_ORDER = ("DPAD", "RSTICK", "A", "B", "X", "Y", "L1", "R1", "L2", "R2", "START", "BACK")
 
 
-def extracted_ok(x):
-    """A dosinput.scan() result that holds a usable layout."""
-    return bool(isinstance(x, dict) and isinstance(x.get("map"), dict) and x["map"] and x.get("hints")
-                and all(k in keynames.CODES for k in x["map"].values()))
-
-
-def _overlay(base, found):
-    """The game's own files on top of the table entry (or the default): only the buttons the files named a real
-    action for are replaced, everything else (Esc on Start, Enter on Y, the mouse ...) stays from the base."""
-    keymap = dict(base["map"])
-    keymap.update(found["map"])
-    hints = {h[0]: list(h) for h in base["hints"]}
-    for h in found["hints"]:
-        hints[h[0]] = list(h)
-    return {"layout": "keys+mouse", "map": keymap, "name": "files",
-            "hints": [hints[b] for b in HINT_ORDER if b in hints]}
-
-
-def plan(g, setting="auto", extracted=None):
+def plan(g, setting="auto"):
     """What SCRiTCH does with the pad for a DOS game. setting = the game's Controls row: auto | gamepad | mouse |
-    keys. extracted = dosinput.scan() of the game's own text files (or None). Source order: a verified entry of the
-    list, else the table entry or the default with the buttons the game's files named put on top (never for a
-    point-and-click entry), else an untested list entry, else the default.
+    keys. Source order: a verified entry of the list, else an untested list entry, else the default.
     Returns {"eff": "gamepad"|"keys"|"mouse", "layout": the Mapper layout or None, "keymap": {...} or None,
-    "hints": [[button, text]...] or None, "verified": bool, "source": files|list|verified|default,
+    "hints": [[button, text]...] or None, "verified": bool, "source": list|verified|default,
     "source_text": plain words, "name": str}."""
     entry = match(g.get("title"))
     if setting == "gamepad":
@@ -179,8 +157,6 @@ def plan(g, setting="auto", extracted=None):
         entry = None                                         # forced Keys on a point-and-click game
     if entry and entry.get("verified") is True:
         use, source = entry, "verified"
-    elif extracted_ok(extracted) and not (entry and entry["layout"] == "mouse"):
-        use, source = _overlay(entry or DEFAULT, extracted), "files"
     elif entry:
         use, source = entry, "list"
     else:

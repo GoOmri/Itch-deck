@@ -10,7 +10,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, dosart, dosinput, hltb, net, paths
+from . import config, dosart, hltb, net, paths
 from .stores import itch_page
 
 log = logging.getLogger("scritch")
@@ -160,10 +160,9 @@ class Library:
         self._worker = None
         self.installs, self.live = {}, {}   # set by Installer: install index, in-progress fields
         self.hidden = set()            # game ids the player hid from SCRiTCH (config "hidden")
-        self.jobs = {"cover": [0, 0], "page": [0, 0], "hltb": [0, 0], "dosart": [0, 0], "dosinput": [0, 0]}   # [done, total] (top bar)
+        self.jobs = {"cover": [0, 0], "page": [0, 0], "hltb": [0, 0], "dosart": [0, 0]}   # [done, total] (top bar)
         self._hltb, self._hltb_client, self._hltb_down = self._load_hltb(), None, False
         self._dosart = self._load_dosart()
-        self._dosinput = self._load_dosinput()      # game id -> {"sig", "result"}: keys found in the game's own texts
         self.load_cache()
 
     # --- cache ------------------------------------------------------------------
@@ -214,9 +213,6 @@ class Library:
         for f in paths.COVERS.glob(f"{g['id']}.*") if paths.COVERS.exists() else []:
             g["cover_file"] = str(f)
             break
-        if g["store"] == "dos":                                   # the keys its own text files gave (dosinput.py)
-            res = (self._dosinput.get(g["id"]) or {}).get("result")
-            g["dosinput"] = res if isinstance(res, dict) and res.get("map") else None
         if g["store"] == "dos" and not g.get("cover_file"):       # no cover of its own: GOG's, if we found one
             art = self._dosart_cover(g["id"])
             if art:
@@ -472,7 +468,6 @@ class Library:
         for g in fresh:
             self._apply_page(g)                # GOG's text for it, when we already have it
         self.queue_dosart()
-        self.queue_dosinput()
 
     def drop_gog(self):
         self.gog = None
@@ -529,8 +524,6 @@ class Library:
                     self._fetch_cover(g)
                 elif kind == "dosart":
                     self._fetch_dosart(g, force=(gid in self._dosart_force))
-                elif kind == "dosinput":
-                    self._fetch_dosinput(g)
                 elif kind == "hltb":
                     self._fetch_hltb(g)
                 else:
@@ -643,43 +636,6 @@ class Library:
         for f in sorted(d.glob(f"{gid}.*")):
             return str(f)
         return None
-
-    # --- the keys in a DOS game's own text files (dosinput.py; v0.9.30) ----------------------------------------
-    @staticmethod
-    def _dosinput_file():
-        return paths.DATA / "dosinput.json"
-
-    def _load_dosinput(self):
-        try:
-            d = json.loads(self._dosinput_file().read_text())
-            return d if isinstance(d, dict) else {}
-        except (OSError, ValueError):
-            return {}
-
-    def queue_dosinput(self):
-        """Read the text files of every installed own DOS game in the background (cheap when nothing changed)."""
-        for g in self.games:
-            if g.get("store") == "dos" and not g.get("hidden") and (self.installs.get(g["id"]) or {}).get("dir"):
-                self._put(DOSART_PRIO, "dosinput", g["id"])
-
-    def _fetch_dosinput(self, g):
-        """Scan one game's folder (read only) unless its text files are the same as last time."""
-        folder = (self.installs.get(g["id"]) or {}).get("dir")
-        if not folder:
-            return
-        sig = dosinput.signature(folder)
-        old = self._dosinput.get(g["id"])
-        if old and old.get("sig") == sig:
-            res = old.get("result")
-        else:
-            res = dosinput.scan(folder)
-            self._dosinput[g["id"]] = {"sig": sig, "result": res}
-            _write_json(self._dosinput_file(), self._dosinput)
-            log.info("dosinput %s: %s", g["id"], "%d actions from %s" % (res["actions"], res["source"])
-                     if res.get("map") else "none")
-        for x in {id(g): g, id(self.by_id(g["id"])): self.by_id(g["id"])}.values():
-            if x:
-                x["dosinput"] = res if isinstance(res, dict) and res.get("map") else None
 
     def _paced(self, host, fn, *a, **k):
         """Call fn after at least NET_PAUSE_S since the last call to the same host."""

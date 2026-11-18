@@ -28,15 +28,31 @@ from .app_dos import DosMixin
 from .app_storage import StorageMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.30"
+VERSION = "0.9.31"
+
+
+class SecretFreeFormatter(logging.Formatter):
+    """Every log record (message and traceback) goes through logshare.scrub_secrets: a token or sign-in code in
+    a helper's error text (legendary, gogdl) must never be written to app.log. Never raises."""
+
+    def format(self, record):
+        text = super().format(record)
+        try:
+            from .logshare import scrub_secrets
+            return scrub_secrets(text)
+        except Exception:  # noqa: BLE001 - logging must never fail
+            return text
 
 
 def setup_logging():
     paths.LOGS.mkdir(parents=True, exist_ok=True)
     from logging.handlers import RotatingFileHandler
     h = RotatingFileHandler(paths.LOGS / "app.log", maxBytes=1_000_000, backupCount=3)
-    h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(threadName)s %(message)s"))
-    logging.basicConfig(level=logging.INFO, handlers=[h, logging.StreamHandler()], force=True)
+    fmt = SecretFreeFormatter("%(asctime)s %(levelname)s %(threadName)s %(message)s")
+    h.setFormatter(fmt)
+    sh = logging.StreamHandler()
+    sh.setFormatter(fmt)
+    logging.basicConfig(level=logging.INFO, handlers=[h, sh], force=True)
 
 
 class App(SetupMixin, SettingsMixin, GameMixin, PlayMixin, EpicMixin, GogMixin, LogsMixin, DosMixin, StorageMixin):
