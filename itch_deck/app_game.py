@@ -27,9 +27,6 @@ class GameMixin:
             return
         if sc.overlay and sc.overlay[0] == "menu" and act == A:      # ☰ Options
             label = sc.overlay[3][sc.overlay[4]][0]
-            if label == "More":                                      # v0.9.25: the less used rows
-                sc.open_options(more=True)
-                return
             sc.overlay = None
             self.game_action(sc.g, label)
             return
@@ -85,9 +82,10 @@ class GameMixin:
         elif label in ("Add to Steam", "Remove from Steam"):
             self._steam_toggle(g, label == "Add to Steam")
         elif label == "Remove from library":
-            self.confirm(f"Remove {g['title']} from your library?",
-                         ["Your game files stay in the folder.", "Copy the folder again to add it back."],
-                         "Remove", lambda: self._uninstall(g), main=True)
+            self.confirm(f"Remove {g['title']}?",
+                         ["Your game files stay in the folder.",
+                          "Sort & filter > Show > Hidden games brings it back."],
+                         "Remove", lambda: self._remove_dos(g), main=True)
         elif label == "Program to run":
             self._program_picker(gid)
         elif label == "Play":
@@ -293,6 +291,16 @@ class GameMixin:
             self.say(f"{g['title']} is hidden.")
         else:
             self.say(f"{g['title']} is shown again.")
+            if g.get("store") == "dos":                  # a removed DOS game: list its folder again
+                self._start_dos_scan()
+                self.go_library()
+
+    def _remove_dos(self, g):
+        """Options -> Remove from library (your own DOS game): the game is hidden, never deleted. Its folder stays
+        and the game waits under Sort & filter > Show > Hidden games (v0.9.26, Omri: Y could not bring it back)."""
+        self.inst.uninstall(g["id"])                     # forgets the install entry only
+        self._set_hidden(g, True)
+        self.say(f"{g['title']} was removed. Hidden games brings it back.")
 
     def _steam_toggle(self, g, add):
         """Options -> Add to Steam / Remove from Steam: one shortcut for this game (steam_games.py)."""

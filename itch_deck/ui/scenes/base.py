@@ -5,9 +5,20 @@ from .. import widgets as W
 class Scene:
     def __init__(self, t, toast=None, toast_error=False):
         self.t = t
-        self.overlay = None        # ("confirm", title, body, hints) | ("picker", ...) | None
+        self.overlay = None        # ("confirm", title, body, hints) | ("picker", ...) | None (see the property)
         self.confirm_focus = 0     # confirm dialog: 0 = its action, 1 = Cancel
         self.toast, self.toast_error = toast, toast_error
+
+    @property
+    def overlay(self):
+        return getattr(self, "_overlay", None)
+
+    @overlay.setter
+    def overlay(self, v):
+        old = getattr(self, "_overlay", None)
+        if v and len(v) > 1 and v[0] in ("picker", "menu") and not (old and len(old) > 1 and old[0] == v[0] and old[1] == v[1]):
+            W.forget_menu(v[1])                 # newly opened: its focus appears in place, no slide
+        self._overlay = v
 
     # subclasses implement
     def draw_page(self, s): ...

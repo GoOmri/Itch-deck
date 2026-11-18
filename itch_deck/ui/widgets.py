@@ -86,6 +86,13 @@ def anim(key, target, start=None, ms=None, back=None):
     return val[0] / 1000.0
 
 
+def forget_menu(title):
+    """A menu that has just opened starts with its focus where it is, not sliding from where the same
+    menu's focus was last time (Omri, Deck test 18 Nov)."""
+    for k in [k for k in _ANIM if isinstance(k, tuple) and k and k[0] == ("menu", title)]:
+        del _ANIM[k]
+
+
 def animating():
     """True while anything above is still moving (cached pages use it to keep redrawing)."""
     import time
@@ -1136,12 +1143,16 @@ def modal(t, s, title, body, buttons=None, focus=0, danger=True):
     w = min(t.w - 2 * t.m, max(t.read_w * 0.8, min(need, t.read_w)))   # widen, then wrap
     lines = [ln for para in (body if isinstance(body, list) else [body])
              for ln in (wrap_lines(t.f_body, para, w - 2 * pad) or [""])]
-    h = pad * 2 + t.f_h2.get_linesize() + t.sm + len(lines) * t.f_body.get_linesize()
+    tlines = wrap_lines(t.f_h2, title, w - 2 * pad) or [title]      # a long title wraps too (v0.9.26)
+    h = pad * 2 + t.f_h2.get_linesize() * len(tlines) + t.sm + len(lines) * t.f_body.get_linesize()
     h += (t.lg + t.btn_h) if buttons else 0
     r = pg.Rect(0, 0, w, h)
     r.center = (int(t.cx), int((t.h - t.hint_h) / 2))
     panel(t, s, r)
-    y = text(t, s, title, r.x + pad, r.y + pad, t.f_h2).bottom + t.sm
+    y = r.y + pad
+    for tl in tlines:
+        y = text(t, s, tl, r.x + pad, y, t.f_h2).bottom
+    y += t.sm
     for ln in lines:
         y = text(t, s, ln, r.x + pad, y, t.f_body, color=t.dim).bottom
     if buttons:

@@ -126,10 +126,10 @@ def test_sync_adds_games_and_remove_keeps_every_file(tmp_path):
     time.sleep(0.2)
     assert ALLEY not in inst.index and (game / "save1.dat").read_bytes() == b"my save"
     assert (game / "ALLEY.EXE").is_file()
-    assert inst.sync_dos() == 0                                   # hidden: it does not come straight back
-    later = time.time() + 5                                       # copied again (folder changed): back
-    (game / "new.exe").write_bytes(b"MZ")
-    os.utime(game, (later, later))
+    lib.hidden = {ALLEY}                                          # the app hides it (v0.9.26: Hidden games filter)
+    assert inst.sync_dos() == 0 and ALLEY not in inst.index       # a refresh does not bring it back as installed
+    assert [e["id"] for e in lib.dos] == [ALLEY]                  # but it stays in the library list, to be unhidden
+    lib.hidden = set()                                            # "Show in SCRiTCH": the next scan lists it again
     assert inst.sync_dos() == 1 and ALLEY in inst.index
 
 

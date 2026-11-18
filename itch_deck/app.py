@@ -27,7 +27,7 @@ from .app_dos import DosMixin
 from .app_storage import StorageMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.25"
+VERSION = "0.9.26"
 
 
 def setup_logging():

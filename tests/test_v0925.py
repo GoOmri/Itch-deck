@@ -88,46 +88,13 @@ def test_a_page_that_is_gone_is_not_asked_again_for_a_week(tmp_path, monkeypatch
     assert not lib._has_page_fields(g)                                      # no date: try again
 
 
-# --- Options / More ------------------------------------------------------------------------------------
 def _scene(**kw):
     from itch_deck.theme import Theme
     pg.init()
     g = {"id": "x", "title": "X", "platforms": {"linux", "windows"}, "store": "itch", "state": "installed",
-         "move_to": "internal storage", "steam_ok": True, "on_steam": False, "programs": 1}
+         "programs": 1}
     g.update(kw)
     return Game(Theme(pg, (1280, 800)), g)
-
-
-def test_a_long_options_list_keeps_the_everyday_rows_and_tucks_the_rest_under_more():
-    sc = _scene()
-    assert sc.options() == ["Uninstall", "Change build", "Controls", "Saves", "Move to internal storage",
-                            "Add to Steam"]
-    assert sc.menu_split() == (["Uninstall", "Controls", "More"],
-                               ["Change build", "Saves", "Move to internal storage", "Add to Steam"])
-    sc.open_options()
-    assert sc.overlay[1] == "Options" and [r[0] for r in sc.overlay[3]] == ["Uninstall", "Controls", "More"]
-    sc.open_options(more=True)
-    assert sc.overlay[1] == "More" and len(sc.overlay[3]) == 4
-    sc.handle(B)                                                            # B: back to Options, on More
-    assert sc.overlay[1] == "Options" and sc.overlay[4] == 2
-
-
-def test_a_short_list_is_left_alone():
-    sc = _scene(store="epic", move_to=None, steam_ok=False)                  # Uninstall, Controls, Saves
-    assert sc.menu_split() == (sc.options(), [])
-    sc = _scene(store="dos", programs=3)
-    assert sc.menu_split()[1] == [] and "More" not in [r[0] for r in (sc.open_options() or sc.overlay)[3]]
-
-
-def test_a_on_more_opens_the_list_behind_it():
-    sc = _scene()
-    sc.open_options(2)
-    opened = []
-    me = types.SimpleNamespace(scene=sc, game_action=lambda g, label: opened.append(label))
-    sc.open_options = (lambda orig: (lambda focus=0, more=False: (opened.append(("open", more)), orig(focus, more))))(
-        sc.open_options)
-    app_game.GameMixin._h_game(me, A)
-    assert opened == [("open", True)] and sc.overlay[1] == "More"
 
 
 # --- Steam tiles ---------------------------------------------------------------------------------------
@@ -195,3 +162,49 @@ def test_game_names_that_contain_a_helper_word_are_still_games(tmp_path):
     for name in ("Mouse Hunt", "Patch Adams", "Marjorie's Quest", "Setup"):
         _game(root / "DOS", name, ["GAME.EXE"])
     assert sorted(g["name"] for g in dosgames.scan(root)) == ["Marjorie's Quest", "Mouse Hunt", "Patch Adams"]
+
+
+# --- v0.9.26 (Omri, Deck test 18 Nov) -------------------------------------------------------------------------
+def test_a_long_dialog_title_wraps_inside_the_box():
+    from itch_deck.theme import Theme
+    from itch_deck.ui import widgets as W
+    pg.init()
+    t = Theme(pg, (1280, 800))
+    s = pg.Surface((t.w, t.h))
+    short = W.modal(t, s, "Remove Doom?", ["Files stay."], ["Remove", "Cancel"])
+    long_ = W.modal(t, s, "Remove Eye of the Beholder III: Assault on Myth Drannor from your library?",
+                    ["Files stay."], ["Remove", "Cancel"])
+    assert long_.width <= t.w - 2 * t.m and long_.height > short.height          # taller, not wider than the screen
+
+
+def test_a_menu_that_opens_starts_with_its_focus_in_place():
+    from itch_deck.ui import widgets as W
+    sc = _scene()
+    key = (("menu", "Options"), "Uninstall")
+    W._ANIM[key] = (700.0, 0.0, 1000.0, 0.0)                                      # left over from the last time
+    sc.overlay = ("menu", "Options", "", [("Uninstall", "", "")], 0)
+    assert key not in W._ANIM
+    W._ANIM[key] = (500.0, 0.0, 1000.0, 0.0)
+    sc.overlay = ("menu", "Options", "", [("Uninstall", "", "")], 0)              # UP/DOWN re-sets the same menu
+    assert key in W._ANIM                                                         # no reset: the slide stays
+
+
+def test_a_hidden_dos_game_has_no_install_button_and_only_the_way_back():
+    sc = _scene(store="dos", state=None, hidden=True, platforms={"linux"})
+    assert [a[0] for a in sc.actions()] == ["Options"] and sc.options() == ["Show in SCRiTCH"]
+
+
+def test_removing_a_dos_game_hides_it_and_showing_it_scans_again(monkeypatch):
+    saved, scans, said = [], [], []
+    monkeypatch.setattr(config, "save", lambda cfg: saved.append(dict(cfg)))
+    removed = []
+    me = types.SimpleNamespace(cfg={}, inst=types.SimpleNamespace(uninstall=lambda gid: removed.append(gid) or True),
+                               lib=types.SimpleNamespace(set_hidden=lambda ids: None),
+                               go_library=lambda: None, say=lambda m, error=False: said.append(m),
+                               _start_dos_scan=lambda **k: scans.append(1))
+    me._set_hidden = lambda g, hide: app_game.GameMixin._set_hidden(me, g, hide)
+    g = {"id": "dos-alley", "title": "Alley", "store": "dos"}
+    app_game.GameMixin._remove_dos(me, g)
+    assert removed == ["dos-alley"] and me.cfg["hidden"] == ["dos-alley"] and not scans
+    app_game.GameMixin._set_hidden(me, g, False)
+    assert me.cfg["hidden"] == [] and scans == [1]                                # unhidden: its folder is read again
