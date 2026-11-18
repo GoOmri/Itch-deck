@@ -24,6 +24,9 @@ class GameMixin:
         if sc.overlay and sc.overlay[0] == "picker" and act == A:
             self._pick(sc)
             return
+        if sc.overlay and sc.overlay[0] == "menu" and act in (LEFT, RIGHT) and                 sc.overlay[3][sc.overlay[4]][0] == "Stay open when the game ends":    # left / right switch it like A
+            self.game_action(sc.g, "Stay open when the game ends")
+            return
         if sc.overlay and sc.overlay[0] == "menu" and act in (A, LEFT, RIGHT) and \
                 sc.overlay[3][sc.overlay[4]][0] == "Controls":           # ◀ ▶ like Sort & filter
             self.cycle_controls(sc.g, -1 if act == LEFT else 1)

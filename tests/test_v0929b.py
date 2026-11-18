@@ -166,7 +166,7 @@ def test_the_dos_summary_has_what_support_needs_and_leaks_nothing():
     assert "ABCDEF1234567890" not in full2 and "/home/omri" not in full2
     many = [{"id": f"d{i}", "title": f"Game {i}", "store": "dos"} for i in range(60)]
     f3, s3 = dossummary.build(many, {}, {}, "", now)
-    assert s3.count("\n- ") + 1 == 40 and "first 40" in s3 and f3.count("\n- ") + 1 == 60
+    assert s3.count("\n- ") == 40 and "first 40" in s3 and f3.count("\n- ") == 60
 
 
 def test_the_summary_goes_into_the_zip_and_the_pasted_text_within_the_caps(tmp_path):
@@ -186,3 +186,14 @@ def test_the_summary_goes_into_the_zip_and_the_pasted_text_within_the_caps(tmp_p
     assert comp.startswith("Own DOS games: 60") and len(comp) <= logshare.COMPACT_CHARS + 100
     assert "--- app.log" in comp
     assert "own DOS" not in logshare.compact()
+
+
+def test_left_and_right_also_switch_stay_open(tmp_path, monkeypatch):
+    from itch_deck.input import RIGHT
+    a, g, dosbox, runner = _app(tmp_path, monkeypatch)
+    monkeypatch.setattr("itch_deck.config.save", lambda cfg: None)
+    a.go_game(g)
+    a.open_options(a.scene)
+    a.scene.open_options(len(a.scene.options()) - 1)
+    a.handle(RIGHT)
+    assert a.cfg["dos_stay_open"] == [g["id"]] and a.scene.overlay[0] == "menu"
