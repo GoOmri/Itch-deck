@@ -196,7 +196,12 @@ def write_file(path, tree, backup=True):
     path = Path(path)
     if backup and path.exists():
         stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{time.time_ns() // 1_000_000 % 1000:03d}"
-        shutil.copy2(path, path.with_name(f"{path.name}.scritch-backup-{stamp}"))
+        target = path.with_name(f"{path.name}.scritch-backup-{stamp}")
+        n = 0
+        while target.exists():                        # two writes in the same millisecond (a fast disk): never
+            n += 1                                    # overwrite the first backup
+            target = path.with_name(f"{path.name}.scritch-backup-{stamp}-{n}")
+        shutil.copy2(path, target)
         old = sorted(path.parent.glob(path.name + ".scritch-backup-*"))      # keep the newest few only
         for b in old[:-KEEP_BACKUPS]:
             try:

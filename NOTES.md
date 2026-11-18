@@ -587,3 +587,6 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
   on the single "DOS" tile hid the games inside it; (3) folder names containing a helper word ("Mouse Hunt", "Patch Adams") were
   skipped: now only whole names like Setup/Tools/Editor are helpers. KNOWN, not fixed: a game that keeps its programs only in 3+
   sub-folders and none at the top is split into tiles, and a collection cut down to 2 games turns back into one tile.
+- v0.9.25 CI fix: the first build of v0.9.25 failed on Linux in test_only_the_newest_backups_are_kept (4 backups instead of 5). Two
+  shortcuts.vdf writes in the same millisecond got the same backup name, so the second copy overwrote the first. Backup names are now
+  made unique (-1, -2 ...). Real but tiny bug, not caused by the v0.9.25 changes. No release v0.9.25 existed (build stopped at tests).
