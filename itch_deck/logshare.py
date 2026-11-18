@@ -65,6 +65,10 @@ _RULES = [
     (re.compile(r"/Users/[^/\s]+"), "~"),
     (re.compile(r"\\Users\\[^\\\s]+"), "~"),
 ]
+# The first rules hide only SECRETS (tokens, keys, sign-in codes). app.log on the Deck runs every record through
+# scrub_secrets() (app.setup_logging), so a helper's error text can never leave a token in the file. Paths and
+# names stay in app.log (they are needed to debug) and are hidden only when logs are shared (scrub).
+_SECRET_RULES = _RULES[:6]
 MAX_LINE = 2000          # a longer line is cut (base64 / hex dumps are never a useful log line)
 NOISE = ("gameoverlayrenderer.so",)       # Steam's overlay preload warning, printed on every run
 
@@ -78,6 +82,18 @@ def scrub(text):
         if len(line) > MAX_LINE:
             line = line[:MAX_LINE] + " …(long line cut)"
         for rx, rep in _RULES:
+            line = rx.sub(rep, line)
+        out.append(line)
+    return "\n".join(out)
+
+
+def scrub_secrets(text):
+    """The text with only the secrets hidden (see _SECRET_RULES). Cheap, and a long line is cut like in scrub."""
+    out = []
+    for line in text.split("\n"):
+        if len(line) > MAX_LINE:
+            line = line[:MAX_LINE] + " ...(long line cut)"
+        for rx, rep in _SECRET_RULES:
             line = rx.sub(rep, line)
         out.append(line)
     return "\n".join(out)

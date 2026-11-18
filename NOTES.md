@@ -714,3 +714,10 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
 - New tools outside the repo, in E:\Projects\GIT\tools: check.py (tests, --mockups, --selftest on Linux) and ship.py (dry run unless --yes; checks clean tree, VERSION, no-reply e-mail, merges with --no-ff, pushes; --feed shows the newest releases once).
 - The standing rules for agents now live in E:\Projects\GIT\.claude\agents\coder.md and reviewer.md, so briefs only need the task.
 - Unverified: nothing here touches the app. CI on Linux still has to run the full suite once.
+
+## v0.9.31 prep (18 Nov, branch v0931-scrub-logs; maintenance A, no VERSION bump yet) = app.log can never hold a token
+- Why: when legendary or gogdl failed, the last lines of their error text were written to app.log as they came. Send logs cleaned them, but the file on the Deck did not.
+- logshare.scrub_secrets() hides only secrets (the first 6 rules of scrub: Bearer, key=value, --auth-code flags, ?token= in URLs, JWTs, 32+ mixed-case keys). app.SecretFreeFormatter runs every record (message and traceback) through it, for app.log and the console. Paths, ids and names stay in app.log (they are needed to debug) and are hidden only when logs are shared (scrub). It never raises.
+- Checked against Omri's real app.log of 18 Nov: 27 of 2251 lines change, all long Epic artwork file names in old cover errors (over-hiding noise only). "exit code: 0", "ERROR CODE P01", paths and dosart lines are untouched.
+- Tests: tests/test_scrub_secrets.py. Unverified: how a real legendary/gogdl error looks (needs the Deck); the patterns are the same ones that already protect Send logs.
+- NOT done (maintenance B/C): merging the duplicated Epic/GOG code and splitting long functions. Omri decides later.
