@@ -38,10 +38,12 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
   until he says, so finished work waits on its branch.
 
 ## Where things are (split 17 Nov)
-- This file = the working rules, the code map, decisions, known issues and the notes from v0.9.5 on.
+- This file = the working rules, the code map, decisions, known issues, the roadmap and a one-line list of releases.
+  New entries for a change go at the END of this file (what changed, what is unverified, what to check on the Deck).
 - Everything older (milestones M0-M6, v0.2-v0.9.4, Epic research, design passes, old roadmaps) is in
   docs/history/NOTES-history.md. Search it (grep) instead of reading it all; it is long.
-- The CURRENT roadmap is the "ROADMAP NOW (Omri 17 Nov ...)" section near the end of this file.
+- The CURRENT roadmap is "Roadmap now" below (and the roadmap page, see there).
+- The release-by-release notes (v0.9.5 to v0.9.31) are in docs/history/NOTES-history.md, in the section "Moved from NOTES.md on 18 Nov 2026". Search it with grep; do not read it all.
 
 ## Code map
 - app.py: App = scene switcher (setup/library/game/settings), key import + check thread,
@@ -113,618 +115,63 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
   mode switch. Ideas: set_mode(desktop size, NOFRAME) instead of FULLSCREEN; --onedir build.
 - Screenshots are centre-cropped to 16:9 (strip + viewer); viewer should letterbox instead. Small.
 
-## v0.9.5 RELEASED 16 Nov (branch v095-gog; Omri "go and push" 14:45) = GOG versions + first-run setup + updates
-Deck test 16 Nov: Eye of the Beholder (GOG Linux build) exited at once: its bundled DOSBox needs
-libFLAC.so.8 (not on SteamOS); message said "Try another build in Options" but GOG had none.
-- Change build for GOG (only when GOG lists Linux AND Windows): picker "Choose a version" Linux /
-  Windows (app_game._gog_versions; choices[gid] = "linux"/"windows"; GOG upload_id = platform
-  from now on, old installs had app_name). Switching installs into files.new, swaps on success
-  (fail = old build stays). Crash hint "Try another build in Options." (runner.TRY_OTHER_BUILD)
-  -> GOG: "Try the Windows version in Options." when Linux build + Windows exists, else code P01.
-- First-run setup (Windows): gogdl info "dependencies" ids; after install `gogdl redist --ids <ALL
-  ids ever asked> --path DATA/gog/redist` (gogdl replaces the folder with exactly those ids:
-  DATA/gog/redist_ids.json keeps the union). gog.setup_steps -> install.json "setup_steps"
-  [{name, base redist|game, path, args}] (+ ISI scriptinterpreter.exe with Heroic's args incl.
-  /DIR=Z:\… when goggame-*.script exist), "setup_done". app_play._gog_first_run on the first
-  Play: gog.run_setup runs each through umu in the game prefix (OK exits 0/1638/3010/1641, 15 min
-  each), splash "Preparing <game>… First run only", log logs/games/<slug>-setup.log; failures
-  logged, setup flag -> P03 on a quick crash. Redist download failure doesn't fail the install.
-- Updates: Installer.check_gog_updates after each GOG sync (lib.on_gog_sync): gogdl info per game
-  (every 6 h, force=True ignores), Windows build_id / Linux version differ -> "update". Update =
-  same platform -> in place (fresh=False keeps gogdl's manifest: only changed files). gogdl_mode
-  sets v2.Patch.get -> None (no xdelta3 here: chunk updates). setup_done kept across updates.
-- Linux size: _disk_size = max(disk_size, download_size) (Deck log showed 0 for EOB Linux).
-- Tests test_gog: setup steps + paths, run_setup with a fake umu (args, Z:\ dir, failure list),
-  change version both ways + failed switch keeps Linux, update check + in-place update. Mockup
-  15t_game_gog_versions. Checked pytest 3.13 + 3.11 (153), selftest both, itch-reject, mockups (182).
-UNVERIFIED (no GOG here): real redist manifest paths (__redist/... under DATA/gog/redist?), ISI
-  args on real games, update detection on a real patched GOG game.
+## Rules learned the hard way (18 Nov)
+- Windows PC: run `python E:\Projects\GIT\tools\check.py` (add --mockups after UI changes). A plain run is all green: tests that need Linux are
+  skipped on Windows (tests/windows_known_failures.txt); GitHub's build runs all of them. Ship with `tools\ship.py` (dry run unless --yes).
+- A push to main publishes a release when VERSION is new. Only Omri's "push vX.Y.Z" (or "push" right after an offer) counts.
+- NEVER poll api.github.com in a loop (60 calls/hour per internet address, shared with the Deck: the app then says "can't reach GitHub").
+  After a push look ONCE, later: `python tools\ship.py --feed`.
+- Never write into or delete a player's own files (DOS folder, saves): removing a game only forgets or hides it.
+- app.log never holds secrets (app.SecretFreeFormatter); Send logs also hides paths and names (logshare.scrub).
+- Keep work small: one change at a time, driven by Deck results; no new features while the freeze is on (Omri, 18 Nov).
 
-## v0.9.6 RELEASED 16 Nov (branch v095b-gog-fix; Omri "push" 15:55) = Eye of the Beholder fixes
-- v0.9.5 Deck: EOB Windows build showed DOSBox ~2 s then exit 0. setup log: "ISI: __redist/ISI/
-  scriptinterpreter.exe not found" (redist ids never included ISI). DOSBOX/stdout.txt: only
-  "Loading primary settings from ...AppData\Local\DOSBox\dosbox-0.74-2.1.conf": the game's -conf
-  "..\dosbox_eob1.conf" / "..\dosbox_eob1_single.conf" (autoexec: pause, mount c "..", start.exe)
-  were never read. stdout.txt was in files/DOSBOX = cwd right.
-- Fix 1: _install_gog adds "ISI" to the redist ids when goggame-*.script exist. app_play
-  _gog_needs_setup: run the first-run setup again when a step's file is missing (heals v0.9.5
-  installs); first-run fetches missing redist parts itself (lib.gog.redist) before running.
-  setup_done only when every step's file exists.
-- Fix 2: gog.windows_args at Play (Windows GOG builds): an argument that names an existing file
-  relative to the working dir becomes a full Z:\ path. Cause not proven (Proton cwd vs "/"),
-  this covers both. Next if it still fails: native DOSBox (gogdl uses dosbox-staging/flatpak if
-  present) or a GOG DOSBox fix list.
-- Tests: ISI asked, windows_args. pytest 3.13 + 3.11 (155), selftest.
+## Where the newer code is (added since the code map above)
+- DOS: dosgames.py (folder scan, programs, zips), dosart.py (GOG, then Steam: art/text), dosbox.py (commands), dos_controls.py +
+  assets/dos_controls.json + keynames.py (controller keys per game), dossummary.py (Send logs), app_dos.py (screens/jobs).
+- Steam shortcuts ("Add to Steam"): steam_games.py, steam_shortcuts.py, steam_art.py.
+- Storage manager: storagemgr.py, app_storage.py, ui/scenes/storage.py. Hide from SCRiTCH: library.py (hidden), ui/scenes/library.py.
+- Logs: logshare.py (cleaning), phonelink.py (phone page), app_logs.py. Updates: updater.py. Epic/GOG screens: app_epic.py, app_gog.py.
+- Dev only: mockups.py (python run.py --render-mockups DIR), `python run.py --selftest`.
 
-## v0.9.7 RELEASED 16 Nov (branch v097-dosbox; Omri "go and push" 16:22) = GOG DOS games via native DOSBox
-- v0.9.6 Deck: EOB Windows build (GOG's dosbox.exe under Proton) still showed its logo and closed;
-  the Linux build's bundled DOSBox misses libFLAC.so.8 / libSDL_sound-1.0.so.1. Setup log: ISI ran
-  (exit 0). Also every gogdl run in the frozen app printed "scritch: error: unrecognized arguments:
-  -B -S -I -c from multiprocessing.resource_tracker import main;main(N)": multiprocessing's
-  resource tracker re-runs sys.executable (= our binary).
-- Fix 1: run.py / __main__ call multiprocessing.freeze_support() first (PyInstaller's hook runs
-  those helper processes). Checked on a real PyInstaller build: the tracker command exits 0.
-- Fix 2: itch_deck/dosbox.py (like Heroic/gogdl launch): GOG Windows builds whose play task is
-  dosbox.exe run with DOSBox Staging: dosbox-staging on PATH, else flatpak io.github.dosbox-staging
-  (ensure(): `flatpak install -y --noninteractive flathub` system, else remote-add --user +
-  install --user; at install time and, if missing, at Play with splash "Getting DOSBox… One time
-  only"). launch(): play-task args, -noconsole dropped, each -conf -> scritch-<name> copy next to
-  it with "\\" -> "/" in [autoexec] mount/imgmount lines (GOG: mount C "..\\cloud_saves" -t overlay);
-  flatpak run --filesystem=<files> --cwd=<play-task folder>. No Proton, no first-run setup for
-  those. No DOSBox to be had -> old Proton path.
-- Tests tests/test_dosbox.py (stand-in flatpak: install once, user fallback; launch args + conf
-  copy; run.py order). UNVERIFIED: flatpak install on SteamOS without a password (system), staging
-  reading GOG's 0.74 confs (output=overlay, -t overlay), the [sdl] fullscreen under gamescope.
+## Roadmap now (18 Nov; page https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo)
+- FREEZE on new features. Next: the Deck checklist (https://claude.ai/artifact/XTgTWAaRGnpCpobvkD6TRo), then Omri's results.
+- Waiting: controller test logs (for "hide extra controllers", Bleed 2), Blood sound error (DOS on hold), Indiana Jones program, Move progress bar.
+- Asked, not built: "X on a tile opens its options" (needs a new button). Skipped: merging Epic/GOG code, splitting long functions.
+- Parked: DLC and cloud saves for Epic/GOG, browser games, "pick another match" for DOS art. Decided against: emulators/ROM library,
+  a Steam tile for every game, IGDB, fetching DOS games for the player.
 
-## v0.9.8 RELEASED 16 Nov (branch v098-logs; Omri "go ahead" 17:50) = logs that survive + forget version on uninstall
-- v0.9.7 Deck (app.log): 17:39 EOB Windows: "dosbox: installing io.github.dosbox-staging" -> ready in 4 s
-  (flatpak system install worked without a password), play "dosbox native", flatpak started,
-  window seen at 1.0 s, exited 0 after 1 s -> P03. 17:40 Omri switched to Linux; that run
-  overwrote eye-of-the-beholder.log, so DOSBox Staging's own message was lost. CAUSE OF THE 1 s
-  EXIT STILL UNKNOWN (guesses: a GOG conf line staging rejects, e.g. "-t overlay", or the pause).
-- runner.keep_logs: <slug>.log -> .1.log -> .2.log (last 3 runs). Crash: app.log gets the game
-  log's last 15 lines (runner.log_tail, overlay preload noise dropped).
-- Installer.uninstall drops self.choices[gid] (a reinstall came back as the version picked
-  last time, e.g. Linux).
-- Omri (16 Nov): doesn't want to spend much more time on EOB. Next: one Play of the Windows build
-  -> eye-of-the-beholder.log / app.log "game log ends" lines; if not quick, park EOB.
-
-## v0.9.9 (branch v099-dosbox-autoexec, waits for "push") = DOSBox Staging runs GOG's start commands
-- v0.9.8 Deck (app.log 17:55, "game log ends"): DOSBox Staging started, showed 80x25 text mode,
-  then shut everything down after 1 s, exit 0: none of GOG's [autoexec] ran (no pause, no
-  start.exe), only the final "-c exit".
-- dosbox._split_conf: copy each -conf as scritch-<name> WITHOUT [autoexec] (bytes kept via
-  latin-1: GOG's CP437 boxes; v0.9.7 re-encoded them as UTF-8), and return its commands minus
-  cls/pause/echo/rem/exit; mount/imgmount paths "\\" -> "/". launch passes them as -c, then GOG's
-  own -c ("exit"). Copy-protection notice + pause no longer shown (the in-game question stays).
-
-## v0.9.10 (17 Nov, branch v0910-gog-heroic-setup, pushed to main at Omri's request; tests only run on Windows partially) = GOG first-run setup like Heroic's setup.ts
-- stores/gog.setup_steps now follows Heroic: game's own setup first (ISI when the saved gogdl manifest says
-  scriptInterpreter, or goggame-*.script exist; else the product's temp_executable from DATA/gog/heroic_gogdl/
-  support/<id>/), then the shared parts. ISI args gained /lang-code=en-US + /supportDir=; /LANG=English.
-  PHYSXLEGACY runs as `msiexec /i … /qb`; ScummVM games get a Linux /DIR. Redist steps run with the redist
-  folder as cwd, ISI/setup with the game folder (Heroic's startFolder). Takes effect on (re)install.
-- NOT changed: DOS games (dosbox.exe) still skip Proton setup. EOB's 1 s DOSBox exit is still unexplained;
-  Heroic passes the play-task args unchanged (conf autoexec intact), we strip [autoexec] since v0.9.9.
-  Next, if it still P03s: send logs/games/eye-of-the-beholder.log + app.log "game log ends".
-- tests/test_gog.py: 11 of 22 fail on Windows even before this (POSIX stand-ins); need a Linux run.
-
-## v0.9.11 (17 Nov, branch v0911-fix-gog-setup, NOT pushed - waits for Omri) = FIX for v0.9.10's first-run setup
-- v0.9.10 BUG (found by the reviewer agent): run_setup used `cmd` and `cwd` that were never defined
-  (a replace in my edit silently didn't apply) -> NameError on every first-run setup step, caught in
-  app_play, so no redist/ISI ran and the game could end in P03. Fixed: cmd = [umu, exe, *args] (or
-  [umu, msiexec, /i, exe, *args] for the PhysX step), cwd = redist folder for shared parts, game folder
-  for ISI. ScummVM's linux_dir flag is now read. Checked by calling run_setup with a missing umu
-  (no NameError, steps logged). LESSON: check every edit landed (diff/grep), don't trust "no output".
-- gog.required(step): a product's temp_executable ("support" step) is optional, so a missing file
-  can't make the setup rerun on every Play. tests/test_gog.py expects ISI first now.
-- UNVERIFIED: where gogdl puts support/<id>/ files, msiexec through umu, ScummVM path, ISI fetched
-  only at first Play when the manifest says scriptInterpreter but no goggame-*.script exist (needs internet).
-
-## v0.9.12 (17 Nov, branch v0912-dosbox-conf-lookup, NOT pushed - waits for Omri) = EOB: DOSBox couldn't open GOG's settings files
-- v0.9.11 Deck logs (deck-logs/, never commit): EOB Windows build + native DOSBox Staging: game log says
-  "CONFIG: Can't open custom config file .../files/dosbox_eob1.conf" (+ _single.conf) and app.log
-  "dosbox: commands []" -> our copy step never found the files (is_file False), DOSBox ran with its
-  default settings, ran only GOG's "-c exit", closed after 1 s = P03. Same for Eye of the Beholder II.
-  So the earlier autoexec theories were wrong: the files weren't found at all.
-- Fix (a GUESS at the cause): dosbox.launch finds the -conf file with gog._ci (any letter case, like
-  GOG's other paths). If it is STILL missing, app.log gets "dosbox: settings file ... not found;
-  folder has: [names]" so the next log shows what GOG really installed (maybe the files are named
-  differently, or ISI creates them -> then we need to run ISI before DOSBox).
-- Also seen: v0.9.11 first-run setup works for Windows games without DOSBox (ISI exit 0 in setup log).
-  Epic cover downloads fail for 6 games: URLs contain spaces (net.get must quote the path) - not fixed yet.
-- UNVERIFIED: whether case is the cause. Check app.log for the "folder has:" line.
-- v0.9.12 ADDED (after reading Heroic + vendored gogdl, Omri asked "can't we see how they do it?"): gogdl's
-  `--support <dir>` (Heroic games.ts passes join(gogSupportPath, id) on install/update/repair). Without it
-  gogdl puts GOG's "support" files in <game>/gog-support, while we told ISI /supportDir=DATA/gog/
-  heroic_gogdl/support/<id> (empty) -> ISI had nothing to build the game's DOSBox settings files from.
-  Now: gog.install passes --support support_dir(id); run_setup uses <game>/gog-support for ISI on older
-  installs; app_play runs the first-run setup (ISI) BEFORE launching DOSBox for GOG DOS games (it used to
-  skip setup for them; Heroic runs it for every Windows game). This is the likely real cause of EOB's missing
-  dosbox_eob*.conf. UNVERIFIED on the Deck. Check logs: eye-of-the-beholder-setup.log (ISI exit code),
-  then app.log "dosbox: commands [...]" should be non-empty; if the .conf is still missing, the
-  "folder has:" line lists the files.
-- v0.9.12 also: net.get percent-encodes spaces in URLs (net._safe_url): 6 Epic covers failed with
-  InvalidURL "control characters" (names like "Store Primary Promo (Landscape)-...jpg"). Checked the helper
-  on sample URLs; UNVERIFIED on the Deck (covers should show after a sync).
-
-## ROADMAP NOW (Omri 17 Nov; replaces the 16 Nov list; audience = friends / a few Deck owners; priority = solid first, then features)
-One item per update, plan + size first, wait for "go" and "push":
-1 Deck check of v0.9.12 (no code): Epic covers show, Eye of the Beholder I + II play (Windows build, mouse via
-  Keys mode), one big Windows GOG game, one Linux GOG game, itch games still fine. Fix what it finds.
-2 Share logs (new, small): Settings -> "Copy logs" puts a zip of logs/ + app.log in an easy folder (and shows
-  where), so friends can send them without a terminal or RustDesk. (Getting logs off the Deck took many steps.)
-3 Ready to share: README for new players (install, first run, GE-Proton, where logs are), error texts
-  friendly, fresh-Deck check (new user, empty data, no GE-Proton).
-4 DOS tab, step 1: GOG DOS games shown in a DOS tab (only when one exists). Step 2: add-your-own folders (user's
-  own games; we never fetch games). Step 3: game page for them. Typing = Steam's keyboard (Steam + X) as today.
-  Designer agent sketches the folder-picker screen with Omri before step 2.
-5 Hide extra controllers for player-1-only games (Bleed 2). Research first.
-6 Opt-in "Add to Steam" for one game (own tile + layout; needs a Steam restart).
-PARKED (Omri 17 Nov): DLC for Epic and GOG; cloud saves for Epic and GOG; browser games.
-Rules: coder -> reviewer -> (designer if a screen changed) -> Omri says push. Agents in E:\Projects\GIT\.claude\agents.
-
-## v0.9.13 (17 Nov, branch v0913-safe-deletes) = safer deleting (from the read-only audit of 17 Nov)
-- installer.safe_to_delete(path, roots): a folder is deleted only when it is strictly inside a games root
-  (never the root itself, home, or somewhere else). Uninstall computes the roots BEFORE popping the game
-  from the index (install location now, both drive choices, the itch/scritch folder of every installed game
-  incl. this one); a damaged install.json can no longer make uninstall rmtree the wrong place (it logs
-  "NOT deleting ..." and still forgets the entry).
-- Move: a leftover Proton prefix at the destination (can hold saves) is renamed `<name>.kept-<time>` instead
-  of deleted (Settings -> Saves of uninstalled games lists it). Other leftovers: deleted only when safe.
-- Reviewer-agent found 3 gaps, all fixed (roots after pop, file where a prefix should be, name clash).
-- Tests: tests/test_safe_delete.py (4 of 5 need Linux: they reuse test_move._setup with symlinks). UNVERIFIED
-  on the Deck. Audit leftovers not done: merge duplicated Epic/GOG code, dead code list, .gitignore gaps,
-  split NOTES.md, `requests` possibly unused, check that helper output (legendary/gogdl stderr) never holds tokens.
-
-
-## v0.9.14 (17 Nov, branch v0914-tidy) = tidy-up from the audit (no behaviour change)
-- Removed code nothing used (grep-verified, each had zero other references): Input.pad_names, mockups._with,
-  PhoneLink.renew, itch_page._depth_of, dosbox.SKIP_CMDS + unused `import re`, scenes.game.PLATFORM,
-  scenes.library.TABS. .gitignore: .pytest_cache/, *.log, and !packaging/steam-art/*.png (no more `git add -f`).
-- NOTES.md split: this file kept the rules, code map, decisions, known issues and everything from v0.9.5;
-  all older notes moved unchanged to docs/history/NOTES-history.md (checked: no line lost).
-- Checked: Windows pytest before/after = same 50 failed / 104 passed (the failures are the Linux-only tests);
-  all touched modules compile. CI is the real test. Left from the audit: merging the duplicated Epic/GOG
-  code (app_epic/app_gog, library sync, installer start/end), long functions, `requests` is needed by the
-  vendored gogdl (keep), check helper stderr can't hold tokens.
-
-## v0.9.15 (17 Nov, branch v0915-send-logs) = Settings -> Help -> Send logs (roadmap item 2)
-- Omri's decision: the phone page copies the LAST LINES of the log so people can paste them into a GitHub
-  issue. Safety rules (reports are public): nothing is uploaded by the app and there is no GitHub token in it;
-  itch_deck/logshare.py scrub() hides secrets (Bearer/key=value/JSON tokens/URL codes/JWT/long mixed-case
-  strings), e-mails, IPv4, account names ("connected as X"), /home/<user> -> ~, /run/media/<user>/<id> -> <sd>
-  (also Proton's backslash form). The short report = version + system + last 150 app.log lines + last 40 lines
-  of the newest game log, max 30,000 chars (oldest dropped, version line kept). The page shows the text in an
-  editable box first; Copy uses execCommand (the clipboard API needs https; the phone page is plain http).
-  Also on the page: "Open a GitHub issue" (prefilled version/system via .github/ISSUE_TEMPLATE/bug_report.yml
-  field ids) and the full cleaned zip (private use). Same one-time link/expiry as the sign-in pages.
-- Deck screen LogsShare (scenes/epic.py, app_logs.py): QR + 3 steps; A saves the zip to ~/Documents/SCRiTCH
-  logs/ (toast), B back. New Settings group "Help" at the END (no existing row index moved).
-- Tested against the real Deck logs in deck-logs/: no /home/deck, SD id, e-mail, IP or token left.
-  tests/test_logshare.py (21, run on Windows too). Mockups 21k, 28, 28b rendered and looked at.
-- UNVERIFIED on the Deck/phone: QR scan, Copy button on iOS/Android browsers over http, zip download.
-  Not done: scrubbing is pattern based (a secret in an odd format could slip through; the person reads the
-  text before posting), no "private" route besides the zip.
-- Reviewer-agent findings on v0.9.15, all fixed: scrub() ran quadratic on one very long line (now line by
-  line, lines over 2000 chars cut, e-mail pattern bounded); names with spaces/quotes ("Omri Cohen"), "as:",
-  "Username = x", quoted secrets with spaces, camelCase keys, `--auth-code x` flags, Steam userdata/SteamID64/
-  "for user N" ids, /media|/mnt/<user>, Z:\Users\<user> now hidden; a game called "2048" is no longer skipped as
-  a rotated log; POST to a logs link = 400 (was a KeyError). 3 new tests + 15 new scrub cases.
-- tests/test_phone.py::test_big_or_empty_posts fails on Windows with or without this change (socket quirk).
-
-## v0.9.16 (17 Nov, branch v0916-logs-fixes; waits for "push v0.9.16") = fixes from Omri's Deck test of Send logs
-- v0.9.15 Deck test: QR, page, issue link (version/system filled), zip, A-save, expiry all fine. Problems:
-  (4) Copy did nothing in the phone browser (script is correct; checked with node; cause unknown: browser,
-  plain http). Text too long to read. (7) nothing on the Deck screen said A saves a zip.
-- Fix: the issue link now carries a SHORT cleaned log (logshare.compact(), <= 2,200 chars, end of app.log +
-  newest game log) as the issue form's `log` field, so nothing has to be copied; the page's main button is
-  that link. The longer text + Copy stay below ("Want to share more?"): textarea is readonly (no keyboard
-  popping up), clearer message and button label when copy works or not. Report 150 -> 60 app lines, 40 -> 30
-  game lines. Deck screen: "Scan the code, or press A to save the logs as a zip in Documents."
-- Tests: compact fits a link (< 7,500 chars), is scrubbed; no log field when none. UNVERIFIED: GitHub's form
-  prefill of `log` on a phone, and whether Copy works now.
-
-## v0.9.17 (17 Nov, branch v0917-logs-copy-fix; waits for "push v0.9.17") = the real cause of "Copy does nothing"
-- Omri (Galaxy S24, Chrome) on v0.9.16: Copy did nothing and showed no message. Cause (found by loading the real
-  page in headless Edge and clicking): the inline logo SVG on every phone page has ids like "c", so
-  getElementById('c') returned the LOGO, not the button; the click handler sat on the logo. v0.9.15 and
-  v0.9.16 both had it. My earlier checks (node syntax check, a fake DOM) could not see it.
-- Fix: unique ids (lg-text, lg-copy, lg-msg) + tests/test_logshare.py::test_page_ids_are_unique... (every id
-  unique, every getElementById target present once). Headless check after the fix: the click runs and sets a
-  message (headless has no real touch, so copy itself is refused there; UNVERIFIED on the phone).
-- Page is far less text: one purple button + 2 lines; "More" (closed) holds the longer text, Copy and the zip.
-  Deck screen: QR 30% -> 42% of the height on this screen only (LogsShare.QR_SIZE), step texts shorter.
-- LESSON: test phone pages in a real browser engine (Edge headless: --headless=new --dump-dom with a harness
-  script that clicks), not only by reading the JS. Check every page that inlines LOGO for id clashes.
-
-## README update (17 Nov, branch v0918-readme; docs only, NO version bump = a push builds no release) = roadmap item 3 "Ready to share"
-- Omri: keep the README developer-style (not a friends' landing page); no clean-install Deck check (he won't do it).
-- README now covers: itch + Epic + GOG (tabs), GOG sign-in/versions/first-run setup/DOS games in DOSBox Staging,
-  updates on all stores, save backups + Saves, Move, Send logs (purple button, More = copy/zip), an error-code
-  table (from words.CODES), more troubleshooting rows, where files live (gog/, Documents/SCRiTCH saves + logs),
-  known limits (GOG/Epic no DLC/cloud saves, GOG Linux libs, DOS needs Flathub once).
-- words.CODES P03 text updated (first-run setup runs since v0.9.5). Error texts otherwise already plain: short(),
-  codes only when there is nothing to act on (checked, no change).
-- CLAUDE.md (E:\Projects\GIT) now says: touch ONLY E:\Projects\GIT (no temp/system folders). Scratch files go in
-  E:\Projects\GIT\scratch\ (outside the repo).
-
-## v0.9.18 (17 Nov, branch v0919-dos-tab; waits for "push v0.9.18") = DOS tab, step 1 (roadmap item 4)
-- Omri's answers (17 Nov): add-your-own = a DOS games FOLDER (no folder picker), tab only when a DOS game exists,
-  folder next to the other games (Install location: <root>/dos), cover = cover.jpg/png in the game folder else a
-  title card, .zip files in the folder get unpacked, two releases, quit = the existing View+Menu combo.
-  Step 2 (the folder, scan, tiles, which-file picker, CD images, Remove entry that never deletes files, zip
-  unpack) is the NEXT release; designer agent sketches the Settings row/empty state first.
-- Step 1 (this release): Library._apply_install sets g["dos"] for installed games whose install.json is a
-  DOSBox game (dosbox.is_dosbox_game); scenes/library.tabs(stores, dos) adds ("dos","DOS") LAST and only when
-  Library.dos (any game has the flag, so it appears/disappears live); visible(filt="dos"); empty message
-  "No DOS games yet. DOS games you install from GOG show up here."; a stale "dos" tab falls back to All.
-  Only INSTALLED GOG DOS games show (an uninstalled GOG game isn't known to be DOS yet).
-- Tests tests/test_dos_tab.py (4). Mockup 06h_library_dos_tab rendered and looked at. UNVERIFIED on the Deck.
-  Deck: install Eye of the Beholder -> a DOS tab appears (L1/R1) with it; uninstall -> the tab goes.
-- Reviewer-agent findings on v0.9.18, both fixed: App.go_library now copies the scene's tab back to self.filt
-  (a stale "dos" left the game page at "1 of 0"); Library.next_tab falls back to All if its tab is gone
-  (ValueError). Test added.
-
-## v0.9.19 (17 Nov, branch v0920-dos-sketch; waits for "push v0.9.19") = DOS tab step 2: your own DOS games (roadmap 4)
-- Omri's decisions: a dos FOLDER (no picker), row A "DOS games | SD card · 3 games | Folder: scritch/dos" in
-  Settings -> Storage, box "Add DOS games" (path shown, OK button is "Refresh", main/purple), zip files unpacked.
-- itch_deck/dosgames.py (pure files): dos_dir(root)=<games folder>/dos; scan() unpacks zips (zip-slip refused, zip
-  moved to dos/_zips, kept), lists folders with .exe/.com/.bat (helpers like setup/sound config skipped, depth<=2),
-  pick_program (saved choice > name like the folder > the one .bat > first), cd_image (.cue/.iso -> drive D),
-  cover.jpg/png; removed() hides a folder until its mtime is newer than the removal. State: DATA/dos.json.
-- Installer.sync_dos(create) -> index entries store "dos" (dir = the game folder itself; exe relative; NO "files"
-  level, NO install.json written into the player's folder) + lib.set_dos_games (covers copied+shrunk into COVERS).
-  Start-up/Y scan never creates the folder; Refresh in the box does. remove_dos(): forget only, files untouched
-  (uninstall() routes there). exe_path/programs/set_exe/move_target know store dos.
-- Play: dosbox.launch_own = DOSBox Staging, -c mount c "<folder>", imgmount d, c:, cd <sub>, <exe>, exit
-  (flatpak --filesystem/--cwd like the GOG path); no backups (saves live in the folder). Game page Options:
-  "Remove from library", Controls (Auto = Keys: inputs Keyboard+Mouse), "Program to run" when >1 program.
-- UNVERIFIED on the Deck: everything (no DOS game folders here). Check: Settings -> Storage -> DOS games -> A ->
-  Refresh (folder is made); copy a DOS game folder + a .zip in with Dolphin; Refresh -> DOS tab with tiles; Play ->
-  DOSBox opens with the game; quit with View+Menu 2 s; Options -> Remove from library keeps the folder.
-  Known limits: long (non 8.3) sub folder names for cd; Windows 3.x/95 games; no pad config per game.
-- Tests: tests/test_dosgames.py (7, run on Windows too). Mockups 21m, 21o, 15u/v/w rendered and looked at.
-- Reviewer-agent findings on v0.9.19, all fixed: (1) an itch game titled "DOS" got <root>/dos as its folder and
-  uninstall/move could wipe the player's DOS games: _game_dir reserves dos/_prefixes/_moving, safe_to_delete never
-  deletes those names; (2) ids collided (non-ASCII names all slugged to "game"): id = dos-<slug>-<6 hex of the
-  folder name>, stable; (3) an odd zip (old PKZIP compression, password) stopped the whole scan: per-zip
-  `except Exception`, skipped with a log line; free-space check before unpacking; (4) the scan changed the shared
-  index from a thread: scan_dos() (thread, touches nothing shared) + apply_dos() (main thread, in App._dos_tick);
-  a choice made meanwhile survives; (5) Refresh pressed during a scan was lost: it is queued (dos_queued);
-  (6) a removed game's .zip copied again comes back as "<name> (2)" (old folder untouched); (7) one os.walk
-  per game (depth 2 for programs/images), folder names with a double quote skipped, own games are not sent to
-  HowLongToBeat. Not changed: no scan without an itch key (the app needs one to reach the library).
-  Tests: tests/test_dosgames.py now 15 (run on Windows).
-
-## v0.9.20 (17 Nov, branch v0921-sources; waits for "push v0.9.20") = Settings: "Accounts" group -> "Sources" with the DOS row
-- Omri: the DOS games folder belongs next to the stores. Settings groups now: App, Sources (itch, Epic, GOG, DOS games),
-  Storage (Install location, Saves of uninstalled games), Games & controls, Help. Row indexes after Sources move by one
-  (mockups updated: Storage focus 6, Games 8, Help 11, DOS row 5). README/comments say Settings -> Sources.
-- HISTORY REWRITE (17 Nov, Omri's choice after GitHub blocked a push for exposing his email): all 26 commits that carried
-  his real email were rewritten to 14329843+GoOmri@users.noreply.github.com on ALL branches and tags and force-pushed
-  (commit hashes changed, trees identical; v0.9.19 and older releases keep working, they hang on tag names). Nobody had
-  cloned the repo; GitHub Support was NOT asked to purge the old objects (they stay reachable by direct SHA for an
-  unknown time). Any chat still holding old branches must `git fetch` + reset to origin. Use that noreply email from
-  now on (also in CLAUDE.md).
-
-## Add to Steam per game: plan + Deck experiment (17 Nov, branch v0922-steam-shortcuts; no VERSION bump, nothing uses it yet)
-- Omri's answers: per-game opt-in in Options ("Add to Steam" / "Remove from Steam"), tile art = the game's cover fitted to
-  Steam's sizes, controller layout left to Steam (a message says so), and he agreed to a Deck experiment first.
-- Plan: (1) `--play <game id>` start mode (play one game, then exit; allowed next to the single-instance lock);
-  (2) itch_deck/steam_shortcuts.py = binary VDF reader/WRITER (stdlib only, standalone, tests/test_steam_shortcuts.py:
-  byte-for-byte round trip, add, remove only our own "SCRiTCH"-tagged entries, backup + atomic write);
-  (3) art: cover -> <appid>p / <appid> / <appid>_hero via steam_art's never-overwrite rules; (4) Options entries + toast
-  "Restart Steam to see it"; (5) maybe later: per-game controller layout (poorly documented, own research).
-- MAIN RISK: Steam rewrites shortcuts.vdf from memory when it exits, so an edit made while Steam runs can be lost. The
-  experiment (E:\Projects\GIT\deck-experiments\steam_shortcuts.py, run with python3 in Desktop Mode: where / verify /
-  list / add / check / remove) tells us what survives: Steam running vs closed, Game Mode switch, Steam restart.
-- UNVERIFIED: that our writer's bytes match what real Steam files look like (verify checks his real file read-only).
-
-## v0.9.21 (17 Nov, branch v0922-steam-shortcuts; waits for "push v0.9.21") = Add to Steam per game (roadmap 6)
-- Deck experiment results (Omri, 17 Nov): a shortcut written into shortcuts.vdf while Steam RUNS is not seen until
-  Steam restarts (Desktop -> Game Mode switch did it); it survived Steam's exit; removing it from the file while
-  Steam runs sticks and Steam did NOT write its copy back. Our reader/writer round-trips his real file byte for byte
-  (20 shortcuts from other tools). => adding/removing needs no closed Steam, only a restart to show.
-- Omri's choices: per-game opt-in in Options for EVERY installed game, cover as the tile, controller layout left to
-  Steam, short message "Added to Steam. Restart Steam to see it.", ONE release.
-- itch_deck/steam_shortcuts.py (standalone; list/where/verify/add/check/remove CLI used in the experiment),
-  itch_deck/steam_games.py (add/remove/is_added/available + art), `scritch --play <id>` (App(autoplay=...): no update
-  check/sync/art; _autoplay in app_play plays the game, keeps a crash message up 5 s, then quits). Shortcut = the
-  launcher (updater.launcher_path()) + LaunchOptions "--play <id>" + tag "SCRiTCH"; AppName = title ("(2)" if the
-  same title+file exists). Id must match [A-Za-z0-9._-]{1,80} (it goes into Steam's launch options).
-- Art: <appid>p.png 600x900, <appid>.png 920x430, <appid>_hero.png 1920x620 from the cover (fitted over a darkened
-  blurred copy) or a title card (type shrinks to fit); never over a picture that exists (any extension); the files
-  made are recorded in DATA/steam_games.json so Remove deletes only those. steam_art.find_shortcuts skips "--play"
-  entries (SCRiTCH's own tile art must not land on game tiles).
-- Options row "Add to Steam"/"Remove from Steam" (last row of an installed game's menu, only when a Steam user
-  folder exists and this is a real build). Codes T01/T02.
-- UNVERIFIED on the Deck: the whole flow with a real game: Add -> restart Steam -> tile with art -> start it ->
-  game runs -> quit -> back in Steam; Remove -> restart -> gone. Also adding while IN Game Mode (same file, same
-  expected behaviour). Single-instance lock: if SCRiTCH is already running, --play quits (log "another copy").
-- Tests: tests/test_steam_shortcuts.py (7), tests/test_steam_games.py (8). Mockups 15x/15y rendered and looked at.
-- Reviewer-agent findings on v0.9.21, all fixed: (1) a Steam tile quit before the saves backup thread finished
-  (os._exit killed it): _autoplay joins the backup thread for up to 8 s; (2) a cut-off shortcuts.vdf raised
-  struct.error and crashed the Options menu: loads() now raises ValueError, is_added/add handle it, file untouched;
-  (3) art made before a later failure / on a re-add was not recorded and could be orphaned: the record is saved per
-  user and keeps earlier art, Remove deletes all of it; (4) a missing SD card showed "isn't installed": now "SD card
-  missing. Put the card back..."; (5) "X closed." no longer holds the screen 5 s (only errors do); (6) a Steam tile
-  pressed while the old copy is closing waits up to 6 s for the single-instance lock; (7) backups: newest 5 kept,
-  names include milliseconds, non-UTF-8 titles round-trip byte for byte (surrogateescape).
-- STILL UNVERIFIED (said by the reviewer too): Steam may rewrite shortcuts.vdf from memory when a non-Steam shortcut is
-  changed or played. SCRiTCH itself runs as a non-Steam shortcut, so adding while IN Game Mode could be undone when
-  SCRiTCH exits, and a removed tile could come back. The experiment only covered Steam exiting. First Deck test must
-  add in Game Mode, restart Steam, and check `python3 steam_shortcuts.py list` afterwards.
-
-## v0.9.21 CI fix (17 Nov): the first build of v0.9.21 FAILED on GitHub (pytest), so no release was made and the Deck stayed on .20
-- Cause: tests/test_codes.py only knew code letters [IWPLEUSM]; the new Add to Steam codes T01/T02 made it report
-  "listed but never used". Fixed: letter T added to both patterns. Nothing else differed from v0.9.20 (compared the whole
-  suite old vs new).
-- LESSON: on this Windows PC run the suite with PYTHONUTF8=1 and a fcntl stand-in on PYTHONPATH (python -m pytest -q
-  tests): without UTF-8 mode some Linux-only checks (test_codes) fail for the wrong reason here, which hid this one.
-  And ALWAYS look at the build's result after a push (api.github.com/repos/GoOmri/Itch-deck/actions/runs).
-
-## v0.9.22 (17 Nov, branch v0924-art-fix; waits for "push v0.9.22") = Add to Steam: art failed on the Deck
-- Deck test of v0.9.21 (Omri): Add worked (toast, tile after a Steam restart, KIDS starts with --play, Remove makes the tile
-  go away), BUT the tile had no art. app.log: "steam games: art for <id> failed" (traceback line not seen). Reproduced here:
-  KIDS' cover is an 8-bit indexed picture and pygame's smoothscale raises "Only 24-bit or 32-bit surfaces can be smoothly
-  scaled". Fix: steam_games._to32 converts a cover to 32 bits first; an unreadable/undrawable cover falls back to a title
-  card; no usable font (frozen build) = a plain coloured tile instead of an error; pressing Add on a game that is already
-  added now draws its missing art (no second shortcut, one write).
-- If art is STILL missing on the Deck: `grep -B2 -A12 "steam games" ~/.local/state/scritch/logs/app.log | tail -40` shows the
-  traceback; `ls -la ~/.local/share/Steam/userdata/<id>/config/grid` shows the files (expect <appid>p.png, <appid>.png,
-  <appid>_hero.png for the shortcut's appid).
-- Tests: indexed + broken cover, fallback, no font, add-again. Whole Steam feature: 15 + 7 tests.
-
-## ROADMAP NOW (Omri 17 Nov evening; replaces the earlier 17 Nov list; page https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo)
-Released: v0.9.13 safer deleting, 0.9.14 tidy-up + NOTES split, 0.9.15-0.9.17 Send logs, 0.9.18 DOS tab, 0.9.19 own DOS
-games folder, 0.9.20 Settings "Sources", 0.9.21-0.9.22 Add to Steam per game (0.9.21 build failed once on a test, fixed).
-1 Deck tests (no code): Add to Steam cover art in v0.9.22 (Remove + Add again, restart Steam), own DOS folder with a real
-  game and a zip, older leftovers (itch game updates, split installers, Epic updates).
-2 Hide extra controllers for player-1-only games (Bleed 2). Research first.
-3 Maintenance (no new features): merge the duplicated Epic/GOG code (app_epic/app_gog, library sync, installer start/end),
-  split the longest functions, check helper stderr (legendary/gogdl) can never put a token into app.log.
-4 Hide from SCRiTCH (Omri's idea 17 Nov): hide a game's tile on this Deck only (store accounts unchanged); Settings ->
-  Hidden games brings it back. Own DOS games already have Remove from library. Small.
-5 Storage manager (Omri chose it 17 Nov): installed games by size, pick several with the pad, uninstall at once, clear
-  old save backups. Medium.
-IDEAS CONSIDERED AND DROPPED (Omri 17 Nov): collections (filters already cover it), per-game control modes (already
-  exist), "what should I play?", phone-to-Deck link sharing (niche). Maybe later: play time + last played, per-game
-  DOSBox settings (only if a game needs them).
-PARKED: DLC for Epic and GOG; cloud saves for Epic and GOG; browser games.
-DECIDED AGAINST: console emulators / a ROM library (Omri 17 Nov: not planned), a Steam tile for every game, IGDB,
-  fetching DOS games for the player.
-LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are 60 per hour PER INTERNET ADDRESS, and the
-  Deck shares Omri's home address: my polling made the Deck's app say "can't reach GitHub" until the hour reset.
-  After a push look ONCE, a little later (github.com/GoOmri/Itch-deck/releases is fine to read), never a loop.
-
-## v0.9.23 (17 Nov, branch v0925-hide-games; waits for "push v0.9.23") = Hide from SCRiTCH (roadmap 4)
-- Omri's choices: only games that are NOT installed can be hidden; purple "Hide" confirm; the way back is a library
-  FILTER (Sort & filter -> Show -> "Hidden games"), not a Settings row; this Deck only, store accounts untouched.
-- cfg "hidden" = list of game ids; Library.hidden / set_hidden(ids) (App passes cfg at start); Library._apply_install sets
-  g["hidden"] = id in hidden and state not installed/missing/downloading/queued (installing a hidden game brings it back).
-  visible(): show="hidden" lists only hidden, every other Show value excludes them (all tabs). Empty message
-  "No hidden games. Hide a game from its Options and it shows up here."
-- Game page Options: "Hide from SCRiTCH" for state None/failed and not busy (also non-playable games and Epic/GOG
-  pages, which had no Options before: their page now shows Install + Options); a hidden game's Options = "Show in
-  SCRiTCH" (no confirm). App._set_hidden saves config, hides -> back to the library + toast "X is hidden.".
-- tests/test_epic.py + test_gog.py: the not-installed Epic/GOG page now has Options ["Hide from SCRiTCH"]. New
-  tests/test_hidden.py (5). Mockups 15z/15za/15zb, 06k/06l/06m rendered and looked at. UNVERIFIED on the Deck.
-- Deck check: open a not-installed game -> Options -> Hide -> Hide: tile gone from All and its store tab; X -> Show ->
-  Hidden games: it is there; open it -> Options -> Show in SCRiTCH: back. Restart SCRiTCH: still hidden. Hide survives a sync.
-- Reviewer-agent findings on v0.9.23, fixed: (1) the hidden flag was only recalculated at start or on a sync, so a hidden game
-  that got installed stayed hidden (Options = only "Show in SCRiTCH") and a later uninstall hid it again: Library.refresh_hidden
-  runs on every install-state change (Installer._upd) and forgets the id (on_unhide -> App drops it from config "hidden");
-  (2) the top bar said "2 of 50 games" inside the Hidden filter: now just "2 games"; (3) the Genre filter offered genres of
-  hidden games: it uses the games of the current Show. Tests 7 in tests/test_hidden.py.
-- Steam tile art (Omri 17 Nov, after seeing v0.9.22 on his Deck: "an image on a blurred copy of itself because the tile is high"):
-  in the same release as Hide from SCRiTCH. (1) Epic keeps its portrait box image (stores/epic.py `tall_url`, types
-  DieselGameBoxTall/DieselStoreFrontTall/OfferImageTall; library cache keeps it); Add to Steam downloads it once (steam_games.
-  fetch_tall, 8 s timeout, offline = the normal cover) and uses it for the <appid>p portrait tile only. (2) compose(): a cover
-  FILLS the tile (cropped) when that cuts at most 45 % of it (steam_games.fills: square/tall covers on the tall tile, wide
-  covers on the wide tile), else fitted over a darkened blurred copy ("more squared", his words). itch has one cover only;
-  GOG might have a vertical image format (UNVERIFIED, not done); own DOS games: a tall cover.png in the folder is used.
-  Existing tiles keep their art (never overwritten): Remove + Add again to get the new look.
-- Reviewer-agent findings on the tall art (v0.9.23), fixed: (1) a download that is not a picture (an HTML error page, cut-off file)
-  was cached forever and gave a title card: fetch_tall writes <id>-tall.jpg.part, checks it loads as a picture, then renames;
-  a damaged cached file is deleted and fetched again; (2) the screen waited on the download once per Steam user: it is fetched
-  ONCE before the user loop, in a thread, and gives up after 8 s in total; (3) a fill could come out 1 px short (a black line
-  at one edge): sizes round up when filling; a transparent cover shows the dark tile, not black. Tests 22 in test_steam_games.py.
-
-## v0.9.23 CI fix (18 Nov): the build failed in the SMOKE TEST (`scritch --selftest`), not in pytest
-- Cause: itch_deck/app.py _selftest_gog asserted a not-installed GOG game page has actions == ["Install"]; v0.9.23 added the
-  Options button (Hide from SCRiTCH) so it is ["Install", "Options"]. I had updated test_epic/test_gog but not this assertion.
-- How it was found: the build file now lists failing test names as annotations; pytest passed and the job's steps showed
-  "Smoke test" as the failing step (api.github.com/repos/GoOmri/Itch-deck/actions/runs/<id>/jobs). The selftest can be run
-  locally up to the Epic part with PYTHONUTF8=1, a fcntl stand-in on PYTHONPATH and SDL_VIDEODRIVER=dummy.
-- LESSON: when a UI change alters what a screen offers, grep app.py's selftest for assertions about it, and run
-  `python run.py --selftest` as far as it goes before pushing.
-
-## v0.9.24 (18 Nov, branch v0926-storage-manager; waits for "push v0.9.24") = Storage manager (Settings > Storage > Manage games)
-- Omri's choices: opens from Settings > Storage; games only (save backups later); sort switchable Size / A-Z / Last played (Y, remembered in
-  config "storage_sort"). Replaces the WIP note above.
-- itch_deck/storagemgr.py (entries: installed, not "missing", not store "dos"; size from the game or the install record; drive
-  SD card/Internal; ordered; total_mb; mb_text; drives() = free/total of SD card + internal), ui/scenes/storage.py (StorageManager:
-  drive lines, count + "N selected · frees X", scrolling rows with a checkbox; A tick, Y sort, X uninstall, B back),
-  app_storage.py (go_storage, _h_storage, red confirm "Uninstall N games? Frees about X. Windows saves are kept.", one
-  Installer.uninstall per game with its v0.9.13 delete guards; a failure (SD card out) = error toast, the rest still goes;
-  free space refreshed every 2 s while the folders are deleted in the background). Settings row value "12 games · 38.4 GB".
-  The Storage group is now Install location, Saves of uninstalled games, Manage games (Games & controls rows are one index
-  later in mockups: 9, Help 12).
-- Tests: tests/test_storage.py (8, run on Windows). Mockups 22_storage_manager, 22b_selected, 22c_confirm, 22d_empty, 22e_az
-  rendered and looked at. UNVERIFIED on the Deck. Not done: moving ticked games to the other drive (Options -> Move exists per
-  game), clearing save backups.
-- Deck check: Settings > Storage > Manage games: drives show free space; games by size; A ticks, count + "frees X" update;
-  Y changes the order; X > Uninstall removes them (free space grows a few seconds later); an SD card out = "Couldn't uninstall...".
-- Reviewer-agent findings on v0.9.24, fixed: (1) ticking several Epic games started several `legendary uninstall` runs that each
-  rewrite installed.json: EpicStore.uninstall now takes a lock (one at a time); (2) B from Manage games sent Settings' own B to the
-  Library instead of the game page it came from: settings_back is restored; (3) after a partial failure only the games that
-  really went lose their tick; (4) removed the old WIP note. Not changed (minor): drives() runs on the main thread every 2 s (same
-  cost as _check_mounts), the list is only refreshed after an uninstall, after Y the highlight stays on the same position.
-
-## v0.9.25 (18 Nov, branch v0925-deck-feedback; waits for "push v0.9.25") = Omri's Deck-test feedback
-- DOS: a folder with no program of its own and 3 or more game folders inside (what DOS.zip unpacks to) now gives one tile per
-  game (`dosgames.collection`). Helper-named folders (setup...) do not count. The old "DOS" tile goes on the next Refresh; no
-  file is touched. Removing one game inside remembers that sub-folder's name.
-- DOS folders on BOTH drives: `Installer.dos_roots()` reads scritch/dos on the SD card and on internal storage (first the one for
-  the install location; the other only if it exists). Settings > DOS games still shows the install location's folder only.
-- "Game details 1/5" on every Y: a page that itch answered with 404 was saved without a genre, so `_has_page_fields` was
-  False and it was fetched again each time. Now a "missing" page counts as done for 7 days. UNVERIFIED that Omri's 5 are all 404s.
-- Game page Options: an installed itch game had 6 rows. Now Uninstall, Controls, More; More holds Change build, Saves, Move to...,
-  Add/Remove Steam (`Game.menu_split`, only when the list has more than 4 rows and at least 2 of them are in RARE). B in More goes
-  back to Options. Epic/GOG/DOS lists (4 or fewer) are unchanged. Selftest's Move step opens More first.
-- Uninstall (game page and Manage games) also removes the game's Steam tile (`_drop_steam_tile`; says "Its Steam tile goes after
-  a Steam restart"). A Steam file error never stops the uninstall.
-- Send logs: the "A saves a copy" hint moved from the grey subtitle into a box under the steps (the subtitle is shorter now).
-- Move progress bar "stuck at the start": the Game scene draws the fill correctly when fed rising progress (checked headless), so
-  the cause is NOT found. The move now logs "move <id>: N% of M MB copied" every 10% in app.log. UNVERIFIED / OPEN: on the Deck,
-  move a game and send app.log: if the percents rise, the problem is drawing; if not, it is the copy loop.
-- NOT built: "X on a tile opens its options". X is Sort & filter, Y Refresh, Menu Settings in the library. Needs a new button (ask Omri).
-- Check on the Deck: DOS.zip splits into tiles; zip on internal storage is found; Y no longer says Game details every time;
-  Options shows More; uninstalling Kids removes its Steam tile after a Steam restart; Send logs shows the box under step 3.
-- Reviewer findings on v0.9.25, fixed: (1) a missing dos folder on the install drive stopped the scan before the other drive was read,
-  and the games already listed from there vanished (they were only dropped from the list, no file touched); (2) an old "removed" mark
-  on the single "DOS" tile hid the games inside it; (3) folder names containing a helper word ("Mouse Hunt", "Patch Adams") were
-  skipped: now only whole names like Setup/Tools/Editor are helpers. KNOWN, not fixed: a game that keeps its programs only in 3+
-  sub-folders and none at the top is split into tiles, and a collection cut down to 2 games turns back into one tile.
-- v0.9.25 CI fix: the first build of v0.9.25 failed on Linux in test_only_the_newest_backups_are_kept (4 backups instead of 5). Two
-  shortcuts.vdf writes in the same millisecond got the same backup name, so the second copy overwrote the first. Backup names are now
-  made unique (-1, -2 ...). Real but tiny bug, not caused by the v0.9.25 changes. No release v0.9.25 existed (build stopped at tests).
-
-## v0.9.26 (18 Nov, branch v0926-deck-feedback2; waits for "push v0.9.26") = more Deck feedback
-- Removed the "More" row again (Omri). The game Options list is flat as before v0.9.25 (itch installed game: 6 rows).
-- Removing one of your own DOS games now HIDES it (config "hidden", same as Hide from SCRiTCH) instead of forgetting it by folder
-  name. It shows under Sort & filter > Show > Hidden games; its page has "Show in SCRiTCH" (no Install button); showing it starts a
-  DOS scan, which lists the folder again. Scans now list every folder (hide={}) and the old "removed" marks in dos.json are IGNORED, so
-  games removed with v0.9.19 to v0.9.25 come back as installed on the next Refresh. apply_dos puts hidden games in the library list
-  but not in the install index. Files are still never touched.
-- DOS game page: the description line is "A DOS game from your own folder. Put a cover.png in its folder to give it artwork." (was
-  "Loading details from itch.io…"). Itch's line is now just "Loading details…". Artwork for DOS games: only cover.png/jpg in the folder
-  (no online lookup, no generated title card) - ask Omri if he wants one.
-- Dialog titles wrap (W.modal) so "Remove <long name>" stays in the box; the Remove text is shorter.
-- A menu or picker that opens starts with its focus in place (Scene.overlay setter calls W.forget_menu), no slide from the last time.
-- Send logs: the Save hint box is narrower (more room before the QR address).
-- Move progress bar (Omri: a thin bit of purple, then stops): probable cause = a progress update on every 4 MB chunk made the page re-draw ~25 times/s and starve the screen. Updates are now at most every 0.4 s. UNVERIFIED (not reproduced here); app.log has "move <id>: N% ..." lines either way.
-- UNVERIFIED on the Deck: all of the above.
-
-## v0.9.27 (18 Nov, branch v0927-dos-art; waits for "push v0.9.27") = art and info for your own DOS games (part 1)
-- Each DOS game now asks GOG's public catalog (catalog.gog.com, no key, no login) for a match. A match gives the tall cover,
-  GOG's description and screenshots (same page fields as GOG/Epic pages: "From GOG"). No match = a generated title card
-  (dark blue-purple, thin purple line, the name in Inter Bold, wrapped). The folder's own cover.png/jpg ALWAYS wins for the cover
-  (GOG text still shows). Nothing is ever written into the player's DOS folder: GOG art lives in data/dosart/, the text in pages/,
-  the answers in data/dosart.json.
-- New itch_deck/dosart.py (pure, no network/files): parse() cleans the folder name (signs, v1.1, shareware/registered/full/retail/cd/dos/cracked,
-  [..] and (..) groups, ".exe", Doom2 -> Doom 2, & = and, accents folded) and reads a year 1980-1999 out of the groups first;
-  queries() = up to 4 search texts (full, Doom II -> Doom 2, before the subtitle, without a leading Commander/The);
-  choose() scores candidates (exact 100 > starts-with 85/70 > contains-all 62; a lone word that only starts a title is too weak),
-  sequel numbers must agree (Doom / Doom II / Doom 3; no number = 1), a pack (productType pack or Complete/Collection...) is
-  accepted for any episode but a single product beats it; year hint: equal +20, +/-1 +12, else -25 (not for packs); no hint: the earlier
-  release wins; minimum 60, two different games within 5 points = NO match (title card). Last try: the name without its trailing number.
-- library.py: job kind "dosart" (priority 6, after covers/pages, 1.5 s pause between games, hidden games skipped), cache per game
-  in data/dosart.json for 30 days, "no match" too; another name = new lookup. The Refresh box (Settings > DOS games) asks again for
-  games whose answer is older than a day (a Refresh may not bypass the cache more than once a day). Offline = nothing cached, asked again later.
-  A cover that is not a picture is dropped. If the match changes, the old art/text go (our own files only).
-- widgets.py: title_card(); for store "dos" a tall (or very wide) cover is shown WHOLE over a dark blurred copy (like the Steam tile)
-  instead of a middle slice; other stores unchanged. The game page text: GOG's text replaces the "A DOS game from your own folder..." line
-  (that line stays when there is no text).
-- tests/conftest.py: every test's net.get / net.get_json refuses ("offline") unless the test stubs it. selftest(): the DOS lookup is stubbed.
-  tests/test_dosart.py (22 tests). Mockups 06n (title cards) and 15zc (DOS page with GOG text) added, rendered and looked at.
-- Tests on Windows: 44 failed / 271 passed, the same 44 failures as main (list in scratch/base3.txt); selftest fails on main and here at the same
-  Epic step (Windows). Mockups render (230).
-- UNVERIFIED (no Deck, no real GOG here): the live catalog answer (only fake answers were tested; field names from Omri's 18 Nov check:
-  id, title, releaseDate, productType, coverVertical, genres is a guess and tolerated if missing), how good the matches are on real folder names,
-  how the tall cover looks on the Deck, the real api.gog.com/products answer for a pack id.
-- Check on the Deck: put a Keen and a Doom folder in dos/, Settings > DOS games > Refresh: after a minute they get a cover + text ("From GOG");
-  a made-up folder name gets the title card; a folder with its own cover.png keeps it; the dos folder has no new files. app.log lines:
-  "dosart <id>: <title> (<gog id>, score N)" or "dosart <id>: no match, title card".
-- Not done / ideas: wrong matches can be fixed only by renaming the folder; no per-game "pick another" yet (ask Omri).
-- v0.9.27 review fixes (same release): a rescan during a cover download no longer loses the cover (the CURRENT entry gets it); a broken cover or failed text is tried once per cache entry ("cover_tried"/"text_tried"), not on every scan; packs follow the same rules as games (one common word is too weak; the folder's sequel number must be inside the pack: Doom 3 / Doom 64 do not match "DOOM + DOOM II"; when a pack fits, a single game from 2000 or later (DOOM 2016) is dropped, and a game more than a year off the folder's year loses); the number-dropped last try (dosart.find, the `if p["num"] and p["bw"]` block near the end) KEEPS the folder's title and uses only GOG's art (no description: match["fallback"]); the DOS page line about cover.png only shows when there is no cover; title card font never below the theme meta size, ellipsis on the last line, long words cut; mockups 06o (tall art with blurred edge) added, 15zc has no Comments. Tests: 30 in test_dosart.py; 44 failed / 279 passed, same 44 failures as main.
-
-## v0.9.28 (18 Nov, branch v0928-dos-fixes; waits for "push v0.9.28") = DOS fixes from Omri's Deck test
-- SCAN BUG ("new folders and zips do not show"): NOT reproduced with a layout like his (dos/DOS/18 games + new top-level folders + new zips,
-  on two roots): the scan, the install index and the DOS tab all listed every game. Causes found and fixed, any of which would hide new games:
-  (1) a game folder with the SAME NAME as one already listed (e.g. the same games copied again, or inside DOS/ and at top level) was dropped
-  silently (the id comes from the folder name): now the first keeps its id, a second same-named folder gets its own id from its path (other
-  drive keeps the old "first drive wins" rule); (2) each drive is read in BOTH names, itch/dos and scritch/dos (games_dir() picks only one,
-  so files copied into the other were never read); (3) one folder that raised an error stopped the whole scan: now it is logged and skipped;
-  (4) own DOS games that were hidden (Remove) were not in the DOS tab's Hidden filter, so re-copied games that match an old removed name
-  looked "missing" (fix 2 below). app.log now has "dos: <folder> -> N games" per folder. If it still happens, send app.log.
-- Hidden own DOS games show in the DOS tab under Show > Hidden games (the filter and the tab now also test store == "dos").
-- DOS titles are tidy: "Commander Keen 3 Keen Must Die (1990)(Apogee Software)" -> "Commander Keen 3 Keen Must Die" (dosart.display; year
-  read first; subtitles stay). Same titles get the year, else the brackets text, else (2). Ids and folders do not change. The GOG search uses the
-  clean title + year, also tries "commander keen 3" (name before the subtitle); cache key = that clean name (ALGO 2: asked again once).
-- Art lookups first: dosart jobs have priority 0 (were 6, behind 500+ covers/pages); the page you open is -1. queue_dosart runs after every scan.
-- Wide GOG cover (coverHorizontal, ~16:9) is the tile art; it is cropped to fill the tile (small crop, no blurred bars). The tall one is kept in
-  the cache (cover_tall) and is the fallback; a tall picture is still shown whole over a blurred copy. Old tall art from v0.9.27 is replaced.
-  The folder's cover.png still wins. File shape used: whatever coverHorizontal is (jpg/webp), saved in data/dosart/<id>.*, shrunk to 720 px.
-- GOG text: only the first paragraph, cut at a sentence (about 600 characters), sentences about a pack/bundle/collection/"includes"/"both games"/
-  "A + B" dropped. A match found without its sequel number (the last try) still gives art only, no text, and never GOG's title.
-- Program to run: the list scrolls (max what fits above the footer, "3 / 18" at the top right, long sub text wraps). Setup/install/config
-  programs are listed with "Setup" at the right; picking one runs it ONCE at the next Play (default unchanged; kept in memory, a rescan forgets it).
-  The default program skips trainer/cheat/tech/support/help/order/info/readme/vendor/hint names (whole words and short DOS forms like TECHSUPP,
-  ORDERING; "Mouse Hunt", "Helpful Harry", "Technoid" are fine); saved choice and a name equal to the folder still win first.
-- Manage games: "Tick" -> "Select"; X with nothing selected does nothing (no message); Y keeps the focus on the same game and the list glides.
-- Crash safety (Omri: B crashes SCRiTCH on Bio Menace): NOT reproduced (B on the page, in the program list, after play, after a crash, on a hidden
-  game: all fine in a headless run). The real cause may be an error that left no trace: an exception in a press or frame used to end the app
-  without a line in app.log. Now run() logs "frame failed" with the traceback, shows "Something went wrong. It is in the log." and goes on (5 in
-  3 s -> back to the library); uncaught errors in the main program and in threads are logged too. Selftest/tests run strict (errors raise).
-- Answer for the checklist: Manage games -> B -> Settings (a NEW Settings page, on its category list) -> B -> the library if Settings was opened from
-  the library, or the game page of the focused game if it was opened from a game page.
-- Tests: tests/test_v0928.py (33). Windows: 44 failed / 312 passed, the same 44 failures as main (scratch/base3.txt); selftest stops at the same Epic
-  step as on main (Windows). Mockups 06n/06o/06p (title cards, tall and wide art), 15zd (program list), 236 render.
-- UNVERIFIED (no Deck, no real GOG): the real coverHorizontal shape and size; the scan bug on Omri's real folders; Bio Menace's real program names
-  (TECHSUPP is a guess); the crash itself; how the program list looks with a real 30-program game.
-- Check on the Deck: Refresh with new folders/zips on SD and internal: the DOS tab lists them (app.log "dos: ... -> N games" per folder); titles are
-  clean; "dosart <id>:" lines appear for all DOS games within a minute or two; tiles show a wide cover; GOG text is short; Program to run on Blood: a
-  Setup row runs once; Bio Menace starts the game; Manage games hints; B on a DOS page - if it crashes, app.log now says why.
-- v0.9.28 review fixes: the error catcher writes each distinct error's traceback ONCE (repeats only counted, a short line every 5 s), stops with the real error after 3 trips to the library or 15 failures in 10 s, says plainly "Something went wrong."; a failed apply_dos can no longer block later Refreshes; the "run setup once" flag is a memory-only dict on the Installer (never saved, a rescan keeps it, a restart forgets it); versions like v1.3d / ver 1.1 are dropped whole; a long program name is cut with an ellipsis before the "Setup" label; the pick toast says "It will run once the next time you play."
-- A second same-named folder's id now comes from its path INSIDE the dos folder (not the mount path), so a changed card label keeps it; it can still change if the first same-named folder is removed or a folder is moved (the first one holds the plain id).
-
-## v0.9.29 (18 Nov, branch v0929-dos-art2; waits for "push v0.9.29") = DOS art round 2 (real Deck data) + small DOS helpers
-- GOG search (dosart.find): after the cleaned name and its forms, the shorthand written out (alias table: dave -> dangerous dave, wolf3d, duke3d, keen), then the series name cut BEFORE the number ("commander keen 3 keen must die" -> "commander keen 3" -> "commander keen"). A match found by dropping the number is marked "fallback": art only, no text, the title stays the folder's (a pack that lists its own numbers, e.g. DOOM + DOOM II, is refused for Doom 3). "Episode N" is read as part of the game: "Bio Menace Episode 1 (1993)" = "Bio Menace". Tests use the real answers Omri checked by hand (fake catalog in tests/test_v0929.py).
-- Steam is the SECOND source when GOG has no strong match (dosart.find_any / find_steam, stores/steam.py): strong title match only (same title, or the folder title before a ":" / " - " subtitle), same number, year ignored, no soundtracks/DLC. Wide header image for the tile, short description, screenshots, "From Steam". A GOG art-only match loses to a strong Steam match. Same cache as GOG (data/dosart.json, source stored in the match, 30 days, "no match" too, cover/text tried flags). ALGO 3: every DOS game is asked once more.
-- Text: store text is read line by line; kept = the opening lines up to the first filler line ("Owners Receive:", a line ending ":", Includes, Key features, Bonus, bullets, numbered lists); pack/bundle/"combined product"/"A + B" sentences dropped; about 600 characters. TEXT_VER 3 is saved with the page: text saved by 0.9.27/0.9.28 is fetched and cut again once.
-- Program to run list (shared W.menu): chevrons up/down, a thin scroll bar on the right, and the "n / total" counter whenever the list scrolls.
-- Own DOS game whose program ends within 3.5 s with exit 0 ("closed straight away", the P01 log line stays): a dialog "That program closed straight away." / "Try another one under Options, Program to run." with a Program to run button (plain toast when there is only one program). Other games and real crashes keep the old words.
-- Options: "Keep window open after the game" (Off; hint "Helps you read an error message"; A or left/right). On = DOSBox gets no final "exit" and stays at the DOS prompt; leave with View + Menu. Stored in config "dos_stay_open" (ids), never in the game folder.
-- A run-once setup program that closes: toast "Setup closed. The next Play starts the game."
-- Send logs: dossummary.py writes one line per own DOS game (clean title, program in use, programs and setups as names inside the folder, GOG/Steam match or "no match", age of the answer, last play "N s, exit X" from app.log). Zip: dos-summary.txt; Copy the text: the first 40 games; the issue link: about 700 characters of it. All through logshare.scrub() (tests: no token, home folder or path leaks).
-- Tests: tests/test_v0929.py + test_v0929b.py. UNVERIFIED (nothing run on the Deck): the real Steam answers (names of search items, header image address cdn.akamai.steamstatic.com), how Steam header art crops in the tile, the real "closed in 1 s" exit code on the Deck (assumed 0), how Stay open looks in DOSBox Staging, the chevrons on a real screen.
-- Check on the Deck: app.log "dosart <id>: ... (gog|steam <id>, score N[, art only])" for Keen 1/3/5/6 (art only), Bio Menace Episode 1, Duke Nukem 3D, Blood, Raptor; Doom page text is short; Indiana Jones shows the new dialog; Options > Stay open; Send logs has the DOS lines.
-- v0.9.29 review fixes: Steam is stricter. Two different games that fit = no match, a "Title: Subtitle" match needs exactly ONE such item ("Dune" has Awakening AND Spice Wars; Prince of Persia too), more skip words (sound track, season pass, art book, playtest, beta, dedicated server, expansion pass...), and when the folder has a year and Steam's release year is more than 1 year off (a remake like Alone in the Dark, Duke Nukem 3D 20th Anniversary) the match is ART ONLY (no text). The tile uses the header image address appdetails returns (the old akamai address only when it is missing). "Part II / Chapter 2" stay sequel numbers; only "episode"/"ep" are dropped.
-- A Steam error never throws away a GOG result; GOG found nothing + Steam down = nothing cached (SteamUnavailable), asked again at the next start, not again in this run; after a 429 / offline answer Steam is not asked again in this run; art-job questions to one site are paced 1.5 s apart (the ALGO bump no longer bursts ~20 games).
-- Wording: "Keep window open after the game" (hint "Helps you read an error message"); one program closing at once says just "That program closed straight away."; the scroll bar sits a little further in. Mockups 15zh (Setup closed toast), 15zi (From Steam). Still UNVERIFIED on the Deck: real Steam answers and years, the pacing in real use.
-
-## v0.9.30 (18 Nov, branch v0930-dos-controls; waits for "push v0.9.30") = each DOS game has its own controller keys
-- Problem (Omri on the Deck): the one "Keys" layout fits no DOS game (could not shoot in Dave 2, proceed in Keen 3, select in Doom's menu).
-- itch_deck/assets/dos_controls.json (human-editable): entries {id, names, [not], layout keys|keys+mouse|mouse, map button->key, hints [[button, plain words]], note, verified}. A name matches when the cleaned title STARTS with its words (Doom II = doom 2) and the next word is not another sequel number ("doom" is not "doom 3"; "not" vetoes like "dave the diver"). Entries: Doom + Doom II, Keen 1-3, Keen 4-6, Dangerous Dave / dave2, Bio Menace, Duke Nukem 2, Duke Nukem 3D, Wolfenstein 3D, Blood, Quake, Jazz Jackrabbit, Raptor, Indiana Jones and the Fate of Atlantis (point and click: layout mouse). ALL FROM MEMORY, every entry has verified:false (the page then says "Controls are a guess. Tell us if one is wrong."). NOT SURE: Space as the pogo stick in Keen 1-3; Dave's jetpack/climb keys; Bio Menace and Duke Nukem 2 action keys (Space); Duke Nukem 3D weapon keys (number keys are not on the pad; L1/R1 = step left/right instead); Quake's Shift = run and sidestep keys; Blood's sidestep keys; whether Esc is Indy's menu. Send corrections and the file is edited.
-- No entry = the default: left stick + D-pad arrows, A Ctrl, B Alt, X Space, Y Enter, L1 Shift, R1 Tab, Menu Esc, right stick + R2/L2 = mouse. For own DOS games AND GOG DOS games the Controls row's Auto picks the game's entry (else the default); Pad / Mouse / Keys still force a mode (Keys = the game's keys, or the default for a mouse game; Mouse = the plain mouse layout). Other games: nothing changed.
-- mouse.Mapper has a keymap mode (layouts keys = no pointer, keysmouse = keys + right stick pointer + R2/L2 clicks unless the map gives the triggers keys, mouse); new keynames.py lists the keys the virtual keyboard can press (Ctrl, Alt, Tab, digits, letters, comma, period, F1-F10, mouse buttons). dos_controls.py loads/validates/matches; a missing or broken file or entry is logged once and the default is used.
-- Game page: under the description a "Controls" block with the real button glyphs (DualSense shows its own), one line per few buttons; the Controls row in Options has a one-line hint ("A Fire · B Open doors · X Run"); picking a controls mode says the same. Mockups 15zj (Doom), 15zk (Keen 3) in scratch/mock30.
-- Tests: tests/test_v0930.py. UNVERIFIED (nothing run on the Deck): every key in the file, how DOSBox takes the keys from the virtual keyboard, how the Controls block looks on a real page.
-- Keys from the game's own files (dosinput.py): scans the folder read-only (depth 2; *.txt *.doc *.1st *.nfo *.me, readme/manual/help/instruct/controls/keys*; plain text only, 300 KB per file, 1 MB total, cp437 with box drawing turned to spaces), finds "Ctrl = jump" / "Jump: Ctrl" / "Press J to jump" / "Hold Alt to strafe" / table and "CTRL fire, SPACE open doors" lines, ignores cheat codes, F-key help, install lines; roles (fire jump use pogo run strafe map menu confirm weapon crouch) go to buttons by a fixed priority (fire A, jump B, use X, run L1, menu Start, confirm Y ...), WASD manuals put the sticks on W A S D. Needs 2+ distinct actions. Source order on the page: verified list entry, files, untested list entry, default. Dim line under the block: "From the game's own files" / "From our list (not tested)" / nothing for the default; "Controls are a guess. Tell us if one is wrong." for everything but a verified entry. Result cached per game in data/dosinput.json with a signature of the text files (names, sizes, times); run on the library queue (priority 0) after each scan; app.log "dosinput <id>: N actions from X" or "none", and the DOS summary has a "keys:" part.
-- The Controls block is two columns of "[pad icon] action" (W.glyph follows the pad in use: Deck letters, DualSense shapes, pills). Mockups 15zj/15zk (Deck) and ps_15zj/ps_15zk (DualSense) in scratch/mock30. Tests (tests/test_v0930b.py) use MADE-UP manuals only: Keen-style, Doom-style, a table, WASD, cheats/F-keys, a binary file, a huge file, a cp437 box table. UNVERIFIED: how well it reads REAL manuals (all of them are untested), and every key.
-- v0.9.30 review fixes: keys from the game's files are only an OVERLAY on the table entry (else the default): they replace just the buttons they named a real action for (fire jump use pogo run strafe weapon crouch; at least 2 needed; menu/confirm/pause/quit never count), keep the mouse (keys+mouse), and are never used on a point-and-click entry (Indiana Jones stays playable); Esc always stays on Start, Enter on Y, P/Q/"quit" keys are never mapped.
-- The DOSBox manual is skipped (paths containing dosbox, lines about emulation, full screen, keymapper, cycles, Alt-Enter, Ctrl-F..); the scan counts EVERY byte read (binary files too) toward 1 MB, sniffs 4 KB before reading more, and looks at 40 files at most, readme/manual/controls/keys/help/instruct first (a test with 200 binary .hlp files).
-- Wording: dim line "From our list. Not tested, so a key may be wrong." / "From the game's own files. A key may be wrong." / "Controls are a guess. Some keys may be wrong." (nothing for a verified entry), an S gap before it, D-pad / Right stick in body size and normal colour. Mockup 15zl (Options with the Controls hint, one line at both sizes).
-
-## v0.9.31 prep (18 Nov, branch v0931-test-tools; tests only, no VERSION bump) = a plain test run is all green on Windows
-- tests/windows_known_failures.txt lists the tests that need Linux (paths like /run/media, fake helper scripts, fcntl, file modes). tests/conftest.py skips exactly those on Windows only, and puts a stand-in `fcntl` module in place so the mouse tests load. On Linux (CI) nothing is skipped. Windows run: 395 passed, 46 skipped. If you fix one of these tests, delete its line.
-- test_phone.py::test_big_or_empty_posts is in the list too: it is flaky on Windows (ConnectionAbortedError), also on main.
-- New tools outside the repo, in E:\Projects\GIT\tools: check.py (tests, --mockups, --selftest on Linux) and ship.py (dry run unless --yes; checks clean tree, VERSION, no-reply e-mail, merges with --no-ff, pushes; --feed shows the newest releases once).
-- The standing rules for agents now live in E:\Projects\GIT\.claude\agents\coder.md and reviewer.md, so briefs only need the task.
-- Unverified: nothing here touches the app. CI on Linux still has to run the full suite once.
-
-## v0.9.31 prep (18 Nov, branch v0931-scrub-logs; maintenance A, no VERSION bump yet) = app.log can never hold a token
-- Why: when legendary or gogdl failed, the last lines of their error text were written to app.log as they came. Send logs cleaned them, but the file on the Deck did not.
-- logshare.scrub_secrets() hides only secrets (the first 6 rules of scrub: Bearer, key=value, --auth-code flags, ?token= in URLs, JWTs, 32+ mixed-case keys). app.SecretFreeFormatter runs every record (message and traceback) through it, for app.log and the console. Paths, ids and names stay in app.log (they are needed to debug) and are hidden only when logs are shared (scrub). It never raises.
-- Checked against Omri's real app.log of 18 Nov: 27 of 2251 lines change, all long Epic artwork file names in old cover errors (over-hiding noise only). "exit code: 0", "ERROR CODE P01", paths and dosart lines are untouched.
-- Tests: tests/test_scrub_secrets.py. Unverified: how a real legendary/gogdl error looks (needs the Deck); the patterns are the same ones that already protect Send logs.
-- NOT done (maintenance B/C): merging the duplicated Epic/GOG code and splitting long functions. Omri decides later.
-
-## v0.9.31 prep: text-file reader removed (Omri 18 Nov, he never asked for it by name)
-- dosinput.py and everything that used it is gone: the background job, data/dosinput.json reading, the "keys from files" part of the DOS summary, and the "From the game's own files" line. Controls now come only from the table (assets/dos_controls.json) or the default layout. A leftover data/dosinput.json on a Deck is never read and not deleted.
-- Unverified on the Deck: that a DOS game page still shows its Controls block and the dim line; app.log should no longer have any "dosinput" lines.
-
-## v0.9.31 RELEASED 18 Nov (Omri: "push the update") = log scrub, test skip list, text-file reader removed
-- Contains the three "v0.9.31 prep" sections above. VERSION 0.9.31. Check on the Deck: DOS game pages still show Controls; app.log has no secrets and no "dosinput" lines; the app starts and updates as before.
+## Releases (one line each; full text in docs/history/NOTES-history.md)
+- v0.9.5 RELEASED 16 Nov (branch v095-gog; Omri "go and push" 14:45) = GOG versions + first-run setup + updates
+- v0.9.6 RELEASED 16 Nov (branch v095b-gog-fix; Omri "push" 15:55) = Eye of the Beholder fixes
+- v0.9.7 RELEASED 16 Nov (branch v097-dosbox; Omri "go and push" 16:22) = GOG DOS games via native DOSBox
+- v0.9.8 RELEASED 16 Nov (branch v098-logs; Omri "go ahead" 17:50) = logs that survive + forget version on uninstall
+- v0.9.9 (branch v099-dosbox-autoexec, waits for "push") = DOSBox Staging runs GOG's start commands
+- v0.9.10 (17 Nov, branch v0910-gog-heroic-setup, pushed to main at Omri's request; tests only run on Windows partially) = GOG first-run setup like Heroic's se...
+- v0.9.11 (17 Nov, branch v0911-fix-gog-setup, NOT pushed - waits for Omri) = FIX for v0.9.10's first-run setup
+- v0.9.12 (17 Nov, branch v0912-dosbox-conf-lookup, NOT pushed - waits for Omri) = EOB: DOSBox couldn't open GOG's settings files
+- v0.9.13 (17 Nov, branch v0913-safe-deletes) = safer deleting (from the read-only audit of 17 Nov)
+- v0.9.14 (17 Nov, branch v0914-tidy) = tidy-up from the audit (no behaviour change)
+- v0.9.15 (17 Nov, branch v0915-send-logs) = Settings -> Help -> Send logs (roadmap item 2)
+- v0.9.16 (17 Nov, branch v0916-logs-fixes; waits for "push v0.9.16") = fixes from Omri's Deck test of Send logs
+- v0.9.17 (17 Nov, branch v0917-logs-copy-fix; waits for "push v0.9.17") = the real cause of "Copy does nothing"
+- README update (17 Nov, branch v0918-readme; docs only, NO version bump = a push builds no release) = roadmap item 3 "Ready to share"
+- v0.9.18 (17 Nov, branch v0919-dos-tab; waits for "push v0.9.18") = DOS tab, step 1 (roadmap item 4)
+- v0.9.19 (17 Nov, branch v0920-dos-sketch; waits for "push v0.9.19") = DOS tab step 2: your own DOS games (roadmap 4)
+- v0.9.20 (17 Nov, branch v0921-sources; waits for "push v0.9.20") = Settings: "Accounts" group -> "Sources" with the DOS row
+- Add to Steam per game: plan + Deck experiment (17 Nov, branch v0922-steam-shortcuts; no VERSION bump, nothing uses it yet)
+- v0.9.21 (17 Nov, branch v0922-steam-shortcuts; waits for "push v0.9.21") = Add to Steam per game (roadmap 6)
+- v0.9.21 CI fix (17 Nov): the first build of v0.9.21 FAILED on GitHub (pytest), so no release was made and the Deck stayed on .20
+- v0.9.22 (17 Nov, branch v0924-art-fix; waits for "push v0.9.22") = Add to Steam: art failed on the Deck
+- v0.9.23 (17 Nov, branch v0925-hide-games; waits for "push v0.9.23") = Hide from SCRiTCH (roadmap 4)
+- v0.9.23 CI fix (18 Nov): the build failed in the SMOKE TEST (`scritch --selftest`), not in pytest
+- v0.9.24 (18 Nov, branch v0926-storage-manager; waits for "push v0.9.24") = Storage manager (Settings > Storage > Manage games)
+- v0.9.25 (18 Nov, branch v0925-deck-feedback; waits for "push v0.9.25") = Omri's Deck-test feedback
+- v0.9.26 (18 Nov, branch v0926-deck-feedback2; waits for "push v0.9.26") = more Deck feedback
+- v0.9.27 (18 Nov, branch v0927-dos-art; waits for "push v0.9.27") = art and info for your own DOS games (part 1)
+- v0.9.28 (18 Nov, branch v0928-dos-fixes; waits for "push v0.9.28") = DOS fixes from Omri's Deck test
+- v0.9.29 (18 Nov, branch v0929-dos-art2; waits for "push v0.9.29") = DOS art round 2 (real Deck data) + small DOS helpers
+- v0.9.30 (18 Nov, branch v0930-dos-controls; waits for "push v0.9.30") = each DOS game has its own controller keys
+- v0.9.31 prep (18 Nov, branch v0931-test-tools; tests only, no VERSION bump) = a plain test run is all green on Windows
+- v0.9.31 prep (18 Nov, branch v0931-scrub-logs; maintenance A, no VERSION bump yet) = app.log can never hold a token
+- v0.9.31 prep: text-file reader removed (Omri 18 Nov, he never asked for it by name)
+- v0.9.31 RELEASED 18 Nov (Omri: "push the update") = log scrub, test skip list, text-file reader removed
