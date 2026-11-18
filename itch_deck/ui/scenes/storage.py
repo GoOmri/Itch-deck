@@ -1,4 +1,4 @@
-"""Manage games: the installed games by size, tick several, uninstall them together (storagemgr.py)."""
+"""Manage games: the installed games by size, select several, uninstall them together (storagemgr.py)."""
 import pygame as pg
 
 from ... import storagemgr as SM
@@ -41,11 +41,14 @@ class StorageManager(Scene):
             gid = rows[self.focus]["id"]
             self.selected ^= {gid}
         elif act == Y:
+            gid = rows[self.focus]["id"] if rows and 0 <= self.focus < len(rows) else None
             keys = [k for k, _ in SM.SORTS]
             self.sort = keys[(keys.index(self.sort) + 1) % len(keys)]
+            if gid is not None:                       # the focus stays on the SAME game, wherever it moved to
+                self.focus = next((i for i, e in enumerate(self.rows()) if e["id"] == gid), 0)
 
     def hints(self):
-        h = [("A", "Tick"), ("Y", "Sort: " + dict(SM.SORTS)[self.sort])]
+        h = [("A", "Select"), ("Y", "Sort: " + dict(SM.SORTS)[self.sort])]
         if self.selected:
             h.append(("X", "Uninstall"))
         return h + [("B", "Back")]
@@ -56,7 +59,7 @@ class StorageManager(Scene):
         w = min(t.w - 2 * t.m, t.page_w)
         x = int(t.cx - w / 2)
         y = W.text(t, s, "Manage games", x, t.m, t.f_h1).bottom + t.xs
-        y = W.text(t, s, "Tick games and uninstall them together to free space. Windows saves are kept.",
+        y = W.text(t, s, "Select games and uninstall them together to free space. Windows saves are kept.",
                    x, y, t.f_small, color=t.dim, maxw=w).bottom + t.sm
         for d in self.drives:                                    # SD card: 112 GB free of 256 GB
             line = f"{d['name']}:  {_gb(d['free'])} free of {_gb(d['total'])}"
@@ -85,7 +88,16 @@ class StorageManager(Scene):
             self.first = self.focus - per + 1
         self.first = max(0, min(self.first, max(0, len(rows) - per)))
         pad = t.md
-        for i in range(self.first, min(len(rows), self.first + per)):
+        step = row_h + gap
+        self._sy = W.ease(getattr(self, "_sy", None), self.first * step, back=0)     # the list glides to the focus
+        sy = self._sy[0]
+        r0 = int(sy // step)
+        area = pg.Rect(0, y, t.w, t.h - t.hint_h - y)
+        old_clip = s.get_clip()
+        s.set_clip(area)
+        y0 = y
+        for i in range(r0, min(len(rows), r0 + per + 2)):
+            y = int(y0 + i * step - sy)
             e = rows[i]
             r = pg.Rect(x, y, w, row_h)
             k = W.anim(("stor", e["id"]), 1.0 if i == self.focus else 0.0)
@@ -106,4 +118,4 @@ class StorageManager(Scene):
             drive = W.text(t, s, e["drive"], size.x - t.md, r.centery, t.f_small, color=t.dim, anchor="midright")
             W.text(t, s, e["title"], text_x, r.centery, t.f_btn, anchor="midleft",
                    color=t.text_c, maxw=drive.x - t.md - text_x)
-            y += row_h + gap
+        s.set_clip(old_clip)

@@ -465,3 +465,93 @@ def test_picking_a_setup_runs_it_once_and_picking_a_program_changes_the_default(
     app.scene.overlay = ("picker", title, sub, items, 1)                       # pick the other program
     mixin._pick(app, app.scene)
     assert inst.index[gid]["exe"] == "BLOOD2.EXE"
+
+
+# --- 8: Manage games ---------------------------------------------------------------------------------------
+def _sm_items(n=40):
+    return [{"id": f"g{i}", "title": f"Game {i}", "size_mb": (i * 37) % 900 + 10, "drive": "SD card",
+             "store": "itch", "played": "2026-11-0%d" % (i % 9 + 1) if i % 3 else ""} for i in range(n)]
+
+
+def test_manage_games_says_select_not_tick_and_x_hint_waits_for_a_selection():
+    from itch_deck.input import A
+    from itch_deck.ui.scenes.storage import StorageManager
+    sc = StorageManager(_theme(), _sm_items(5))
+    h = sc.hints()
+    assert ("A", "Select") in h and ("X", "Uninstall") not in h
+    assert not any("tick" in b.lower() for _a, b in h)
+    sc.handle(A)
+    assert ("X", "Uninstall") in sc.hints()
+
+
+def test_x_with_nothing_selected_does_nothing_in_the_app(monkeypatch):
+    import types as T
+    from itch_deck import app_storage
+    from itch_deck.input import X
+    from itch_deck.ui.scenes.storage import StorageManager
+    said, asked = [], []
+    me = T.SimpleNamespace(scene=StorageManager(_theme(), _sm_items(5)), say=lambda *a, **k: said.append(a),
+                           confirm=lambda *a, **k: asked.append(a), cfg={})
+    app_storage.StorageMixin._h_storage(me, X)
+    assert said == [] and asked == []
+
+
+def test_changing_the_sort_keeps_the_focus_on_the_same_game():
+    from itch_deck.input import DOWN, Y
+    from itch_deck.ui.scenes.storage import StorageManager
+    sc = StorageManager(_theme(), _sm_items(40), sort="size")
+    for _ in range(7):
+        sc.handle(DOWN)
+    gid = sc.rows()[sc.focus]["id"]
+    for _ in range(4):                                    # through every sort order and round again
+        sc.handle(Y)
+        assert sc.rows()[sc.focus]["id"] == gid, sc.sort
+    sc2 = StorageManager(_theme(), [], sort="size")
+    sc2.handle(Y)                                         # an empty list: nothing to keep, nothing breaks
+    assert sc2.focus == 0
+
+
+def test_the_manage_list_glides_and_draws_inside_both_screens():
+    from itch_deck import theme
+    from itch_deck.input import DOWN, Y
+    from itch_deck.ui import widgets as W
+    from itch_deck.ui.scenes.storage import StorageManager
+    for size in ((1280, 800), (1920, 1080)):
+        pg.init()
+        pg.display.set_mode((64, 64))
+        t = theme.Theme(pg, size)
+        sc = StorageManager(t, _sm_items(60), drives=[{"name": "SD card", "free": 5e10, "total": 2.5e11}])
+        s = pg.Surface(size)
+        old = W.LIVE
+        W.LIVE = True
+        try:
+            sc.draw_page(s)
+            for _ in range(40):
+                sc.handle(DOWN)
+            sc.handle(Y)
+            sc.draw_page(s)                               # first frame after the jump: the list starts moving
+            assert sc._sy[0] <= sc._sy[2] and sc.first > 0
+            sc.draw_page(s)
+        finally:
+            W.LIVE = old
+        assert s.get_clip() == pg.Rect(0, 0, *size)       # the clip is put back
+
+
+def test_where_the_second_b_goes():
+    """Answer for the checklist: Manage games -> B -> Settings -> B -> library (opened from the library) or the
+    game page of the game that was focused (opened from a game page)."""
+    import types as T
+    from itch_deck import app_settings, app_storage
+    from itch_deck.input import B
+    went = []
+    for opened_from, expect in (("library", "library"), ("game", "game")):
+        me = T.SimpleNamespace(settings_back=opened_from, lib_focus_id="x", kind="storage")
+        me.go_settings = lambda me=me: setattr(me, "settings_back", "storage")     # what App.go_settings does
+        me.scene = T.SimpleNamespace(side=True)
+        me.lib = T.SimpleNamespace(by_id=lambda i: {"id": i})
+        me.go_game = lambda g: went.append("game")
+        me.go_library = lambda: went.append("library")
+        app_storage.StorageMixin._h_storage(me, B)                                # B in Manage games -> Settings
+        assert me.settings_back == opened_from
+        app_settings.SettingsMixin._h_settings(me, B)                             # B in Settings (side bar)
+        assert went[-1] == expect
