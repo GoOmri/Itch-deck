@@ -590,3 +590,19 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
 - v0.9.25 CI fix: the first build of v0.9.25 failed on Linux in test_only_the_newest_backups_are_kept (4 backups instead of 5). Two
   shortcuts.vdf writes in the same millisecond got the same backup name, so the second copy overwrote the first. Backup names are now
   made unique (-1, -2 ...). Real but tiny bug, not caused by the v0.9.25 changes. No release v0.9.25 existed (build stopped at tests).
+
+## v0.9.26 (18 Nov, branch v0926-deck-feedback2; waits for "push v0.9.26") = more Deck feedback
+- Removed the "More" row again (Omri). The game Options list is flat as before v0.9.25 (itch installed game: 6 rows).
+- Removing one of your own DOS games now HIDES it (config "hidden", same as Hide from SCRiTCH) instead of forgetting it by folder
+  name. It shows under Sort & filter > Show > Hidden games; its page has "Show in SCRiTCH" (no Install button); showing it starts a
+  DOS scan, which lists the folder again. Scans now list every folder (hide={}) and the old "removed" marks in dos.json are IGNORED, so
+  games removed with v0.9.19 to v0.9.25 come back as installed on the next Refresh. apply_dos puts hidden games in the library list
+  but not in the install index. Files are still never touched.
+- DOS game page: the description line is "A DOS game from your own folder. Put a cover.png in its folder to give it artwork." (was
+  "Loading details from itch.io…"). Itch's line is now just "Loading details…". Artwork for DOS games: only cover.png/jpg in the folder
+  (no online lookup, no generated title card) - ask Omri if he wants one.
+- Dialog titles wrap (W.modal) so "Remove <long name>" stays in the box; the Remove text is shorter.
+- A menu or picker that opens starts with its focus in place (Scene.overlay setter calls W.forget_menu), no slide from the last time.
+- Send logs: the Save hint box is narrower (more room before the QR address).
+- Move progress bar (Omri: a thin bit of purple, then stops): probable cause = a progress update on every 4 MB chunk made the page re-draw ~25 times/s and starve the screen. Updates are now at most every 0.4 s. UNVERIFIED (not reproduced here); app.log has "move <id>: N% ..." lines either way.
+- UNVERIFIED on the Deck: all of the above.

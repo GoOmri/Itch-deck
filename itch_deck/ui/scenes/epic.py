@@ -48,7 +48,7 @@ class EpicConnect(Setup):
             steps = self.STEPS
             side = min(int(t.h * self.QR_SIZE), int(w * self.QR_SIZE))
             top = y
-            col = w - side - t.lg
+            col = w - side - t.lg * 2                      # room between the box and the QR code's address
             y_steps = self._steps(s, steps, x, y, col)
             self.extra(s, x, y_steps + t.sm, col)          # under the steps, beside the QR code
             y = max(y_steps, self._qr(s, x + w - side, top, side).bottom) + t.sm

@@ -258,17 +258,17 @@ def _shots(t, version):
             "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
                                     ("Controls", "Auto · Pad", ""), ("Saves", "", "")], 0))),
         ("15x_game_options_add_steam", with_overlay(with_steam(game("Moss & Rivets")), (
-            "menu", "Options", "", [("Uninstall", "", ""), ("Controls", "Auto · Pad", ""),
-                                    ("More", "", "")], 2))),                  # v0.9.25: the long list is short
-        ("15xm_game_options_more", with_overlay(with_steam(game("Moss & Rivets")), (
-            "menu", "More", "", [("Change build", "", ""), ("Saves", "", ""),
-                                 ("Move to internal storage", "", ""), ("Add to Steam", "", "")], 3))),
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "Auto · Pad", ""), ("Saves", "", ""),
+                                    ("Add to Steam", "", "")], 4))),
         ("15y_game_options_remove_steam", with_overlay(with_steam(game("Moss & Rivets"), True), (
-            "menu", "More", "", [("Change build", "", ""), ("Saves", "", ""),
-                                 ("Remove from Steam", "", "")], 2))),
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "Auto · Pad", ""), ("Saves", "", ""),
+                                    ("Remove from Steam", "", "")], 4))),
         ("15n_game_options_move", with_overlay(game("Moss & Rivets"), (
-            "menu", "More", "", [("Change build", "", ""), ("Saves", "", ""),
-                                 ("Move to internal storage", "", "")], 2))),
+            "menu", "Options", "", [("Uninstall", "", ""), ("Change build", "", ""),
+                                    ("Controls", "Auto · Pad", ""), ("Saves", "", ""),
+                                    ("Move to internal storage", "", "")], 4))),
         ("15o_game_move_confirm", with_overlay(game("Moss & Rivets"), (
             "confirm", "Move Moss & Rivets to internal storage?",
             ["The game and its saves move together.", "You can play again when it's done."],
@@ -349,8 +349,8 @@ def _shots(t, version):
                                     ("Program to run", "", "")], 0))),
         ("15w_game_dos_remove", with_overlay(Game(t, dict(gog_games[0], store="dos", state="installed", dos=True,
                                              author="", platforms={"linux"}), pos=(1, 3)), (
-            "confirm", "Remove Amber Atlas from your library?",
-            ["Your game files stay in the folder.", "Copy the folder again to add it back."],
+            "confirm", "Remove Amber Atlas?",
+            ["Your game files stay in the folder.", "Sort & filter > Show > Hidden games brings it back."],
             [("A", "Remove"), ("B", "Cancel")], "main"))),
         ("27_gog_connect", GogConnect(t, "phone", qr=_qr(), url=PHONE_URL)),
         ("27b_gog_rejected", GogConnect(t, "rejected", qr=_qr(), url=PHONE_URL)),

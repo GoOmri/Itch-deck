@@ -61,6 +61,8 @@ class Game(Scene):
             main = [("Play", "play", True)]
         elif st == "missing":            # SD card out / files gone: nothing to run
             main = [("Play", "play", False)]
+        elif self.g.get("store") == "dos":   # your own DOS game that is hidden: nothing to install
+            main = []
         elif st in ("downloading", "queued") or self.phase:
             return [("Cancel", None, True)]  # nothing else to do while it downloads
         elif self.card_out:              # nowhere to install to until the card is back
@@ -106,25 +108,12 @@ class Game(Scene):
             return []
         return [] if epic else ["Change build"]
 
-    RARE = ("Change build", "Saves", "Program to run", "Add to Steam", "Remove from Steam")
-
-    def menu_split(self):
-        """(rows shown in Options, rows behind "More"). A long list (an installed itch game has six) keeps
-        the everyday ones and tucks the rest under one "More" row (Omri, Deck test 17 Nov)."""
-        rows = self.options()
-        rare = [r for r in rows if r in self.RARE or r.startswith("Move to ")]
-        if len(rows) <= 4 or len(rare) < 2:
-            return rows, []
-        return [r for r in rows if r not in rare] + ["More"], rare
-
-    def open_options(self, focus=0, more=False):
-        """☰ / ⚙ Options. Controls shows its setting (◀ ▶ change it, like Sort & filter).
-        more=True: the list behind the "More" row."""
+    def open_options(self, focus=0):
+        """☰ / ⚙ Options. Controls shows its setting (◀ ▶ change it, like Sort & filter)."""
         if self.options():
-            head, rare = self.menu_split()
-            labels, title = (rare, "More") if more and rare else (head, "Options")
-            rows = [(o, self.g.get("controls_value", "") if o == "Controls" else "", "") for o in labels]
-            self.overlay = ("menu", title, "", rows, max(0, min(focus, len(rows) - 1)))
+            rows = [(o, self.g.get("controls_value", "") if o == "Controls" else "", "")
+                    for o in self.options()]
+            self.overlay = ("menu", "Options", "", rows, max(0, min(focus, len(rows) - 1)))
 
     def handle(self, act):
         n, shots = len(self.actions()), self.g.get("screens", 0)
@@ -134,10 +123,7 @@ class Game(Scene):
                 focus = max(0, min(len(items) - 1, focus + (1 if act == DOWN else -1)))
                 self.overlay = (kind, title, sub, items, focus)
             elif act == B:
-                if kind == "menu" and title == "More":               # back to Options, on its More row
-                    self.open_options(len(self.menu_split()[0]) - 1)
-                else:
-                    self.overlay = None
+                self.overlay = None
             return
         if self.overlay and self.overlay[0] == "viewer":
             if act in (LEFT, RIGHT):
@@ -366,9 +352,12 @@ class Game(Scene):
                    "More details load the next time you're online." if self.offline else
                    "No more details for this game.")
             y = W.text(t, s, msg, t.m, y, t.f_body, color=t.dim).bottom
+        elif not n and g.get("store") == "dos":
+            y = W.text(t, s, "A DOS game from your own folder. Put a cover.png in its folder to give it artwork.",
+                       t.m, y, t.f_body, color=t.dim).bottom
         elif not n:
             msg = ("This game's itch.io page no longer exists." if g.get("page_missing") else
-                   "Loading details from itch.io…" if g.get("details_loading") or not self.offline
+                   "Loading details…" if g.get("details_loading") or not self.offline
                    and not g.get("details_at") else
                    "More details load the next time you're online." if self.offline else
                    "This game's itch page has no description.")

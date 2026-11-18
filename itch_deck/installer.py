@@ -1187,12 +1187,17 @@ class Installer:
             done[0] += n
             if gid in self._cancel:
                 raise MoveCancelled()
+            now = time.monotonic()
+            if now - last[0] < 0.4:                    # v0.9.26: not every 4 MB chunk (the page re-draws on each
+                return                                 # change and starved the screen: the bar looked stuck)
+            last[0] = now
             self._upd(gid, progress=min(done[0] / total, 0.999) if total else 0.999)
             pct = int(done[0] * 100 / total) if total else 100
             if pct // 10 != logged[0] // 10:            # v0.9.25: the Deck log shows the move's progress
                 logged[0] = pct
                 log.info("move %s: %d%% of %d MB copied", gid, pct, total // 1_000_000)
         logged = [0]
+        last = [0.0]
         for a, b in jobs:
             _copy_tree(a, b, tick)
         for a, b in jobs:                         # check: same files, same sizes
@@ -1278,8 +1283,8 @@ class Installer:
         entries = []
         for r in self.dos_roots():                  # the install location's folder first; it may not exist
             have = {e["id"] for e in entries}       # (the other drive's can still hold the games)
-            entries += [e for e in dosgames.scan(r, picked) if e["id"] not in have]
-        return {"entries": entries}
+            entries += [e for e in dosgames.scan(r, picked, hide={}) if e["id"] not in have]
+        return {"entries": entries}                 # hide={}: "removed" games are the app's hidden list now
 
     def apply_dos(self, result):
         """Step 2, on the main thread: bring the install index and the library in line with a scan.
@@ -1288,9 +1293,13 @@ class Installer:
             return None
         entries = result["entries"]
         seen = set()
+        hidden = getattr(self.lib, "hidden", set())
         for e in entries:
             gid = e["id"]
             seen.add(gid)
+            if gid in hidden:                       # removed from the library: listed as hidden, not installed
+                self.index.pop(gid, None)
+                continue
             old = self.index.get(gid) or {}
             keep = old.get("exe_chosen") and old.get("exe") in e["programs"]   # a choice made meanwhile
             exe = old["exe"] if keep else e["exe"]
@@ -1306,9 +1315,11 @@ class Installer:
                 self.index.pop(gid, None)
         _write_json(paths.INSTALLS, self.index)
         covers = {e["id"]: e["cover"] for e in entries}
-        self.lib.set_dos_games([{"id": gid, "title": i["title"], "cover": covers.get(gid)}
-                                for gid, i in self.index.items() if i.get("store") == "dos"])
-        n = len(entries)
+        listed = {e["id"]: e["title"] for e in entries}
+        listed.update({gid: i["title"] for gid, i in self.index.items() if i.get("store") == "dos"})
+        self.lib.set_dos_games([{"id": gid, "title": title, "cover": covers.get(gid)}
+                                for gid, title in listed.items()])
+        n = sum(1 for e in entries if e["id"] not in hidden)
         log.info("dos: %d games listed", n)
         return n
 
@@ -1325,11 +1336,8 @@ class Installer:
         if self.choices.pop(gid, None) is not None:
             _write_json(paths.BUILDS, self.choices)
         if info:
-            dosgames.remember_removed(Path(info["dir"]).name, time.time())
             log.info("dos: removed %s from the library (files kept in %s)", gid, info["dir"])
-        self._upd(gid, state=None, phase=None)
-        self.lib.set_dos_games([{"id": g, "title": i["title"], "cover": None}
-                                for g, i in self.index.items() if i.get("store") == "dos"])
+        self._upd(gid, state=None, phase=None)      # the game stays in the library list (the app hides it)
         return True
 
     def uninstall(self, gid):
