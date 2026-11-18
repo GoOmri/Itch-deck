@@ -382,7 +382,7 @@ class GameMixin:
             return None
         setting = (self.cfg.get("controls") or {}).get(g["id"], "auto")
         try:
-            return dos_controls.plan(g, setting if setting in self.CONTROLS else "auto", g.get("dosinput"))
+            return dos_controls.plan(g, setting if setting in self.CONTROLS else "auto")
         except Exception:  # noqa: BLE001  - never stop a game from starting over its key table
             log.exception("dos controls failed for %s", g.get("id"))
             return dos_controls.plan({"title": ""}, "keys")

@@ -721,3 +721,7 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
 - Checked against Omri's real app.log of 18 Nov: 27 of 2251 lines change, all long Epic artwork file names in old cover errors (over-hiding noise only). "exit code: 0", "ERROR CODE P01", paths and dosart lines are untouched.
 - Tests: tests/test_scrub_secrets.py. Unverified: how a real legendary/gogdl error looks (needs the Deck); the patterns are the same ones that already protect Send logs.
 - NOT done (maintenance B/C): merging the duplicated Epic/GOG code and splitting long functions. Omri decides later.
+
+## v0.9.31 prep: text-file reader removed (Omri 18 Nov, he never asked for it by name)
+- dosinput.py and everything that used it is gone: the background job, data/dosinput.json reading, the "keys from files" part of the DOS summary, and the "From the game's own files" line. Controls now come only from the table (assets/dos_controls.json) or the default layout. A leftover data/dosinput.json on a Deck is never read and not deleted.
+- Unverified on the Deck: that a DOS game page still shows its Controls block and the dim line; app.log should no longer have any "dosinput" lines.
