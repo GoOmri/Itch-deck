@@ -331,3 +331,47 @@ def test_a_wide_cover_fills_the_tile_without_blurred_bars(tmp_path):
     img = W.cover(t, {"id": "w1", "title": "X", "store": "dos", "cover_file": str(f)}, (272, 216))
     for x, y in ((2, 108), (269, 108), (136, 2), (136, 213)):
         assert img.get_at((x, y))[0] > 240, (x, y)                                  # red everywhere: no bars
+
+
+# --- 6: a short GOG description without pack talk ---------------------------------------------------------
+PACK_TEXT = ("Billy Blaze builds a rocket ship and flies to Mars to save his parents. "
+             "Run, jump and pogo through hostile worlds full of deadly aliens. "
+             "This pack includes all three episodes of the trilogy. "
+             "Play both games in one bundle with DOOM + DOOM II. "
+             "Fight your way through 27 levels of pure arcade action, with a secret in every corner. "
+             "Part of the Classic Collection. " + "More words about the game that go on and on. " * 30)
+
+
+def test_the_description_is_one_short_paragraph_without_pack_talk():
+    from itch_deck import dosart
+    out = dosart.short_text(["", PACK_TEXT, "Second paragraph."])
+    assert len(out) == 1 and 100 < len(out[0]) <= 700
+    low = out[0].lower()
+    for bad in ("pack", "bundle", "collection", "includes", "both games", "doom + doom"):
+        assert bad not in low, bad
+    assert out[0].startswith("Billy Blaze") and out[0].endswith((".", "!", "?", "\u2026"))
+    assert "pogo" in low
+
+
+def test_a_first_paragraph_that_is_only_pack_talk_gives_way_to_the_next():
+    from itch_deck import dosart
+    assert dosart.short_text(["Includes both games. A great bundle."]) == []
+    assert dosart.short_text(["Includes both games.", "A fast platformer. Great fun."]) == ["A fast platformer. Great fun."]
+    assert dosart.short_text(None) == [] and dosart.short_text([]) == []
+    one = dosart.short_text(["word " * 400])
+    assert len(one[0]) <= 620 and one[0].endswith("\u2026")                 # no sentence end: cut at a word
+
+
+def test_the_saved_page_holds_only_the_short_text(tmp_path, monkeypatch):
+    import json
+    from itch_deck import library, net
+    paths.use_root(tmp_path / "home")
+    monkeypatch.setattr(library.time, "sleep", lambda s: None)
+    monkeypatch.setattr(net, "get", lambda url, key=None, timeout=20, **k: _png(tmp_path / "c.png", (640, 360), (9, 9, 9)))
+    monkeypatch.setattr(net, "get_json", lambda url, key=None, timeout=20: {"products": [_prod()]} if "catalog" in url
+                        else {"description": {"full": "<p>" + PACK_TEXT + "</p><p>Another.</p>"}, "screenshots": []})
+    lib = library.Library(None)
+    lib.set_dos_games([{"id": "d1", "title": "Doom", "cover": None}])
+    lib._worker and lib._worker.join(timeout=20)
+    d = json.loads((paths.PAGES / "d1.json").read_text())
+    assert len(d["description"]) == 1 and "bundle" not in d["description"][0].lower()

@@ -724,6 +724,7 @@ class Library:
                     paras, shots = GogStore().details(match["id"])
                 except net.NotFound:
                     paras, shots = [], []
+                paras = dosart.short_text(paras)   # one short paragraph, nothing about packs or bundles
                 if match.get("fallback"):          # found without its sequel number: art yes, text no
                     paras = []
                 n = self._save_shots(g, shots[:MAX_SHOTS])

@@ -107,6 +107,31 @@ def display(name):
     return t, year
 
 
+PACK_TALK = re.compile(r"\b(?:packs?|bundles?|collections?|compilations?|includes?|including|included|both games|"
+                       r"all (?:three|four|five|\d+) games|two games|trilogy|bonus|episodes? (?:one|two|\d))\b|"
+                       r"\w+\s*\+\s*\w+", re.I)
+SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[\"'A-Z0-9(])")
+
+
+def short_text(paras, limit=600):
+    """GOG's description cut down for a DOS game page: only the first paragraph that still says something after the
+    sentences about a pack / bundle / collection are dropped ("includes DOOM + DOOM II", "both games"...), at most
+    about `limit` characters, cut at the end of a sentence. [] when nothing is left."""
+    for para in paras or []:
+        sentences = [x.strip() for x in SENTENCE_RE.split(" ".join(str(para).split())) if x.strip()]
+        keep = [x for x in sentences if not PACK_TALK.search(x)]
+        out = ""
+        for x in keep:
+            if out and len(out) + 1 + len(x) > limit:
+                break
+            out = f"{out} {x}".strip()
+        if len(out) > limit + 100:                   # one huge sentence: cut at a word
+            out = out[:limit].rsplit(" ", 1)[0].rstrip(",;: ") + "\u2026"
+        if out:
+            return [out]
+    return []
+
+
 def search_name(name):
     """What the GOG lookup is asked: the clean title with its year in brackets ("Blood (1997)")."""
     t, y = display(name)
