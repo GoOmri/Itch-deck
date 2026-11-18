@@ -725,3 +725,6 @@ LESSON (17 Nov): do NOT poll api.github.com in a loop. Unauthenticated calls are
 ## v0.9.31 prep: text-file reader removed (Omri 18 Nov, he never asked for it by name)
 - dosinput.py and everything that used it is gone: the background job, data/dosinput.json reading, the "keys from files" part of the DOS summary, and the "From the game's own files" line. Controls now come only from the table (assets/dos_controls.json) or the default layout. A leftover data/dosinput.json on a Deck is never read and not deleted.
 - Unverified on the Deck: that a DOS game page still shows its Controls block and the dim line; app.log should no longer have any "dosinput" lines.
+
+## v0.9.31 RELEASED 18 Nov (Omri: "push the update") = log scrub, test skip list, text-file reader removed
+- Contains the three "v0.9.31 prep" sections above. VERSION 0.9.31. Check on the Deck: DOS game pages still show Controls; app.log has no secrets and no "dosinput" lines; the app starts and updates as before.
