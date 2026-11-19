@@ -135,9 +135,9 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
 ## Roadmap now (18 Nov; page https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo)
 - FREEZE on new features. Next: the Deck checklist (https://claude.ai/artifact/XTgTWAaRGnpCpobvkD6TRo), then Omri's results.
-- Waiting: controller test logs (for "hide extra controllers", Bleed 2; Omri 18 Nov: too tiring, parked), Blood sound error (DOS on hold), Indiana Jones program (a demo, left). Move progress bar: works (Omri 18 Nov). Now: Deck checks of v0.9.32 Hide, then 3.2 (Steam tile came back after uninstall), one thing at a time.
+- Waiting: controller test logs (for "hide extra controllers", Bleed 2; Omri 18 Nov: too tiring, parked), Blood sound error (DOS on hold), Indiana Jones program (a demo, left). Move progress bar: works (Omri 18 Nov). v0.9.32 Hide checks all good (Omri 19 Nov). Now: 3.2 (Steam tile came back after uninstall), one thing at a time.
 - Decided against (Omri 18 Nov): "X on a tile opens its options"; options stay inside the game page. Skipped: merging Epic/GOG code, splitting long functions.
-- Parked: DLC and cloud saves for Epic/GOG, browser games, "pick another match" for DOS art. Decided against: emulators/ROM library,
+- Parked: universal Sort & filter across tabs (Omri 19 Nov; it is per tab on purpose, 15 Nov), DLC and cloud saves for Epic/GOG, browser games, "pick another match" for DOS art. Decided against: emulators/ROM library,
   a Steam tile for every game, IGDB, fetching DOS games for the player.
 
 ## Releases (one line each; full text in docs/history/NOTES-history.md)
