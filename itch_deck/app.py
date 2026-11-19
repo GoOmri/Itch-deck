@@ -651,7 +651,7 @@ def _selftest_gog(app):
         assert info and info["store"] == "gog" and info["exe"] == "start.sh", g.get("fail_reason")
         app.go_game(app.lib.by_id(g["id"]))
         assert [a[0] for a in app.scene.actions()] == ["Play", "Options"]
-        assert app.scene.options() == ["Uninstall", "Controls", "Saves"]
+        assert app.scene.options() == ["Uninstall", "Controls", "Saves", "Hide from SCRiTCH"]
         assert app.inst.uninstall(g["id"]) and g["id"] not in app.inst.index
         app.go_settings()
         app.scene.focus = [r[0] for r in app.scene.items()].index("GOG")
