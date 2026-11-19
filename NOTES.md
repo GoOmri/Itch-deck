@@ -135,7 +135,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
 ## Roadmap now (18 Nov; page https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo)
 - FREEZE on new features. Next: the Deck checklist (https://claude.ai/artifact/XTgTWAaRGnpCpobvkD6TRo), then Omri's results.
-- Waiting: controller test logs (for "hide extra controllers", Bleed 2; Omri 18 Nov: too tiring, parked), Blood sound error (DOS on hold), Indiana Jones program (a demo, left). Move progress bar: works (Omri 18 Nov). v0.9.32 Hide checks all good (Omri 19 Nov). Now: 3.2 (Steam tile came back after uninstall), one thing at a time.
+- Waiting: controller test logs (for "hide extra controllers", Bleed 2; Omri 18 Nov: too tiring, parked), Blood sound error (DOS on hold), Indiana Jones program (a demo, left). Move progress bar: works (Omri 18 Nov). v0.9.32 Hide checks all good (Omri 19 Nov). 3.2 (Steam tile came back after uninstall) CLOSED 19 Nov, see the end of this file. Next: nothing open; waiting for Omri's next Deck result.
 - Idea (Omri 19 Nov, not built): Show on the game page which store the game is from (itch, Epic, GOG, DOS).
 - Idea (Omri 19 Nov, not built): Remove own DOS games from the Installed tab (they stay in the DOS tab).
 - Idea (Omri 19 Nov, not built): Sort by size (game size on disk) in Sort & filter.
@@ -183,3 +183,10 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
   - UNVERIFIED on the Deck. Check: hide an installed itch game (gone from All, still in Hidden games, still in Settings > Storage > Manage games), hide a DOS game and press Refresh (stays hidden), Show in SCRiTCH brings it back; Install from the Hidden list. Log line: "hidden: <id> hidden / shown again".
   - Old configs: a game that had been auto-unhidden is simply not in the list; nothing to migrate.
 - v0.9.32 RELEASED 18 Nov (Omri: "Push v0.9.32") = Hide from SCRiTCH for every game (branch v0932-hide-any-game)
+
+## 3.2 Steam tiles that vanished / came back: CLOSED (19 Nov, Omri's Deck tests; no code change)
+- Symptoms: Epic games (FEZ = epic-Bluebird, Celeste = epic-Salt) added with Add to Steam were gone after a Steam restart; Kids (removed 18 Nov 10:08, log shows it) was back in shortcuts.vdf with the SCRiTCH tag.
+- Our code did its part: app.log showed "added ..." / "removed ..." and itch + DOS adds and a remove stuck. Nothing in SCRiTCH removes a tile except Uninstall / Remove from Steam.
+- Most likely cause (NOT proven): Steam kept an OLD copy of its list in memory (long-running session) and wrote it back over our edit when it exited.
+- Clean slate (one-off script scratch/clean_steam_tiles.py, run in Desktop Mode with Steam CLOSED, removed only tagged --play tiles, kept a backup): after it, an itch and an Epic game both added and showed after a Steam restart; an uninstalled game's tile was gone after a restart. So Add / Remove work when Steam starts from a clean file.
+- If it happens again: restart Steam properly (Switch to Desktop, then Return to Gaming Mode) before changing tiles; send app.log. Idea if it returns: a tile check in the log at SCRiTCH start/exit (not built).
