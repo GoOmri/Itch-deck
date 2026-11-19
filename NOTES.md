@@ -185,6 +185,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - v0.9.32 RELEASED 18 Nov (Omri: "Push v0.9.32") = Hide from SCRiTCH for every game (branch v0932-hide-any-game)
 - v0.9.33 RELEASED 19 Nov (Omri: "Push" right after my offer) = own DOS games are not in the Installed tab (branch v0933-dos-not-in-installed)
 - v0.9.34 RELEASED 19 Nov (Omri: "Push v0.9.34") = store label (ITCH.IO / EPIC / GOG / DOS) on the game page (branch v0934-store-label)
+- v0.9.35 RELEASED 19 Nov (Omri: "Push v0.9.35") = Sort & filter: Biggest first (branch v0935-sort-by-size)
 
 ## v0.9.32 CI fix (19 Nov): the first build of v0.9.32 FAILED in the SMOKE TEST, so no release was made (Deck stayed on .31)
 - Cause: app.py _selftest_gog asserted the installed game's Options == ["Uninstall", "Controls", "Saves"]; v0.9.32 adds "Hide from SCRiTCH" last. Same lesson as v0.9.23: grep app.py's selftest for what a screen offers after a UI change.
@@ -207,3 +208,9 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - Tests: tests/test_v0934.py. Selftest has no game-page text asserts, so nothing to update.
 - Layout: tag is its own line (long titles/authors cannot collide). It adds ~35 px, so on pages with a long title plus many facts the buttons sit a little lower than the cover edge.
 - UNVERIFIED on Deck. Check: the tag on a few game pages of each store, and one very long title.
+
+## v0.9.35 prep (branch v0935-sort-by-size, VERSION unchanged)
+- Sort & filter has a new Sort value "Biggest first" (SORTS and visible() in ui/scenes/library.py, `size_on_deck`). Installed (or missing) games with a size come first, biggest first, ties A-Z; everything else after them, A-Z. Each tab keeps its own sort.
+- Sizes: no new source. The library's size_mb already comes from the install record (library._apply_install). Your own DOS games ALREADY get a size: dosgames.scan() walks each folder in a background thread (at start and on Refresh; symlinks not followed, unreadable folder = 0) and installer.apply_dos() saves it in the install record as "size". So no extra measuring or cache was built. A DOS game under 1 MB counts as unknown.
+- Tests: tests/test_v0935.py. Selftest has no assertions about the sort list. DESIGN.md Sort line updated.
+- UNVERIFIED on the Deck. Check: Biggest first on All and on Installed (sized games on top, rest A-Z); a DOS game sits among the sized ones after the start scan; nothing freezes.
