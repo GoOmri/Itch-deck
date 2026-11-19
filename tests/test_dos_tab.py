@@ -66,3 +66,15 @@ def test_next_tab_survives_the_dos_tab_going_away():
     g.pop("dos")                                                    # uninstalled while looking at it
     sc.next_tab(1)                                                  # must not raise ValueError
     assert sc.filt == "installed"                                   # All is the start, so +1
+
+
+def test_own_dos_games_are_not_in_the_installed_tab():
+    own = {"id": "dos-1", "title": "Own", "store": "dos", "state": "installed", "dos": True}
+    gone = {"id": "dos-2", "title": "Gone", "store": "dos", "state": "missing", "dos": True}
+    gog = {"id": "gog-1", "title": "Eye", "store": "gog", "state": "installed", "dos": True}
+    games = [own, gone, gog]
+    assert [g["id"] for g in visible(games, "installed")] == ["gog-1"]
+    assert {g["id"] for g in visible(games, "all")} == {"dos-1", "dos-2", "gog-1"}
+    assert {g["id"] for g in visible(games, "dos")} == {"dos-1", "dos-2", "gog-1"}
+    own["hidden"] = True                                            # hidden own game: Hidden still lists it
+    assert [g["id"] for g in visible(games, "all", show="hidden")] == ["dos-1"]
