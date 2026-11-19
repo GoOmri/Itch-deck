@@ -135,9 +135,12 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 
 ## Roadmap now (18 Nov; page https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo)
 - FREEZE on new features. Next: the Deck checklist (https://claude.ai/artifact/XTgTWAaRGnpCpobvkD6TRo), then Omri's results.
-- Waiting: controller test logs (for "hide extra controllers", Bleed 2), Blood sound error (DOS on hold), Indiana Jones program, Move progress bar.
-- Asked, not built: "X on a tile opens its options" (needs a new button). Skipped: merging Epic/GOG code, splitting long functions.
-- Parked: DLC and cloud saves for Epic/GOG, browser games, "pick another match" for DOS art. Decided against: emulators/ROM library,
+- Waiting: controller test logs (for "hide extra controllers", Bleed 2; Omri 18 Nov: too tiring, parked), Blood sound error (DOS on hold), Indiana Jones program (a demo, left). Move progress bar: works (Omri 18 Nov). v0.9.32 Hide checks all good (Omri 19 Nov). 3.2 (Steam tile came back after uninstall) CLOSED 19 Nov, see the end of this file. Next: nothing open; waiting for Omri's next Deck result.
+- Idea (Omri 19 Nov, not built): Show on the game page which store the game is from (itch, Epic, GOG, DOS).
+- Idea (Omri 19 Nov, not built): Remove own DOS games from the Installed tab (they stay in the DOS tab).
+- Idea (Omri 19 Nov, not built): Sort by size (game size on disk) in Sort & filter.
+- Decided against (Omri 18 Nov): "X on a tile opens its options"; options stay inside the game page. Skipped: merging Epic/GOG code, splitting long functions.
+- Parked: universal Sort & filter across tabs (Omri 19 Nov; it is per tab on purpose, 15 Nov), DLC and cloud saves for Epic/GOG, browser games, "pick another match" for DOS art. Decided against: emulators/ROM library,
   a Steam tile for every game, IGDB, fetching DOS games for the player.
 
 ## Releases (one line each; full text in docs/history/NOTES-history.md)
@@ -184,3 +187,10 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 ## v0.9.32 CI fix (19 Nov): the first build of v0.9.32 FAILED in the SMOKE TEST, so no release was made (Deck stayed on .31)
 - Cause: app.py _selftest_gog asserted the installed game's Options == ["Uninstall", "Controls", "Saves"]; v0.9.32 adds "Hide from SCRiTCH" last. Same lesson as v0.9.23: grep app.py's selftest for what a screen offers after a UI change.
 - Fix: that one assertion now expects "Hide from SCRiTCH" at the end. UNVERIFIED: the selftest cannot run past the Epic part on Windows, so only GitHub's build proves it.
+
+## 3.2 Steam tiles that vanished / came back: CLOSED (19 Nov, Omri's Deck tests; no code change)
+- Symptoms: Epic games (FEZ = epic-Bluebird, Celeste = epic-Salt) added with Add to Steam were gone after a Steam restart; Kids (removed 18 Nov 10:08, log shows it) was back in shortcuts.vdf with the SCRiTCH tag.
+- Our code did its part: app.log showed "added ..." / "removed ..." and itch + DOS adds and a remove stuck. Nothing in SCRiTCH removes a tile except Uninstall / Remove from Steam.
+- Most likely cause (NOT proven): Steam kept an OLD copy of its list in memory (long-running session) and wrote it back over our edit when it exited.
+- Clean slate (one-off script scratch/clean_steam_tiles.py, run in Desktop Mode with Steam CLOSED, removed only tagged --play tiles, kept a backup): after it, an itch and an Epic game both added and showed after a Steam restart; an uninstalled game's tile was gone after a restart. So Add / Remove work when Steam starts from a clean file.
+- If it happens again: restart Steam properly (Switch to Desktop, then Return to Gaming Mode) before changing tiles; send app.log. Idea if it returns: a tile check in the log at SCRiTCH start/exit (not built).
