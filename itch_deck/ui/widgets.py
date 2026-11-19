@@ -888,6 +888,15 @@ TAG_KINDS = {"neutral": ("tag_bg", "text_c"), "accent": ("accent_tint", "accent_
              "error": ("error_bg", "error_soft"), "dark": (None, "text_c")}
 
 
+STORE_LABELS = {"itch": "itch.io", "epic": "Epic", "gog": "GOG", "dos": "DOS"}
+
+
+def store_label(g):
+    """The store a game is from, in plain words (game page tag). No store key = itch.
+    Only your own DOS-folder games say DOS; a GOG game in DOSBox still says GOG."""
+    return STORE_LABELS.get(g.get("store") or "itch", "itch.io")
+
+
 def tag(t, s, label, x, y, kind="neutral", anchor="topleft", icon_name=None):
     """Info label — never pressable: squared corners, LABEL size, UPPERCASE.
     kinds: neutral (platform, size), accent (Installed, Recommended, Developer),
