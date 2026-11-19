@@ -180,3 +180,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
   - UNVERIFIED on the Deck. Check: hide an installed itch game (gone from All, still in Hidden games, still in Settings > Storage > Manage games), hide a DOS game and press Refresh (stays hidden), Show in SCRiTCH brings it back; Install from the Hidden list. Log line: "hidden: <id> hidden / shown again".
   - Old configs: a game that had been auto-unhidden is simply not in the list; nothing to migrate.
 - v0.9.32 RELEASED 18 Nov (Omri: "Push v0.9.32") = Hide from SCRiTCH for every game (branch v0932-hide-any-game)
+
+## v0.9.32 CI fix (19 Nov): the first build of v0.9.32 FAILED in the SMOKE TEST, so no release was made (Deck stayed on .31)
+- Cause: app.py _selftest_gog asserted the installed game's Options == ["Uninstall", "Controls", "Saves"]; v0.9.32 adds "Hide from SCRiTCH" last. Same lesson as v0.9.23: grep app.py's selftest for what a screen offers after a UI change.
+- Fix: that one assertion now expects "Hide from SCRiTCH" at the end. UNVERIFIED: the selftest cannot run past the Epic part on Windows, so only GitHub's build proves it.
