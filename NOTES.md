@@ -183,6 +183,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
   - UNVERIFIED on the Deck. Check: hide an installed itch game (gone from All, still in Hidden games, still in Settings > Storage > Manage games), hide a DOS game and press Refresh (stays hidden), Show in SCRiTCH brings it back; Install from the Hidden list. Log line: "hidden: <id> hidden / shown again".
   - Old configs: a game that had been auto-unhidden is simply not in the list; nothing to migrate.
 - v0.9.32 RELEASED 18 Nov (Omri: "Push v0.9.32") = Hide from SCRiTCH for every game (branch v0932-hide-any-game)
+- v0.9.33 RELEASED 19 Nov (Omri: "Push" right after my offer) = own DOS games are not in the Installed tab (branch v0933-dos-not-in-installed)
 
 ## v0.9.32 CI fix (19 Nov): the first build of v0.9.32 FAILED in the SMOKE TEST, so no release was made (Deck stayed on .31)
 - Cause: app.py _selftest_gog asserted the installed game's Options == ["Uninstall", "Controls", "Saves"]; v0.9.32 adds "Hide from SCRiTCH" last. Same lesson as v0.9.23: grep app.py's selftest for what a screen offers after a UI change.
@@ -194,3 +195,8 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - Most likely cause (NOT proven): Steam kept an OLD copy of its list in memory (long-running session) and wrote it back over our edit when it exited.
 - Clean slate (one-off script scratch/clean_steam_tiles.py, run in Desktop Mode with Steam CLOSED, removed only tagged --play tiles, kept a backup): after it, an itch and an Epic game both added and showed after a Steam restart; an uninstalled game's tile was gone after a restart. So Add / Remove work when Steam starts from a clean file.
 - If it happens again: restart Steam properly (Switch to Desktop, then Return to Gaming Mode) before changing tiles; send app.log. Idea if it returns: a tile check in the log at SCRiTCH start/exit (not built).
+
+## v0.9.33 (branch v0933-dos-not-in-installed, not released)
+- Your own DOS games (from the dos folder) no longer show in the Installed tab. They stay in All, DOS and Hidden. GOG/Epic/itch games that run in DOSBox stay in Installed.
+- Change: visible() in itch_deck/ui/scenes/library.py. Tests in tests/test_dos_tab.py. Selftest has no Installed-tab check, so nothing else needed.
+- UNVERIFIED on the Deck. Check: Installed tab has no own DOS games; DOS tab still lists them.

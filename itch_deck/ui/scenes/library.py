@@ -65,7 +65,8 @@ def visible(games, filt="all", sort="az", show="all", genre="any", length="any")
     if length != "any":
         gs = [g for g in gs if length_kind(g) == length]
     if filt == "installed":
-        gs = [g for g in gs if g.get("state") in ("installed", "missing")]
+        # your own DOS folder games live in All / DOS / Hidden, not here (v0.9.33)
+        gs = [g for g in gs if g.get("state") in ("installed", "missing") and g.get("store") != "dos"]
     elif filt == "dos":                                     # games that run in DOSBox
         gs = [g for g in gs if g.get("dos") or g.get("store") == "dos"]   # a hidden own DOS game has no "dos" flag
     elif filt in STORE_NAMES:                               # a store tab
