@@ -10,7 +10,7 @@ from ... import hltb
 
 STORE_NAMES = {"itch": "itch", "epic": "Epic", "gog": "GOG"}
 SORTS = (("az", "A–Z"), ("played", "Recently played"), ("added", "Recently added"),
-         ("short", "Shortest first"))
+         ("short", "Shortest first"), ("big", "Biggest first"))
 
 
 def tabs(stores=("itch",), dos=False):
@@ -77,7 +77,20 @@ def visible(games, filt="all", sort="az", show="all", genre="any", length="any")
         gs.sort(key=lambda g: g.get("added") or "", reverse=True)
     elif sort == "short":                                   # unknown length last, A–Z
         gs.sort(key=lambda g: hltb.length_hours(g.get("ttb")) or float("inf"))
+    elif sort == "big":                                     # sized games biggest first, then the rest A-Z
+        gs.sort(key=lambda g: (-size_on_deck(g), g.get("title", "").lower()))
     return gs
+
+
+def size_on_deck(g):
+    """Size in MB of a game that is on this Deck (installed, or its folder is away), 0 = unknown.
+    size_mb comes from the install record (library._apply_install)."""
+    if g.get("state") not in ("installed", "missing"):
+        return 0
+    try:
+        return max(0, int(g.get("size_mb") or 0))
+    except (TypeError, ValueError):
+        return 0
 
 
 VIEW = {"sort": "az", "show": "all", "genre": "any", "length": "any"}   # a tab with no filter

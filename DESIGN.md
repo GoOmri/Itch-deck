@@ -109,7 +109,7 @@ icon above: Create = three fanned strokes, Options = ≡), Xbox = A B X Y + LB R
   slides out 1.5 s after you stop, so it never sits there as clutter.
 - **Library:** tabs All · Installed, plus one per store (itch · Epic) once a second store is
   connected (L1/R1) — no more tabs. **X = Sort & filter:**
-  Sort (A–Z / Recently played / Recently added / Shortest first), Show (Everything / Playable here), Genre (Any +
+  Sort (A–Z / Recently played / Recently added / Shortest first / Biggest first: games with a size on the Deck first, then the rest A–Z), Show (Everything / Playable here), Genre (Any +
   the library's genres), Length (Any / Under 2 h / 2–10 h / 10 h+ from HowLongToBeat main
   story; unknown only under Any, sorted last). Remembered per tab. ◀ ▶ or A change a value, each value
   shows its count, the title the live total, "Clear filters" always last (faint and skipped until a filter is on, then purple,
