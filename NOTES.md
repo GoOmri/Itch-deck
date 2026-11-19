@@ -200,3 +200,9 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - Your own DOS games (from the dos folder) no longer show in the Installed tab. They stay in All, DOS and Hidden. GOG/Epic/itch games that run in DOSBox stay in Installed.
 - Change: visible() in itch_deck/ui/scenes/library.py. Tests in tests/test_dos_tab.py. Selftest has no Installed-tab check, so nothing else needed.
 - UNVERIFIED on the Deck. Check: Installed tab has no own DOS games; DOS tab still lists them.
+
+## v0934-store-label (branch, not released, VERSION unchanged)
+- Game page shows a small grey tag with the store under "by author": ITCH.IO, EPIC, GOG or DOS. Names live in `W.store_label` / `W.STORE_LABELS` (widgets.py); library tab names (`STORE_NAMES`) unchanged. No store key = itch. Only own DOS-folder games (store "dos") say DOS; GOG/Epic/itch games in DOSBox keep their store.
+- Tests: tests/test_v0934.py. Selftest has no game-page text asserts, so nothing to update.
+- Layout: tag is its own line (long titles/authors cannot collide). It adds ~35 px, so on pages with a long title plus many facts the buttons sit a little lower than the cover edge.
+- UNVERIFIED on Deck. Check: the tag on a few game pages of each store, and one very long title.

@@ -255,6 +255,7 @@ class Game(Scene):
         if g.get("author"):                                       # who made it: one quiet line
             y = W.text(t, s, f"by {g['author']}", x, y, t.f_body, color=t.dim, maxw=maxw).bottom
         y += t.sm
+        y = W.tag(t, s, W.store_label(g), x, y).bottom + t.sm    # which store it is from
         # the facts: icon + value pairs, scannable at a glance (state first, purple = yours)
         items = [("check", "Installed", t.accent)] if g.get("state") == "installed" else []
         if g["size_mb"]:
