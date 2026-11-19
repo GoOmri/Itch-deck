@@ -185,6 +185,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 - v0.9.32 RELEASED 18 Nov (Omri: "Push v0.9.32") = Hide from SCRiTCH for every game (branch v0932-hide-any-game)
 - v0.9.33 RELEASED 19 Nov (Omri: "Push" right after my offer) = own DOS games are not in the Installed tab (branch v0933-dos-not-in-installed)
 - v0.9.34 RELEASED 19 Nov (Omri: "Push v0.9.34") = store label (ITCH.IO / EPIC / GOG / DOS) on the game page (branch v0934-store-label)
+- v0.9.35 RELEASED 19 Nov (Omri: "Push v0.9.35") = Sort & filter: Biggest first (branch v0935-sort-by-size)
 
 ## v0.9.32 CI fix (19 Nov): the first build of v0.9.32 FAILED in the SMOKE TEST, so no release was made (Deck stayed on .31)
 - Cause: app.py _selftest_gog asserted the installed game's Options == ["Uninstall", "Controls", "Saves"]; v0.9.32 adds "Hide from SCRiTCH" last. Same lesson as v0.9.23: grep app.py's selftest for what a screen offers after a UI change.
