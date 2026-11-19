@@ -136,6 +136,7 @@ Plan doc: https://claude.ai/artifact/3UHDDdBhbp2BFbKZwvqvRg
 ## Roadmap now (18 Nov; page https://claude.ai/artifact/Hkk8SQChbBUBbAJ1yVEbqo)
 - FREEZE on new features. Next: the Deck checklist (https://claude.ai/artifact/XTgTWAaRGnpCpobvkD6TRo), then Omri's results.
 - Waiting: controller test logs (for "hide extra controllers", Bleed 2; Omri 18 Nov: too tiring, parked), Blood sound error (DOS on hold), Indiana Jones program (a demo, left). Move progress bar: works (Omri 18 Nov). v0.9.32 Hide checks all good (Omri 19 Nov). Now: 3.2 (Steam tile came back after uninstall), one thing at a time.
+- Idea (Omri 19 Nov, not built): Show on the game page which store the game is from (itch, Epic, GOG, DOS).
 - Idea (Omri 19 Nov, not built): Remove own DOS games from the Installed tab (they stay in the DOS tab).
 - Idea (Omri 19 Nov, not built): Sort by size (game size on disk) in Sort & filter.
 - Decided against (Omri 18 Nov): "X on a tile opens its options"; options stay inside the game page. Skipped: merging Epic/GOG code, splitting long functions.
