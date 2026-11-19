@@ -28,7 +28,7 @@ from .app_dos import DosMixin
 from .app_storage import StorageMixin
 
 log = logging.getLogger("scritch")
-VERSION = "0.9.33"
+VERSION = "0.9.34"
 
 
 class SecretFreeFormatter(logging.Formatter):
